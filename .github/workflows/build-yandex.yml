@@ -37,7 +37,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          python3 -m pip install --user --upgrade meson ninja
+          python3 -m pip install --user --upgrade meson ninja selenium
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Check Russian font coverage
@@ -112,6 +112,46 @@ jobs:
             cd dist
             zip -9 -r ../ThePowderToy-Yandex.zip .
           )
+
+      - name: Browser smoke test: desktop/mobile, EN/RU
+        run: |
+          set -euo pipefail
+
+          cat > dist/sdk.js <<'EOF'
+          window.YaGames = {
+            init: async () => ({
+              environment: {
+                i18n: {
+                  lang: new URLSearchParams(location.search).get("lang") || "en"
+                }
+              },
+              features: {
+                LoadingAPI: {
+                  ready() {
+                    window.__yandexLoadingReady = true;
+                  }
+                },
+                GameplayAPI: {
+                  start() {
+                    window.__yandexGameplayStarted = true;
+                  },
+                  stop() {
+                    window.__yandexGameplayStarted = false;
+                  }
+                }
+              },
+              on() {}
+            })
+          };
+          EOF
+
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory dist > /tmp/tpt-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 1
+
+          TPT_SMOKE_URL=http://127.0.0.1:8765 python3 tools/browser-smoke.py
+          rm -f dist/sdk.js
 
       - name: Upload Yandex Games ZIP
         uses: actions/upload-artifact@v4
