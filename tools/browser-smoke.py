@@ -136,7 +136,22 @@ def smoke_case(language: str, mobile: bool):
         assert resized["width"] <= resized["viewportWidth"] + 1, (label, resized)
         assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
 
-        print(f"[smoke] {label}: OK {state}; resized={resized}")
+        # Yandex platform pause/resume must stop and restart the native loop.
+        driver.execute_script("window.ysdk.emit('game_api_pause')")
+        wait.until(lambda d: d.execute_script("return window.__tptRuntimePaused === true"))
+        paused = driver.execute_script(
+            "return {paused: window.__tptRuntimePaused, gameplay: window.__yandexGameplayStarted}"
+        )
+        assert paused["paused"] is True, (label, paused)
+
+        driver.execute_script("window.ysdk.emit('game_api_resume')")
+        wait.until(lambda d: d.execute_script("return window.__tptRuntimePaused === false"))
+        resumed = driver.execute_script(
+            "return {paused: window.__tptRuntimePaused, gameplay: window.__yandexGameplayStarted}"
+        )
+        assert resumed["paused"] is False, (label, resumed)
+
+        print(f"[smoke] {label}: OK {state}; resized={resized}; paused={paused}; resumed={resumed}")
     finally:
         driver.quit()
 
