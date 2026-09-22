@@ -21,6 +21,7 @@ game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameControll
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
+intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -566,6 +567,148 @@ for filename, (english, russian) in simtool_translations.items():
         f'Description = YandexWebText("{english}", "{russian}");'
     )
     path.write_text(source, encoding="utf-8")
+
+
+# Yandex Web bilingual intro without external links.
+intro_source = intro_text.read_text(encoding="utf-8")
+intro_start = intro_source.find("inline ByteString IntroText()")
+if intro_start < 0:
+    raise SystemExit("IntroText.h IntroText function not found")
+intro_source = intro_source[:intro_start] + r'''inline ByteString IntroText()
+{
+	ByteStringBuilder sb;
+	if (YandexWebIsRussian())
+	{
+		sb << "\\bl\\bU" << APPNAME << "\\bU - Версия " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\\n"
+		      "\\n"
+		      "\\bgНажмите \\boF1\\bg, чтобы показать или скрыть эту справку.\\n"
+		      "\\n"
+		      "\\bgВыберите категорию справа, затем нужный элемент.\\n"
+		      "Рисуйте мышью на ПК или касанием на мобильном устройстве.\\n"
+		      "Колесо мыши или клавиши \\bo[\\bg и \\bo]\\bg меняют размер инструмента. \\boTab\\bg меняет форму кисти.\\n"
+		      "\\boСредняя кнопка мыши\\bg или \\boAlt+клик\\bg выбирает элемент с поля.\\n"
+		      "\\boCtrl+C/V/X\\bg — копировать, вставить и вырезать.\\n"
+		      "\\boShift+перетаскивание\\bg рисует прямую линию, \\boCtrl+перетаскивание\\bg — заполненный прямоугольник.\\n"
+		      "\\boПробел\\bg ставит физику на паузу. \\boF\\bg — один кадр, \\boF5\\bg — перезапуск симуляции.\\n"
+		      "\\boCtrl+Z\\bg — отмена, \\boCtrl+Y\\bg или \\boCtrl+Shift+Z\\bg — повтор.\\n"
+		      "Сохранения хранятся локально в браузере.\\n"
+		      "\\n";
+	}
+	else
+	{
+		sb << "\\bl\\bU" << APPNAME << "\\bU - Version " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\\n"
+		      "\\n"
+		      "\\bgPress \\boF1\\bg to show or hide this help.\\n"
+		      "\\n"
+		      "\\bgChoose a category on the right, then select an element.\\n"
+		      "Draw with the mouse on desktop or touch on mobile.\\n"
+		      "Use the mouse wheel or \\bo[\\bg and \\bo]\\bg to change tool size. \\boTab\\bg changes brush shape.\\n"
+		      "\\boMiddle click\\bg or \\boAlt+click\\bg samples an element from the field.\\n"
+		      "\\boCtrl+C/V/X\\bg copy, paste and cut.\\n"
+		      "\\boShift+drag\\bg draws a straight line; \\boCtrl+drag\\bg draws a filled rectangle.\\n"
+		      "\\boSpace\\bg pauses physics. \\boF\\bg advances one frame; \\boF5\\bg reloads the simulation.\\n"
+		      "\\boCtrl+Z\\bg undoes; \\boCtrl+Y\\bg or \\boCtrl+Shift+Z\\bg redoes.\\n"
+		      "Saves are stored locally in the browser.\\n"
+		      "\\n";
+	}
+	sb << "\\bt" << VersionInfo();
+	return sb.Build();
+}
+'''
+if '#include "YandexWebLocale.h"' not in intro_source:
+    intro_source = intro_source.replace(
+        '#include "common/String.h"\n',
+        '#include "common/String.h"\n#include "YandexWebLocale.h"\n',
+        1,
+    )
+intro_text.write_text(intro_source, encoding="utf-8")
+
+
+# Central Russian descriptions for the most frequently used elements.
+simulation_text = simulation_data.read_text(encoding="utf-8")
+element_anchor = """	elements = GetElements();
+	init_can_move();"""
+element_patch = """	elements = GetElements();
+	if (YandexWebIsRussian())
+	{
+		for (auto &element : elements)
+		{
+			auto setRu = [&](const char *identifier, const char *description) {
+				if (element.Identifier == identifier)
+					element.Description = ByteString(description).FromUtf8();
+			};
+			setRu("DEFAULT_PT_WATR", "Вода. Обычная жидкость.");
+			setRu("DEFAULT_PT_DSTW", "Дистиллированная вода. Не проводит электричество.");
+			setRu("DEFAULT_PT_SLTW", "Солёная вода. Хорошо проводит электричество.");
+			setRu("DEFAULT_PT_WTRV", "Водяной пар.");
+			setRu("DEFAULT_PT_ICEI", "Лёд. Замёрзшая вода.");
+			setRu("DEFAULT_PT_SNOW", "Снег. Холодный порошок.");
+			setRu("DEFAULT_PT_DUST", "Пыль. Лёгкий горючий порошок.");
+			setRu("DEFAULT_PT_SAND", "Песок. Обычный сыпучий материал.");
+			setRu("DEFAULT_PT_STNE", "Камень. Твёрдый материал.");
+			setRu("DEFAULT_PT_ROCK", "Каменная порода.");
+			setRu("DEFAULT_PT_BRCK", "Кирпич. Прочный строительный материал.");
+			setRu("DEFAULT_PT_DMND", "Алмаз. Очень прочный и практически неразрушимый материал.");
+			setRu("DEFAULT_PT_GLAS", "Стекло. Прозрачный твёрдый материал.");
+			setRu("DEFAULT_PT_WOOD", "Дерево. Горючий твёрдый материал.");
+			setRu("DEFAULT_PT_FIRE", "Огонь. Нагревает и поджигает материалы.");
+			setRu("DEFAULT_PT_PLSM", "Плазма. Очень горячий ионизированный газ.");
+			setRu("DEFAULT_PT_LAVA", "Лава. Расплавленный материал.");
+			setRu("DEFAULT_PT_SMKE", "Дым. Образуется при горении.");
+			setRu("DEFAULT_PT_OIL", "Нефть. Горючая жидкость.");
+			setRu("DEFAULT_PT_GAS", "Газ. Горючее газообразное вещество.");
+			setRu("DEFAULT_PT_DESL", "Дизельное топливо. Горючая жидкость.");
+			setRu("DEFAULT_PT_NITR", "Нитроглицерин. Взрывоопасная жидкость.");
+			setRu("DEFAULT_PT_GUNP", "Порох. Горит и может создавать давление.");
+			setRu("DEFAULT_PT_PLEX", "Пластичная взрывчатка. Детонирует от высокой температуры или давления.");
+			setRu("DEFAULT_PT_C4", "Взрывчатка C-4. Детонирует от сильного нагрева.");
+			setRu("DEFAULT_PT_BOMB", "Бомба. Взрывается при столкновении с материалом.");
+			setRu("DEFAULT_PT_THRM", "Термит. Горит при очень высокой температуре.");
+			setRu("DEFAULT_PT_METL", "Металл. Проводит тепло и электричество.");
+			setRu("DEFAULT_PT_BMTL", "Хрупкий металл. Может разрушаться под давлением.");
+			setRu("DEFAULT_PT_IRON", "Железо. Проводящий металл.");
+			setRu("DEFAULT_PT_GOLD", "Золото. Хорошо проводит электричество.");
+			setRu("DEFAULT_PT_TUNG", "Вольфрам. Очень тугоплавкий металл.");
+			setRu("DEFAULT_PT_INSL", "Изолятор. Блокирует тепло, электричество и излучение.");
+			setRu("DEFAULT_PT_SPRK", "Искра. Передаёт электрический сигнал через проводники.");
+			setRu("DEFAULT_PT_BTRY", "Батарея. Постоянно создаёт электрические искры.");
+			setRu("DEFAULT_PT_METL", "Металл. Проводит электричество и тепло.");
+			setRu("DEFAULT_PT_PSCN", "Положительный кремний. Электронный проводящий материал.");
+			setRu("DEFAULT_PT_NSCN", "Отрицательный кремний. Электронный проводящий материал.");
+			setRu("DEFAULT_PT_SWCH", "Переключатель. Проводит электричество во включённом состоянии.");
+			setRu("DEFAULT_PT_WIFI", "Wi-Fi. Передаёт искру без проводов по каналам.");
+			setRu("DEFAULT_PT_WIRE", "Провод. Передаёт цифровой сигнал.");
+			setRu("DEFAULT_PT_LCRY", "Жидкий кристалл. Меняет прозрачность при подаче электричества.");
+			setRu("DEFAULT_PT_FILT", "Фильтр. Изменяет длину волны проходящих фотонов.");
+			setRu("DEFAULT_PT_PHOT", "Фотон. Частица света.");
+			setRu("DEFAULT_PT_ELEC", "Электрон. Энергетическая частица с электрическими взаимодействиями.");
+			setRu("DEFAULT_PT_NEUT", "Нейтрон. Проникающая частица, вызывающая ядерные реакции.");
+			setRu("DEFAULT_PT_PROT", "Протон. Передаёт тепло материалам и удаляет искры.");
+			setRu("DEFAULT_PT_URAN", "Уран. Радиоактивный тяжёлый материал.");
+			setRu("DEFAULT_PT_PLUT", "Плутоний. Радиоактивный материал, способный к делению.");
+			setRu("DEFAULT_PT_DEUT", "Дейтерий. Тяжёлая вода для ядерных реакций.");
+			setRu("DEFAULT_PT_CLNE", "Клон. Копирует выбранный тип частиц.");
+			setRu("DEFAULT_PT_PCLN", "Управляемый клон. Копирует частицы при подаче питания.");
+			setRu("DEFAULT_PT_BCLN", "Клон с разрывом. Создаёт частицы и может пропускать давление.");
+			setRu("DEFAULT_PT_CONV", "Конвертер. Преобразует окружающие частицы в выбранный тип.");
+			setRu("DEFAULT_PT_VOID", "Пустота. Удаляет попадающие в неё частицы.");
+			setRu("DEFAULT_PT_PVOD", "Управляемая пустота. Поглощает частицы при подаче питания.");
+			setRu("DEFAULT_PT_BHOL", "Чёрная дыра. Поглощает частицы и нагревается.");
+			setRu("DEFAULT_PT_WHOL", "Белая дыра. Отталкивает частицы.");
+			setRu("DEFAULT_PT_NBHL", "Чёрная дыра с ньютоновской гравитацией.");
+			setRu("DEFAULT_PT_NWHL", "Белая дыра с ньютоновской гравитацией.");
+			setRu("DEFAULT_PT_PUMP", "Насос давления. Изменяет давление при активации.");
+			setRu("DEFAULT_PT_GPMP", "Гравитационный насос. Изменяет гравитацию при активации.");
+			setRu("DEFAULT_PT_FRAY", "Силовой излучатель. Толкает частицы при подаче питания.");
+			setRu("DEFAULT_PT_RPEL", "Отталкиватель. Создаёт силу, отталкивающую частицы.");
+			setRu("DEFAULT_PT_STKM", "Человек. Управляемый персонаж.");
+			setRu("DEFAULT_PT_STKM2", "Второй человек. Управляемый вторым набором клавиш.");
+		}
+	}
+	init_can_move();"""
+if "Central Russian descriptions" not in simulation_text and element_anchor in simulation_text:
+    simulation_text = simulation_text.replace(element_anchor, element_patch, 1)
+simulation_data.write_text(simulation_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
