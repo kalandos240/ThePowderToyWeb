@@ -1138,6 +1138,25 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 	YandexWeb_TestGameModel->SetLastTool(tool);
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectWater()
+{
+	if (!YandexWeb_TestGameModel)
+		return;
+	auto *tool = YandexWeb_TestGameModel->GetToolFromIdentifier("DEFAULT_PT_WATR");
+	if (!tool)
+		return;
+	YandexWeb_TestGameModel->SetActiveTool(0, tool);
+	YandexWeb_TestGameModel->SetLastTool(tool);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestActiveToolIsDust()
+{
+	if (!YandexWeb_TestGameModel)
+		return 0;
+	auto *tool = YandexWeb_TestGameModel->GetActiveTool(0);
+	return tool && tool->Identifier == "DEFAULT_PT_DUST";
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
 {
 	if (!YandexWeb_TestGameModel)
