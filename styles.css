@@ -51,6 +51,7 @@ body {
 }
 
 #loader,
+#orientation-gate,
 #fatal {
   position: absolute;
   inset: 0;
@@ -66,8 +67,49 @@ body {
 }
 
 #loader[hidden],
+#orientation-gate[hidden],
 #fatal[hidden] {
   display: none;
+}
+
+#orientation-gate {
+  z-index: 9;
+}
+
+#orientation-gate h1,
+#orientation-gate p {
+  margin: 0;
+  max-width: 520px;
+}
+
+#orientation-gate h1 {
+  font-size: clamp(22px, 7vw, 34px);
+}
+
+#orientation-gate p {
+  color: #c8c8c8;
+  font-size: clamp(14px, 4vw, 18px);
+}
+
+.rotate-phone {
+  width: 42px;
+  height: 68px;
+  border: 3px solid #fff;
+  border-radius: 8px;
+  transform: rotate(90deg);
+  position: relative;
+}
+
+.rotate-phone::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateX(-50%);
 }
 
 #fatal h1,
