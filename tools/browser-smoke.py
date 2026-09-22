@@ -151,6 +151,38 @@ def smoke_case(language: str, mobile: bool):
         )
         assert resumed["paused"] is False, (label, resumed)
 
+        # IDBFS persistence: write a marker, flush IndexedDB, reload, and read it back.
+        if not mobile and language == "en":
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestStorageWrite', null, [], [])"
+            )
+            wait.until(
+                lambda d: d.execute_script("return window.__tptStorageFlushed === true")
+            )
+            storage_error = driver.execute_script(
+                "return window.__tptStorageFlushError || ''"
+            )
+            assert storage_error == "", (label, storage_error)
+
+            driver.refresh()
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    return Boolean(
+                        canvas &&
+                        canvas.style.display === 'block' &&
+                        window.__tptGameModule &&
+                        window.__yandexLoadingReady === true
+                    );
+                    """
+                )
+            )
+            persisted = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestStorageRead', 'number', [], [])"
+            )
+            assert persisted == 1, (label, "IDBFS persistence failed")
+
         print(f"[smoke] {label}: OK {state}; resized={resized}; paused={paused}; resumed={resumed}")
     finally:
         driver.quit()
