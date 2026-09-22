@@ -109,6 +109,22 @@ def smoke_case(language: str, mobile: bool):
 
 
         if mobile:
+            driver.execute_script(
+                """
+                window.__touchMouseEvents = [];
+                for (const type of ['mousedown', 'mouseup', 'contextmenu']) {
+                    document.addEventListener(type, (event) => {
+                        window.__touchMouseEvents.push({
+                            type,
+                            button: event.button,
+                            buttons: event.buttons
+                        });
+                    }, true);
+                }
+                """
+            )
+
+        if mobile:
             # Prove actual touch input reaches native TPT and draws particles.
             driver.execute_script(
                 "window.__tptGameModule.ccall('YandexWeb_TestSelectDust', null, [], [])"
@@ -164,6 +180,43 @@ def smoke_case(language: str, mobile: bool):
                 label,
                 f"touch did not draw particles: before={before_particles}, after={after_particles}",
             )
+
+            # Observe which mouse buttons Chrome/Emscripten synthesize for mobile gestures.
+            gx = touch_rect["left"] + touch_rect["width"] * 0.60
+            gy = touch_rect["top"] + touch_rect["height"] * 0.35
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{"x": gx, "y": gy, "radiusX": 4, "radiusY": 4, "force": 1}],
+                },
+            )
+            time.sleep(0.75)
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.15)
+
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [
+                        {"x": gx, "y": gy, "radiusX": 4, "radiusY": 4, "force": 1},
+                        {"x": gx + 45, "y": gy, "radiusX": 4, "radiusY": 4, "force": 1},
+                    ],
+                },
+            )
+            time.sleep(0.12)
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.15)
+
+            touch_mouse_events = driver.execute_script("return window.__touchMouseEvents")
+            print(f"[touch-buttons] {label}: {touch_mouse_events}")
 
         if mobile:
             driver.execute_cdp_cmd(
