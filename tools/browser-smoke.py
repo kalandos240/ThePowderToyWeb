@@ -58,6 +58,7 @@ def smoke_case(language: str, mobile: bool):
                     canvas.style.display === 'block' &&
                     fatal && fatal.hidden &&
                     loader && loader.hidden &&
+                    getComputedStyle(loader).display === 'none' &&
                     window.__yandexLoadingReady === true &&
                     window.__yandexGameplayStarted === true
                 );
@@ -74,6 +75,7 @@ def smoke_case(language: str, mobile: bool):
                 touchUI: window.tptTouchUIDetected,
                 fatalHidden: document.getElementById('fatal').hidden,
                 loaderHidden: document.getElementById('loader').hidden,
+                loaderDisplay: getComputedStyle(document.getElementById('loader')).display,
                 canvasDisplay: canvas.style.display,
                 canvasWidth: rect.width,
                 canvasHeight: rect.height,
@@ -90,6 +92,7 @@ def smoke_case(language: str, mobile: bool):
         assert state["language"] == language, (label, state)
         assert state["fatalHidden"] is True, (label, state)
         assert state["loaderHidden"] is True, (label, state)
+        assert state["loaderDisplay"] == "none", (label, state)
         assert state["canvasDisplay"] == "block", (label, state)
         assert state["canvasWidth"] > 0 and state["canvasHeight"] > 0, (label, state)
         assert state["canvasWidth"] <= state["viewportWidth"] + 1, (label, state)
