@@ -113,7 +113,7 @@ jobs:
             zip -9 -r ../ThePowderToy-Yandex.zip .
           )
 
-      - name: Browser smoke test: desktop/mobile, EN/RU
+      - name: "Browser smoke test: desktop/mobile, EN/RU"
         run: |
           set -euo pipefail
 
