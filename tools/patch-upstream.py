@@ -18,6 +18,8 @@ locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
+game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
+quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -211,6 +213,9 @@ include_locale(local_browser_controller, '#include "Controller.h"\n')
 include_locale(engine_cpp, '#include "Config.h"\n')
 include_locale(save_button_cpp, '#include "SimulationConfig.h"\n')
 include_locale(label_cpp, '#include "graphics/FontReader.h"\n')
+include_locale(game_controller_cpp, '#include "Config.h"\n')
+include_locale(game_model_cpp, '#include "Config.h"\n')
+include_locale(quick_options_cpp, '#include "simulation/Simulation.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -419,6 +424,71 @@ label_text = label_text.replace(
     'menu->AddItem(ContextMenuItem(YandexWebText("Copy", "Копировать"), 0, true));'
 )
 label_cpp.write_text(label_text, encoding="utf-8")
+
+
+quick_text = quick_options_cpp.read_text(encoding="utf-8")
+quick_replacements = [
+    ('QuickOption("P", "Sand effect", m, Toggle)',
+     'QuickOption("P", YandexWebText("Sand effect", "Эффект песка"), m, Toggle)'),
+    ('QuickOption("G", "Draw gravity field \\bg(ctrl+g)", m, Toggle)',
+     'QuickOption("G", YandexWebText("Draw gravity field \\bg(ctrl+g)", "Поле гравитации \\bg(ctrl+g)"), m, Toggle)'),
+    ('QuickOption("D", "Draw decorations \\bg(ctrl+b)", m, Toggle)',
+     'QuickOption("D", YandexWebText("Draw decorations \\bg(ctrl+b)", "Декорации \\bg(ctrl+b)"), m, Toggle)'),
+    ('QuickOption("N", "Newtonian Gravity \\bg(n)", m, Toggle)',
+     'QuickOption("N", YandexWebText("Newtonian Gravity \\bg(n)", "Ньютоновская гравитация \\bg(n)"), m, Toggle)'),
+    ('QuickOption("A", "Ambient heat \\bg(u)", m, Toggle)',
+     'QuickOption("A", YandexWebText("Ambient heat \\bg(u)", "Фоновый нагрев \\bg(u)"), m, Toggle)'),
+    ('QuickOption("C", "Show Console \\bg(~)", m, Toggle)',
+     'QuickOption("C", YandexWebText("Show Console \\bg(~)", "Показать консоль \\bg(~)"), m, Toggle)'),
+]
+for old, new in quick_replacements:
+    if old in quick_text:
+        quick_text = quick_text.replace(old, new)
+quick_options_cpp.write_text(quick_text, encoding="utf-8")
+
+model_text = game_model_cpp.read_text(encoding="utf-8")
+model_replacements = [
+    ('SetInfoTip("Decorations Layer: On");',
+     'SetInfoTip(YandexWebText("Decorations Layer: On", "Декорации: вкл."));'),
+    ('SetInfoTip("Decorations Layer: Off");',
+     'SetInfoTip(YandexWebText("Decorations Layer: Off", "Декорации: выкл."));'),
+    ('SetInfoTip("Gravity Grid: On");',
+     'SetInfoTip(YandexWebText("Gravity Grid: On", "Поле гравитации: вкл."));'),
+    ('SetInfoTip("Gravity Grid: Off");',
+     'SetInfoTip(YandexWebText("Gravity Grid: Off", "Поле гравитации: выкл."));'),
+]
+for old, new in model_replacements:
+    if old in model_text:
+        model_text = model_text.replace(old, new)
+game_model_cpp.write_text(model_text, encoding="utf-8")
+
+controller_text = game_controller_cpp.read_text(encoding="utf-8")
+controller_replacements = [
+    ('gameModel->SetInfoTip("Gravity: Vertical");',
+     'gameModel->SetInfoTip(YandexWebText("Gravity: Vertical", "Гравитация: вертикальная"));'),
+    ('gameModel->SetInfoTip("Gravity: Off");',
+     'gameModel->SetInfoTip(YandexWebText("Gravity: Off", "Гравитация: выкл."));'),
+    ('gameModel->SetInfoTip("Edge Mode: Void");',
+     'gameModel->SetInfoTip(YandexWebText("Edge Mode: Void", "Границы: пустота"));'),
+    ('gameModel->SetInfoTip("Edge Mode: Solid");',
+     'gameModel->SetInfoTip(YandexWebText("Edge Mode: Solid", "Границы: твёрдые"));'),
+    ('gameModel->SetInfoTip("Edge Mode: Loop");',
+     'gameModel->SetInfoTip(YandexWebText("Edge Mode: Loop", "Границы: цикл"));'),
+    ('new ErrorMessage("Error", "Unable to build save.");',
+     'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Unable to build save.", "Не удалось создать сохранение."));'),
+    ('new ErrorMessage("Error", "Unable to serialize game data.");',
+     'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Unable to serialize game data.", "Не удалось подготовить данные сохранения."));'),
+    ('new ErrorMessage("Error", "Unable to write save file.");',
+     'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Unable to write save file.", "Не удалось записать сохранение."));'),
+    ('gameModel->SetInfoTip("Saved Successfully");',
+     'gameModel->SetInfoTip(YandexWebText("Saved Successfully", "Сохранено успешно"));'),
+    ('new ErrorMessage("Error loading stamp", file->GetError());',
+     'new ErrorMessage(YandexWebText("Error loading save", "Ошибка загрузки сохранения"), file->GetError());'),
+]
+for old, new in controller_replacements:
+    if old in controller_text:
+        controller_text = controller_text.replace(old, new)
+game_controller_cpp.write_text(controller_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
