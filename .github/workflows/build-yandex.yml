@@ -1,0 +1,91 @@
+name: Build Yandex package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "index.html"
+      - "styles.css"
+      - "src/**"
+      - ".github/workflows/build-yandex.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Yandex wrapper
+        uses: actions/checkout@v4
+
+      - name: Checkout official The Powder Toy source
+        uses: actions/checkout@v4
+        with:
+          repository: The-Powder-Toy/The-Powder-Toy
+          ref: v100.1.400
+          path: upstream
+
+      - name: Build upstream Emscripten target without external HTTP features
+        working-directory: upstream
+        env:
+          BSH_BUILD_PLATFORM: linux
+          BSH_HOST_ARCH: wasm32
+          BSH_HOST_PLATFORM: emscripten
+          BSH_HOST_LIBC: emscripten
+          BSH_STATIC_DYNAMIC: static
+          BSH_DEBUG_RELEASE: release
+          BSH_LINT: "no"
+          RELEASE_NAME: dev
+          RELEASE_TYPE: dev
+          MOD_ID: "0"
+          SEPARATE_DEBUG: "no"
+          PACKAGE_MODE: nohttp
+          ASSET_PATH: powder.tar
+          DEBUG_ASSET_PATH: powder.wasm.dbg
+          APP_NAME: The Powder Toy
+          APP_COMMENT: The Powder Toy - Yandex Games Web build
+          APP_EXE: powder
+          APP_ID: org.powdertoy.tpt.yandex
+          APP_DATA: powdertoy
+          APP_VENDOR: powdertoy
+        run: |
+          chmod +x .github/build.sh
+          ./.github/build.sh
+
+      - name: Assemble Yandex archive
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist/src dist/game
+          cp index.html styles.css dist/
+          cp src/main.js src/yandex.js dist/src/
+          cp upstream/build/powder.js dist/game/
+          cp upstream/build/powder.wasm dist/game/
+          if [ -f upstream/build/powder.wasm.map ]; then
+            cp upstream/build/powder.wasm.map dist/game/
+          fi
+          cp upstream/LICENSE dist/LICENSE
+
+          # Yandex archive requirements: index.html at root and uncompressed content <= 100 MB.
+          test -f dist/index.html
+          SIZE_BYTES="$(du -sb dist | cut -f1)"
+          echo "Uncompressed package size: $SIZE_BYTES bytes"
+          test "$SIZE_BYTES" -le 100000000
+
+          (
+            cd dist
+            zip -9 -r ../ThePowderToy-Yandex.zip .
+          )
+
+      - name: Upload Yandex Games ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThePowderToy-Yandex
+          path: ThePowderToy-Yandex.zip
+          if-no-files-found: error
+          retention-days: 14
