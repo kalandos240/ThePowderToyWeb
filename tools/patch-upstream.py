@@ -1110,6 +1110,62 @@ info_text = info_text.replace(
 information_message_cpp.write_text(info_text, encoding="utf-8")
 
 
+# Native diagnostics used only by browser CI to prove that real touch input reaches TPT.
+model_text = game_model_cpp.read_text(encoding="utf-8")
+if '#include <emscripten.h>' not in model_text:
+    model_text = model_text.replace('#include <optional>\n', '#include <optional>\n#include <emscripten.h>\n', 1)
+
+diag_anchor = "HistoryEntry::~HistoryEntry()"
+diag_block = r'''static GameModel *YandexWeb_TestGameModel = nullptr;
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestParticleCount()
+{
+	if (!YandexWeb_TestGameModel)
+		return -1;
+	return YandexWeb_TestGameModel->GetSimulation()->NUM_PARTS;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
+{
+	if (!YandexWeb_TestGameModel)
+		return;
+	auto *tool = YandexWeb_TestGameModel->GetToolFromIdentifier("DEFAULT_PT_DUST");
+	if (!tool)
+		return;
+	YandexWeb_TestGameModel->SetActiveTool(0, tool);
+	YandexWeb_TestGameModel->SetLastTool(tool);
+}
+
+'''
+if diag_block not in model_text:
+    if diag_anchor not in model_text:
+        raise SystemExit("GameModel diagnostics anchor missing")
+    model_text = model_text.replace(diag_anchor, diag_block + diag_anchor, 1)
+
+ctor_anchor = '''	view(newView)
+{
+	sim = Simulation::Factory();'''
+ctor_patch = '''	view(newView)
+{
+	YandexWeb_TestGameModel = this;
+	sim = Simulation::Factory();'''
+if ctor_anchor in model_text:
+    model_text = model_text.replace(ctor_anchor, ctor_patch, 1)
+
+dtor_anchor = '''GameModel::~GameModel()
+{
+	auto &prefs = GlobalPrefs::Ref();'''
+dtor_patch = '''GameModel::~GameModel()
+{
+	if (YandexWeb_TestGameModel == this)
+		YandexWeb_TestGameModel = nullptr;
+	auto &prefs = GlobalPrefs::Ref();'''
+if dtor_anchor in model_text:
+    model_text = model_text.replace(dtor_anchor, dtor_patch, 1)
+
+game_model_cpp.write_text(model_text, encoding="utf-8")
+
+
 # Yandex single-thread Emscripten fallback.
 # The Yandex ZIP must not require SharedArrayBuffer or cross-origin isolation.
 
