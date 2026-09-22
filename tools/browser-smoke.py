@@ -5,6 +5,8 @@ import statistics
 import time
 
 from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -326,40 +328,24 @@ def smoke_case(language: str, mobile: bool):
             mx1 = draw_rect["left"] + draw_rect["width"] * 0.42
             my1 = draw_rect["top"] + draw_rect["height"] * 0.40
 
-            driver.execute_cdp_cmd(
-                "Input.dispatchMouseEvent",
-                {
-                    "type": "mousePressed",
-                    "x": mx0,
-                    "y": my0,
-                    "button": "left",
-                    "buttons": 1,
-                    "clickCount": 1,
-                },
-            )
-            for step in range(1, 6):
-                t = step / 5
-                driver.execute_cdp_cmd(
-                    "Input.dispatchMouseEvent",
-                    {
-                        "type": "mouseMoved",
-                        "x": mx0 + (mx1 - mx0) * t,
-                        "y": my0 + (my1 - my0) * t,
-                        "button": "left",
-                        "buttons": 1,
-                    },
+            canvas_element = driver.find_element(By.ID, "canvas")
+            start_offset_x = int(draw_rect["width"] * 0.24)
+            start_offset_y = int(draw_rect["height"] * 0.30)
+            move_offset_x = int(draw_rect["width"] * (0.42 - 0.24))
+            move_offset_y = int(draw_rect["height"] * (0.40 - 0.30))
+            (
+                ActionChains(driver)
+                .move_to_element_with_offset(
+                    canvas_element,
+                    start_offset_x,
+                    start_offset_y,
                 )
-                time.sleep(0.02)
-            driver.execute_cdp_cmd(
-                "Input.dispatchMouseEvent",
-                {
-                    "type": "mouseReleased",
-                    "x": mx1,
-                    "y": my1,
-                    "button": "left",
-                    "buttons": 0,
-                    "clickCount": 1,
-                },
+                .click_and_hold()
+                .pause(0.05)
+                .move_by_offset(move_offset_x, move_offset_y)
+                .pause(0.05)
+                .release()
+                .perform()
             )
             time.sleep(0.2)
             desktop_after_particles = driver.execute_script(
