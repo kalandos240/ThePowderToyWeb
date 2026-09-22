@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+import json
 import os
+import statistics
 import time
 
 from selenium import webdriver
@@ -9,6 +11,76 @@ from selenium.webdriver.support.ui import WebDriverWait
 BASE_URL = os.environ.get("TPT_SMOKE_URL", "http://127.0.0.1:8765")
 ARTIFACT_DIR = os.environ.get("TPT_SMOKE_ARTIFACT_DIR", "test-artifacts")
 os.makedirs(ARTIFACT_DIR, exist_ok=True)
+
+
+def measure_animation_frames(driver, sample_count=90):
+    driver.set_script_timeout(30)
+    return driver.execute_async_script(
+        """
+        const sampleCount = arguments[0];
+        const done = arguments[arguments.length - 1];
+        const samples = [];
+        let previous = null;
+
+        function frame(now) {
+            if (previous !== null) {
+                samples.push(now - previous);
+            }
+            previous = now;
+            if (samples.length >= sampleCount) {
+                done(samples);
+                return;
+            }
+            requestAnimationFrame(frame);
+        }
+
+        requestAnimationFrame(frame);
+        """,
+        sample_count,
+    )
+
+
+def record_performance_metric(driver, label):
+    target_particles = 20000
+    actual_particles = driver.execute_script(
+        "return window.__tptGameModule.ccall("
+        "'YandexWeb_TestFillDust', 'number', ['number'], [arguments[0]])",
+        target_particles,
+    )
+    assert actual_particles >= target_particles, (
+        label,
+        f"stress scene did not reach target particles: {actual_particles}",
+    )
+
+    # Let the simulation settle before sampling browser frame intervals.
+    time.sleep(0.5)
+    samples = [float(value) for value in measure_animation_frames(driver, 90)]
+    ordered = sorted(samples)
+    median_ms = statistics.median(ordered)
+    p95_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
+    average_ms = statistics.fmean(ordered)
+
+    metric = {
+        "label": label,
+        "particles": int(actual_particles),
+        "samples": len(samples),
+        "average_frame_ms": round(average_ms, 3),
+        "median_frame_ms": round(median_ms, 3),
+        "p95_frame_ms": round(p95_ms, 3),
+        "median_fps": round(1000.0 / median_ms, 2) if median_ms > 0 else None,
+    }
+
+    report_path = os.path.join(ARTIFACT_DIR, "performance.json")
+    report = []
+    if os.path.exists(report_path):
+        with open(report_path, "r", encoding="utf-8") as handle:
+            report = json.load(handle)
+    report.append(metric)
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2)
+
+    print(f"[performance] {metric}")
+    return metric
 
 
 def make_driver(mobile: bool):
@@ -534,7 +606,14 @@ def smoke_case(language: str, mobile: bool):
             )
             assert persisted == 1, (label, "IDBFS persistence failed")
 
-        print(f"[smoke] {label}: OK {state}; resized={resized}; paused={paused}; resumed={resumed}")
+        performance = None
+        if language == "en":
+            performance = record_performance_metric(driver, label)
+
+        print(
+            f"[smoke] {label}: OK {state}; resized={resized}; "
+            f"paused={paused}; resumed={resumed}; performance={performance}"
+        )
     finally:
         driver.quit()
 
