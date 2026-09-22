@@ -25,6 +25,12 @@ intro_text_h = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 property_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "PropertyTool.cpp"
 sign_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "SignTool.cpp"
 element_search_cpp = root / "upstream" / "src" / "gui" / "elementsearch" / "ElementSearchActivity.cpp"
+render_view_cpp = root / "upstream" / "src" / "gui" / "render" / "RenderView.cpp"
+file_browser_cpp = root / "upstream" / "src" / "gui" / "filebrowser" / "FileBrowserActivity.cpp"
+confirm_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmPrompt.cpp"
+error_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
+text_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "TextPrompt.cpp"
+information_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 
@@ -272,6 +278,12 @@ include_locale(intro_text_h, '#include "common/String.h"\n')
 include_locale(property_tool_cpp, '#include "Format.h"\n')
 include_locale(sign_tool_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(element_search_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(render_view_cpp, '#include "gui/game/GameView.h"\n')
+include_locale(file_browser_cpp, '#include "Config.h"\n')
+include_locale(confirm_prompt_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(error_message_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(text_prompt_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(information_message_cpp, '#include "graphics/Graphics.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -1002,6 +1014,100 @@ for old, new in search_replacements:
     if old in search_text:
         search_text = search_text.replace(old, new)
 element_search_cpp.write_text(search_text, encoding="utf-8")
+
+
+render_text = render_view_cpp.read_text(encoding="utf-8")
+render_replacements = [
+    ('"Velocity display mode preset"', 'YandexWebText("Velocity display mode preset", "Режим скорости")'),
+    ('"Pressure display mode preset"', 'YandexWebText("Pressure display mode preset", "Режим давления")'),
+    ('"Persistent display mode preset"', 'YandexWebText("Persistent display mode preset", "Режим следов")'),
+    ('"Fire display mode preset"', 'YandexWebText("Fire display mode preset", "Огненный режим")'),
+    ('"Blob display mode preset"', 'YandexWebText("Blob display mode preset", "Объёмный режим")'),
+    ('"Heat display mode preset"', 'YandexWebText("Heat display mode preset", "Температурный режим")'),
+    ('"Fancy display mode preset"', 'YandexWebText("Fancy display mode preset", "Красивый режим")'),
+    ('"Nothing display mode preset"', 'YandexWebText("Nothing display mode preset", "Базовый режим")'),
+    ('"Heat gradient display mode preset"', 'YandexWebText("Heat gradient display mode preset", "Градиент температуры")'),
+    ('"Alternative Velocity display mode preset"', 'YandexWebText("Alternative Velocity display mode preset", "Альтернативная скорость")'),
+    ('"Life display mode preset"', 'YandexWebText("Life display mode preset", "Режим жизни")'),
+    ('"Adds Special flare effects to some elements"', 'YandexWebText("Adds Special flare effects to some elements", "Добавляет специальные эффекты некоторым элементам")'),
+    ('"Fire effect for gasses"', 'YandexWebText("Fire effect for gasses", "Огненный эффект для газов")'),
+    ('"Glow effect on some elements"', 'YandexWebText("Glow effect on some elements", "Свечение некоторых элементов")'),
+    ('"Blur effect for liquids"', 'YandexWebText("Blur effect for liquids", "Размытие жидкостей")'),
+    ('"Makes everything be drawn like a blob"', 'YandexWebText("Makes everything be drawn like a blob", "Отображает всё более объёмно")'),
+    ('"Basic rendering, without this, most things will be invisible"', 'YandexWebText("Basic rendering, without this, most things will be invisible", "Базовый рендер, без него большинство объектов невидимы")'),
+    ('"Glow effect on sparks"', 'YandexWebText("Glow effect on sparks", "Свечение искр")'),
+    ('"Displays pressure as red and blue, and velocity as white"', 'YandexWebText("Displays pressure as red and blue, and velocity as white", "Давление красным/синим, скорость белым")'),
+    ('"Displays pressure, red is positive and blue is negative"', 'YandexWebText("Displays pressure, red is positive and blue is negative", "Давление: красный плюс, синий минус")'),
+    ('"Displays the temperature of the air like heat display does"', 'YandexWebText("Displays the temperature of the air like heat display does", "Показывает температуру воздуха")'),
+    ('"Gravity lensing, Newtonian Gravity bends light with this on"', 'YandexWebText("Gravity lensing, Newtonian Gravity bends light with this on", "Гравитационное линзирование света")'),
+    ('"Element paths persist on the screen for a while"', 'YandexWebText("Element paths persist on the screen for a while", "Следы частиц некоторое время остаются на экране")'),
+    ('"Displays temperatures of the elements, dark blue is coldest, pink is hottest"', 'YandexWebText("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: синий холодный, розовый горячий")'),
+    ('"Displays the life value of elements in greyscale gradients"', 'YandexWebText("Displays the life value of elements in greyscale gradients", "Показывает life элементов оттенками серого")'),
+]
+for old, new in render_replacements:
+    if old in render_text:
+        render_text = render_text.replace(old, new)
+render_view_cpp.write_text(render_text, encoding="utf-8")
+
+file_text = file_browser_cpp.read_text(encoding="utf-8")
+file_replacements = [
+    ('ui::Point(Size.X-8, 18), "Save Browser")',
+     'ui::Point(Size.X-8, 18), YandexWebText("Save Browser", "Сохранения"))'),
+    ('ui::Point(Size.X-16, 16), "", "[search]")',
+     'ui::Point(Size.X-16, 16), "", YandexWebText("[search]", "[поиск]"))'),
+    ('ui::Point(200, 17), "No saves found")',
+     'ui::Point(200, 17), YandexWebText("No saves found", "Сохранения не найдены"))'),
+    ('String deleteMessage = "Are you sure you want to delete " + files[index]->GetDisplayName() + ".cps?";',
+     'String deleteMessage = YandexWebText("Are you sure you want to delete ", "Удалить сохранение ") + files[index]->GetDisplayName() + ".cps?";'),
+    ('new ConfirmPrompt("Delete Save", deleteMessage,',
+     'new ConfirmPrompt(YandexWebText("Delete Save", "Удалить сохранение"), deleteMessage,'),
+    ('new TextPrompt("Rename", "Change save name",',
+     'new TextPrompt(YandexWebText("Rename", "Переименовать"), YandexWebText("Change save name", "Новое имя сохранения"),'),
+    ('new ErrorMessage("Error", "Could not rename file");',
+     'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Could not rename file", "Не удалось переименовать файл"));'),
+    ('new ErrorMessage("Error", "No save name given");',
+     'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("No save name given", "Не указано имя сохранения"));'),
+    ('progressBar->SetStatus("Loading files");',
+     'progressBar->SetStatus(YandexWebText("Loading files", "Загрузка файлов"));'),
+    ('progressBar->SetStatus("Rendering thumbnails");',
+     'progressBar->SetStatus(YandexWebText("Rendering thumbnails", "Создание миниатюр"));'),
+]
+for old, new in file_replacements:
+    if old in file_text:
+        file_text = file_text.replace(old, new)
+file_browser_cpp.write_text(file_text, encoding="utf-8")
+
+confirm_text = confirm_prompt_cpp.read_text(encoding="utf-8")
+confirm_text = confirm_text.replace(
+    'ui::Point(Size.X-75, 16), "Cancel")',
+    'ui::Point(Size.X-75, 16), YandexWebText("Cancel", "Отмена"))'
+)
+confirm_prompt_cpp.write_text(confirm_text, encoding="utf-8")
+
+error_text = error_message_cpp.read_text(encoding="utf-8")
+error_text = error_text.replace(
+    'ui::Point(Size.X, 16), "Dismiss")',
+    'ui::Point(Size.X, 16), YandexWebText("Dismiss", "Закрыть"))'
+)
+error_message_cpp.write_text(error_text, encoding="utf-8")
+
+text_prompt_text = text_prompt_cpp.read_text(encoding="utf-8")
+text_prompt_text = text_prompt_text.replace(
+    'ui::Point((Size.X/2)+1, 16), "Cancel")',
+    'ui::Point((Size.X/2)+1, 16), YandexWebText("Cancel", "Отмена"))'
+)
+text_prompt_text = text_prompt_text.replace(
+    'ui::Point(Size.X/2, 16), "Okay")',
+    'ui::Point(Size.X/2, 16), YandexWebText("Okay", "ОК"))'
+)
+text_prompt_cpp.write_text(text_prompt_text, encoding="utf-8")
+
+info_text = information_message_cpp.read_text(encoding="utf-8")
+info_text = info_text.replace(
+    'ui::Point(Size.X, 16), "Dismiss")',
+    'ui::Point(Size.X, 16), YandexWebText("Dismiss", "Закрыть"))'
+)
+information_message_cpp.write_text(info_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
