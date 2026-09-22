@@ -11,6 +11,19 @@ pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
 if pthread_arg not in meson_text:
     raise SystemExit("meson.build USE_PTHREADS anchor not found")
 meson_text = meson_text.replace(pthread_arg, "", 1)
+
+threads_anchor = """fftw_dep = dependency('fftw3f', static: is_static)
+threads_dep = dependency('threads')
+if host_platform == 'emscripten'"""
+threads_patch = """fftw_dep = dependency('fftw3f', static: is_static)
+threads_dep = []
+if host_platform != 'emscripten'
+\tthreads_dep = dependency('threads')
+endif
+if host_platform == 'emscripten'"""
+if threads_anchor not in meson_text:
+    raise SystemExit("meson.build threads dependency anchor not found")
+meson_text = meson_text.replace(threads_anchor, threads_patch, 1)
 meson.write_text(meson_text, encoding="utf-8")
 
 text = powder.read_text(encoding="utf-8")
