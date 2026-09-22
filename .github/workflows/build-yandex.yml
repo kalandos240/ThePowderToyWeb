@@ -8,6 +8,8 @@ on:
     paths:
       - "index.html"
       - "styles.css"
+      - "LICENSE"
+      - "SOURCE.md"
       - "src/**"
       - "tools/**"
       - ".github/workflows/build-yandex.yml"
@@ -102,6 +104,7 @@ jobs:
             cp upstream/build/powder.wasm.map dist/game/
           fi
           cp upstream/LICENSE dist/LICENSE
+          cp SOURCE.md dist/SOURCE.md
 
           test -f dist/index.html
           SIZE_BYTES="$(du -sb dist | cut -f1)"
