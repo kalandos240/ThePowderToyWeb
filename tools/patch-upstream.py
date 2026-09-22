@@ -9,6 +9,11 @@ game_view = root / "upstream" / "src" / "gui" / "game" / "GameView.cpp"
 local_browser = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserView.cpp"
 local_save = root / "upstream" / "src" / "gui" / "save" / "LocalSaveActivity.cpp"
 options_view = root / "upstream" / "src" / "gui" / "options" / "OptionsView.cpp"
+simulation_data = root / "upstream" / "src" / "simulation" / "SimulationData.cpp"
+local_browser_controller = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserController.cpp"
+engine_cpp = root / "upstream" / "src" / "gui" / "interface" / "Engine.cpp"
+save_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "SaveButton.cpp"
+label_cpp = root / "upstream" / "src" / "gui" / "interface" / "Label.cpp"
 locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
@@ -201,6 +206,11 @@ include_locale(game_view, '#include "Config.h"\n')
 include_locale(local_browser, '#include "SimulationConfig.h"\n')
 include_locale(local_save, '#include "Config.h"\n')
 include_locale(options_view, '#include "Config.h"\n')
+include_locale(simulation_data, '#include "simulation/elements/PIPE.h"\n')
+include_locale(local_browser_controller, '#include "Controller.h"\n')
+include_locale(engine_cpp, '#include "Config.h"\n')
+include_locale(save_button_cpp, '#include "SimulationConfig.h"\n')
+include_locale(label_cpp, '#include "graphics/FontReader.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -310,6 +320,105 @@ for old, new in options_replacements:
     if old in options_text:
         options_text = options_text.replace(old, new)
 options_view.write_text(options_text, encoding="utf-8")
+
+
+simulation_text = simulation_data.read_text(encoding="utf-8")
+menu_replacements = [
+    ('String("Walls")', 'YandexWebText("Walls", "Стены")'),
+    ('String("Electronics")', 'YandexWebText("Electronics", "Электроника")'),
+    ('String("Powered Materials")', 'YandexWebText("Powered Materials", "Управляемые материалы")'),
+    ('String("Sensors")', 'YandexWebText("Sensors", "Датчики")'),
+    ('String("Force")', 'YandexWebText("Force", "Силы")'),
+    ('String("Explosives")', 'YandexWebText("Explosives", "Взрывчатка")'),
+    ('String("Gases")', 'YandexWebText("Gases", "Газы")'),
+    ('String("Liquids")', 'YandexWebText("Liquids", "Жидкости")'),
+    ('String("Powders")', 'YandexWebText("Powders", "Порошки")'),
+    ('String("Solids")', 'YandexWebText("Solids", "Твёрдые вещества")'),
+    ('String("Radioactive")', 'YandexWebText("Radioactive", "Радиоактивные")'),
+    ('String("Special")', 'YandexWebText("Special", "Особые")'),
+    ('String("Game Of Life")', 'YandexWebText("Game Of Life", "Игра Жизнь")'),
+    ('String("Tools")', 'YandexWebText("Tools", "Инструменты")'),
+    ('String("Favorites")', 'YandexWebText("Favorites", "Избранное")'),
+    ('String("Decoration tools")', 'YandexWebText("Decoration tools", "Декор")'),
+]
+for old, new in menu_replacements:
+    if old in simulation_text:
+        simulation_text = simulation_text.replace(old, new)
+simulation_data.write_text(simulation_text, encoding="utf-8")
+
+browser_controller_text = local_browser_controller.read_text(encoding="utf-8")
+remove_anchor = """void LocalBrowserController::RemoveSelected()
+{
+	StringBuilder desc;
+	desc << "Are you sure you want to delete " << browserModel->GetSelected().size() << " stamp";
+	if(browserModel->GetSelected().size()>1)
+		desc << "s";
+	desc << "?";
+	new ConfirmPrompt("Delete stamps", desc.Build(), { [this] { removeSelectedC(); } });
+}"""
+remove_patch = """void LocalBrowserController::RemoveSelected()
+{
+	String desc = String::Build(
+		YandexWebText("Delete selected saves: ", "Удалить выбранные сохранения: "),
+		browserModel->GetSelected().size(),
+		"?"
+	);
+	new ConfirmPrompt(
+		YandexWebText("Delete saves", "Удалить сохранения"),
+		desc,
+		{ [this] { removeSelectedC(); } },
+		YandexWebText("Delete", "Удалить")
+	);
+}"""
+if remove_anchor in browser_controller_text:
+    browser_controller_text = browser_controller_text.replace(remove_anchor, remove_patch, 1)
+
+browser_controller_text = browser_controller_text.replace(
+    'notifyStatus(String::Build("Deleting stamp [", saves[i].FromUtf8(), "] ..."));',
+    'notifyStatus(String::Build(YandexWebText("Deleting save [", "Удаление сохранения ["), saves[i].FromUtf8(), "] ..."));'
+)
+browser_controller_text = browser_controller_text.replace(
+    'new TaskWindow("Removing stamps", new RemoveSavesTask(this, selected));',
+    'new TaskWindow(YandexWebText("Removing saves", "Удаление сохранений"), new RemoveSavesTask(this, selected));'
+)
+browser_controller_text = browser_controller_text.replace(
+    'new TextPrompt("Rename stamp", "Enter a new name for the stamp:", "", "[new name]", false,',
+    'new TextPrompt(YandexWebText("Rename save", "Переименовать сохранение"), YandexWebText("Enter a new name for the save:", "Введите новое имя сохранения:"), "", YandexWebText("[new name]", "[новое имя]"), false,'
+)
+browser_controller_text = browser_controller_text.replace(
+    'new ErrorMessage("Error renaming stamp", "You have to specify the filename.");',
+    'new ErrorMessage(YandexWebText("Rename error", "Ошибка переименования"), YandexWebText("You have to specify the filename.", "Укажите имя сохранения."));'
+)
+local_browser_controller.write_text(browser_controller_text, encoding="utf-8")
+
+engine_text = engine_cpp.read_text(encoding="utf-8")
+engine_text = engine_text.replace(
+    'new ConfirmPrompt("You are about to quit", "Are you sure you want to exit the game?", { [] {',
+    'new ConfirmPrompt(YandexWebText("You are about to quit", "Выход из игры"), YandexWebText("Are you sure you want to exit the game?", "Вы уверены, что хотите выйти из игры?"), { [] {'
+)
+engine_cpp.write_text(engine_text, encoding="utf-8")
+
+save_button_text = save_button_cpp.read_text(encoding="utf-8")
+save_button_replacements = [
+    ('new ErrorMessage("Error loading save", file->GetError());',
+     'new ErrorMessage(YandexWebText("Error loading save", "Ошибка загрузки сохранения"), file->GetError());'),
+    ('ContextMenuItem("Open", 0, true)', 'ContextMenuItem(YandexWebText("Open", "Открыть"), 0, true)'),
+    ('ContextMenuItem("Rename", 2, true)', 'ContextMenuItem(YandexWebText("Rename", "Переименовать"), 2, true)'),
+    ('ContextMenuItem("Delete", 3, true)', 'ContextMenuItem(YandexWebText("Delete", "Удалить"), 3, true)'),
+    ('menu->SetItem(1, "Deselect");', 'menu->SetItem(1, YandexWebText("Deselect", "Снять выбор"));'),
+    ('menu->SetItem(1, "Select");', 'menu->SetItem(1, YandexWebText("Select", "Выбрать"));'),
+]
+for old, new in save_button_replacements:
+    if old in save_button_text:
+        save_button_text = save_button_text.replace(old, new)
+save_button_cpp.write_text(save_button_text, encoding="utf-8")
+
+label_text = label_cpp.read_text(encoding="utf-8")
+label_text = label_text.replace(
+    'menu->AddItem(ContextMenuItem("Copy", 0, true));',
+    'menu->AddItem(ContextMenuItem(YandexWebText("Copy", "Копировать"), 0, true));'
+)
+label_cpp.write_text(label_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
