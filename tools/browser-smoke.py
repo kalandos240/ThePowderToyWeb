@@ -395,6 +395,96 @@ def smoke_case(language: str, mobile: bool):
                 os.path.join(ARTIFACT_DIR, f"{label}-orientation-cycle-final.png")
             )
 
+            # Stress repeated fullscreen-like viewport changes. The wrapper owns
+            # fullscreen sizing for Emscripten, so canvas CSS size must be
+            # recalculated from the *current* app viewport on every event.
+            fullscreen_sizes = [
+                (915, 412),
+                (780, 360),
+                (844, 390),
+                (915, 412),
+                (844, 390),
+            ]
+            for fullscreen_cycle, (fw, fh) in enumerate(fullscreen_sizes, start=1):
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": fw,
+                        "height": fh,
+                        "deviceScaleFactor": 3.0,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "landscapePrimary",
+                            "angle": 90,
+                        },
+                    },
+                )
+                driver.execute_script(
+                    "document.dispatchEvent(new Event('fullscreenchange'));"
+                )
+                time.sleep(0.25)
+                fullscreen_state = driver.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    const app = document.getElementById('app');
+                    const r = canvas.getBoundingClientRect();
+                    const logicalWidth = canvas.width || 612;
+                    const logicalHeight = canvas.height || 384;
+                    const expectedScale = Math.min(
+                        app.clientWidth / logicalWidth,
+                        app.clientHeight / logicalHeight
+                    );
+                    return {
+                        width: r.width,
+                        height: r.height,
+                        expectedWidth: Math.max(1, Math.floor(logicalWidth * expectedScale)),
+                        expectedHeight: Math.max(1, Math.floor(logicalHeight * expectedScale)),
+                        viewportWidth: window.innerWidth,
+                        viewportHeight: window.innerHeight,
+                        appWidth: app.clientWidth,
+                        appHeight: app.clientHeight,
+                        blocked: window.__tptOrientationBlocked === true,
+                        gameplay: window.__yandexGameplayStarted,
+                        paused: window.__tptRuntimePaused === true,
+                    };
+                    """
+                )
+                assert fullscreen_state["blocked"] is False, (
+                    label,
+                    fullscreen_cycle,
+                    fullscreen_state,
+                )
+                assert fullscreen_state["gameplay"] is True, (
+                    label,
+                    fullscreen_cycle,
+                    fullscreen_state,
+                )
+                assert fullscreen_state["paused"] is False, (
+                    label,
+                    fullscreen_cycle,
+                    fullscreen_state,
+                )
+                assert abs(
+                    fullscreen_state["width"] - fullscreen_state["expectedWidth"]
+                ) <= 2, (label, fullscreen_cycle, fullscreen_state)
+                assert abs(
+                    fullscreen_state["height"] - fullscreen_state["expectedHeight"]
+                ) <= 2, (label, fullscreen_cycle, fullscreen_state)
+                assert fullscreen_state["width"] <= fullscreen_state["appWidth"] + 1, (
+                    label,
+                    fullscreen_cycle,
+                    fullscreen_state,
+                )
+                assert fullscreen_state["height"] <= fullscreen_state["appHeight"] + 1, (
+                    label,
+                    fullscreen_cycle,
+                    fullscreen_state,
+                )
+
+            driver.save_screenshot(
+                os.path.join(ARTIFACT_DIR, f"{label}-fullscreen-cycle-final.png")
+            )
+
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
         # Yandex platform pause/resume must stop and restart the native loop.
