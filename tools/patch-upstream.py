@@ -66,6 +66,7 @@ touch_patch = '''#if defined(__EMSCRIPTEN__)
 		"(navigator.maxTouchPoints > 0 || "
 		"(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) ? 1 : 0"
 	) != 0;
+	EM_ASM({ window.tptTouchUIDetected = !!$0; }, browserTouchUI ? 1 : 0);
 	engine.TouchUI = prefs.Get("TouchUI", browserTouchUI);
 #else
 	engine.TouchUI = prefs.Get("TouchUI", DEFAULT_TOUCH_UI);
