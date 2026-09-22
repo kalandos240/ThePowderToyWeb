@@ -39,6 +39,8 @@ pause_patch = '''
 
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PauseMainLoop()
 {
+	// Flush pending IDBFS writes before stopping the frame loop.
+	Platform::MaybeTriggerSyncFs();
 	emscripten_pause_main_loop();
 }
 
