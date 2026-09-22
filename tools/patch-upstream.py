@@ -375,7 +375,7 @@ dtor_patch = '''LocalSaveActivity::~LocalSaveActivity()
 	if (YandexWeb_TestLocalSaveActivity == this)
 		YandexWeb_TestLocalSaveActivity = nullptr;
 '''
-if dtor_marker in save_text and 'YandexWeb_TestLocalSaveActivity = nullptr;' not in save_text:
+if dtor_marker in save_text and dtor_patch not in save_text:
     save_text = save_text.replace(dtor_marker, dtor_patch, 1)
 save_replacements = [
     ('"Save to computer:"', 'YandexWebText("Save locally:", "Локальное сохранение:")'),
