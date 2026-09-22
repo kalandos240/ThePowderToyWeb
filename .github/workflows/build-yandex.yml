@@ -75,6 +75,20 @@ jobs:
           chmod +x .github/build.sh
           ./.github/build.sh
 
+      - name: Validate shared-memory-free browser output
+        run: |
+          set -euo pipefail
+          SAB_COUNT="$(grep -Eio "SharedArrayBuffer" upstream/build/powder.js | wc -l || true)"
+          SHARED_MEMORY_COUNT="$(grep -Eio "shared[[:space:]]*:[[:space:]]*true" upstream/build/powder.js | wc -l || true)"
+          PTHREAD_FLAG_COUNT="$(grep -Eio -- "-pthread|PTHREAD_POOL_SIZE" upstream/build/powder.js | wc -l || true)"
+          echo "SharedArrayBuffer markers: $SAB_COUNT"
+          echo "shared:true memory markers: $SHARED_MEMORY_COUNT"
+          echo "pthread build-flag markers: $PTHREAD_FLAG_COUNT"
+          test "$SAB_COUNT" -eq 0
+          test "$SHARED_MEMORY_COUNT" -eq 0
+          test "$PTHREAD_FLAG_COUNT" -eq 0
+          echo "Browser output is cross-origin-isolation independent."
+
       - name: Assemble Yandex archive
         run: |
           set -euo pipefail
