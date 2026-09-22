@@ -20,6 +20,7 @@ gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
+simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -489,6 +490,82 @@ for old, new in controller_replacements:
     if old in controller_text:
         controller_text = controller_text.replace(old, new)
 game_controller_cpp.write_text(controller_text, encoding="utf-8")
+
+
+# Localise wall/tool descriptions while preserving canonical short element/tool names.
+simulation_text = simulation_data.read_text(encoding="utf-8")
+wall_replacements = [
+    ('String("ERASE"),           "DEFAULT_WL_ERASE",  String("Erases walls.")',
+     'YandexWebText("ERASE", "СТЕРЕТЬ"),           "DEFAULT_WL_ERASE",  YandexWebText("Erases walls.", "Стирает стены.")'),
+    ('String("CONDUCTIVE WALL"), "DEFAULT_WL_CNDTW",  String("Blocks everything. Conductive.")',
+     'YandexWebText("CONDUCTIVE WALL", "ПРОВОДЯЩАЯ СТЕНА"), "DEFAULT_WL_CNDTW", YandexWebText("Blocks everything. Conductive.", "Блокирует всё и проводит электричество.")'),
+    ('String("EWALL"),           "DEFAULT_WL_EWALL",  String("E-Wall. Becomes transparent when electricity is connected.")',
+     'YandexWebText("EWALL", "ЭЛЕКТРОСТЕНА"), "DEFAULT_WL_EWALL", YandexWebText("E-Wall. Becomes transparent when electricity is connected.", "Становится проходимой при подаче электричества.")'),
+    ('String("DETECTOR"),        "DEFAULT_WL_DTECT",  String("Detector. Generates electricity when a particle is inside.")',
+     'YandexWebText("DETECTOR", "ДЕТЕКТОР"), "DEFAULT_WL_DTECT", YandexWebText("Detector. Generates electricity when a particle is inside.", "Создаёт электричество, когда внутри есть частица.")'),
+    ('String("STREAMLINE"),      "DEFAULT_WL_STRM",   String("Streamline. Creates a line that follows air movement.")',
+     'YandexWebText("STREAMLINE", "ПОТОК"), "DEFAULT_WL_STRM", YandexWebText("Streamline. Creates a line that follows air movement.", "Показывает линию движения воздуха.")'),
+    ('String("FAN"),             "DEFAULT_WL_FAN",    String("Fan. Accelerates air. Use the line tool to set direction and strength.")',
+     'YandexWebText("FAN", "ВЕНТИЛЯТОР"), "DEFAULT_WL_FAN", YandexWebText("Fan. Accelerates air. Use the line tool to set direction and strength.", "Ускоряет воздух. Линией задаются направление и сила.")'),
+    ('String("LIQUID WALL"),     "DEFAULT_WL_LIQD",   String("Allows liquids, blocks all other particles. Conductive.")',
+     'YandexWebText("LIQUID WALL", "СТЕНА ДЛЯ ЖИДКОСТЕЙ"), "DEFAULT_WL_LIQD", YandexWebText("Allows liquids, blocks all other particles. Conductive.", "Пропускает жидкости, блокирует остальные частицы. Проводит ток.")'),
+    ('String("ABSORB WALL"),     "DEFAULT_WL_ABSRB",  String("Absorbs particles but lets air currents through.")',
+     'YandexWebText("ABSORB WALL", "ПОГЛОЩАЮЩАЯ СТЕНА"), "DEFAULT_WL_ABSRB", YandexWebText("Absorbs particles but lets air currents through.", "Поглощает частицы, но пропускает воздух.")'),
+    ('String("WALL"),            "DEFAULT_WL_WALL",   String("Basic wall, blocks everything.")',
+     'YandexWebText("WALL", "СТЕНА"), "DEFAULT_WL_WALL", YandexWebText("Basic wall, blocks everything.", "Обычная стена, блокирует всё.")'),
+    ('String("AIRONLY WALL"),    "DEFAULT_WL_AIR",    String("Allows air, but blocks all particles.")',
+     'YandexWebText("AIRONLY WALL", "ВОЗДУШНАЯ СТЕНА"), "DEFAULT_WL_AIR", YandexWebText("Allows air, but blocks all particles.", "Пропускает воздух, но блокирует частицы.")'),
+    ('String("POWDER WALL"),     "DEFAULT_WL_POWDR",  String("Allows powders, blocks all other particles.")',
+     'YandexWebText("POWDER WALL", "СТЕНА ДЛЯ ПОРОШКОВ"), "DEFAULT_WL_POWDR", YandexWebText("Allows powders, blocks all other particles.", "Пропускает порошки, блокирует остальные частицы.")'),
+    ('String("CONDUCTOR"),       "DEFAULT_WL_CNDTR",  String("Conductor. Allows all particles to pass through and conducts electricity.")',
+     'YandexWebText("CONDUCTOR", "ПРОВОДНИК"), "DEFAULT_WL_CNDTR", YandexWebText("Conductor. Allows all particles to pass through and conducts electricity.", "Пропускает частицы и проводит электричество.")'),
+    ('String("EHOLE"),           "DEFAULT_WL_EHOLE",  String("E-Hole. absorbs particles, releases them when powered.")',
+     'YandexWebText("EHOLE", "ЭЛЕКТРОДЫРА"), "DEFAULT_WL_EHOLE", YandexWebText("E-Hole. absorbs particles, releases them when powered.", "Поглощает частицы и выпускает их при подаче питания.")'),
+    ('String("GAS WALL"),        "DEFAULT_WL_GAS",    String("Allows gases, blocks all other particles.")',
+     'YandexWebText("GAS WALL", "СТЕНА ДЛЯ ГАЗОВ"), "DEFAULT_WL_GAS", YandexWebText("Allows gases, blocks all other particles.", "Пропускает газы, блокирует остальные частицы.")'),
+    ('String("GRAVITY WALL"),    "DEFAULT_WL_GRVTY",  String("Gravity wall. Newtonian Gravity has no effect inside a box drawn with this.")',
+     'YandexWebText("GRAVITY WALL", "ГРАВИТАЦИОННАЯ СТЕНА"), "DEFAULT_WL_GRVTY", YandexWebText("Gravity wall. Newtonian Gravity has no effect inside a box drawn with this.", "Ньютоновская гравитация не действует внутри замкнутой области.")'),
+    ('String("ENERGY WALL"),     "DEFAULT_WL_ENRGY",  String("Allows energy particles, blocks all other particles.")',
+     'YandexWebText("ENERGY WALL", "ЭНЕРГЕТИЧЕСКАЯ СТЕНА"), "DEFAULT_WL_ENRGY", YandexWebText("Allows energy particles, blocks all other particles.", "Пропускает энергетические частицы, блокирует остальные.")'),
+    ('String("AIRBLOCK WALL"),   "DEFAULT_WL_NOAIR",  String("Allows all particles, but blocks air.")',
+     'YandexWebText("AIRBLOCK WALL", "ВОЗДУХОНЕПРОНИЦАЕМАЯ"), "DEFAULT_WL_NOAIR", YandexWebText("Allows all particles, but blocks air.", "Пропускает частицы, но блокирует воздух.")'),
+    ('String("ERASEALL"),        "DEFAULT_WL_ERASEA", String("Erases walls, particles, and signs.")',
+     'YandexWebText("ERASEALL", "СТЕРЕТЬ ВСЁ"), "DEFAULT_WL_ERASEA", YandexWebText("Erases walls, particles, and signs.", "Стирает стены, частицы и надписи.")'),
+    ('String("STASIS WALL"),     "DEFAULT_WL_STASIS", String("Freezes particles inside the wall in place until powered.")',
+     'YandexWebText("STASIS WALL", "СТАЗИС-СТЕНА"), "DEFAULT_WL_STASIS", YandexWebText("Freezes particles inside the wall in place until powered.", "Удерживает частицы неподвижно до подачи питания.")'),
+]
+for old, new in wall_replacements:
+    if old in simulation_text:
+        simulation_text = simulation_text.replace(old, new)
+simulation_data.write_text(simulation_text, encoding="utf-8")
+
+simtool_translations = {
+    "AIR.cpp": ("Air, creates airflow and pressure.", "Воздух: создаёт поток и давление."),
+    "VAC.cpp": ("Vacuum, reduces air pressure.", "Вакуум: уменьшает давление воздуха."),
+    "MIX.cpp": ("Mixes particles.", "Перемешивает частицы."),
+    "AMBP.cpp": ("Increases ambient air temperature.", "Повышает температуру окружающего воздуха."),
+    "AMBM.cpp": ("Decreases ambient air temperature.", "Понижает температуру окружающего воздуха."),
+    "HEAT.cpp": ("Heats the targeted element.", "Нагревает выбранный элемент."),
+    "COOL.cpp": ("Cools the targeted element.", "Охлаждает выбранный элемент."),
+    "WIND.cpp": ("Creates air movement.", "Создаёт движение воздуха."),
+    "PGRV.cpp": ("Creates a short-lasting gravity well.", "Создаёт кратковременную положительную гравитацию."),
+    "NGRV.cpp": ("Creates a short-lasting negative gravity well.", "Создаёт кратковременную отрицательную гравитацию."),
+    "CYCL.cpp": ("Cyclone, produces swirling air currents", "Циклон: создаёт закрученные потоки воздуха"),
+}
+for filename, (english, russian) in simtool_translations.items():
+    path = simtools_dir / filename
+    source = path.read_text(encoding="utf-8")
+    if '#include "YandexWebLocale.h"' not in source:
+        include_anchor = '#include "simulation/Simulation.h"\n'
+        if include_anchor in source:
+            source = source.replace(include_anchor, include_anchor + '#include "YandexWebLocale.h"\n', 1)
+        else:
+            source = '#include "YandexWebLocale.h"\n' + source
+    source = source.replace(
+        f'Description = "{english}";',
+        f'Description = YandexWebText("{english}", "{russian}");'
+    )
+    path.write_text(source, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
