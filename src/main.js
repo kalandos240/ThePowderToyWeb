@@ -4,13 +4,17 @@ import {
   signalGameReady,
   gameplayStart,
   gameplayStop,
-  getYandexLanguage
+  getYandexLanguage,
+  setGameplayBlocked
 } from "./yandex.js";
 
 const app = document.getElementById("app");
 const canvas = document.getElementById("canvas");
 const loader = document.getElementById("loader");
 const status = document.getElementById("status");
+const orientationGate = document.getElementById("orientation-gate");
+const orientationTitle = document.getElementById("orientation-title");
+const orientationMessage = document.getElementById("orientation-message");
 const fatal = document.getElementById("fatal");
 const fatalTitle = document.querySelector("#fatal h1");
 const fatalMessage = document.getElementById("fatal-message");
@@ -24,6 +28,8 @@ const MESSAGES = {
     preparing: "Preparing interface…",
     fatalTitle: "The game could not be started",
     reload: "Reload",
+    rotateTitle: "Rotate your device",
+    rotateMessage: "The Powder Toy is designed for landscape mode.",
     unknown: "Unknown error",
     loadScript: (src) => `Failed to load ${src}`,
     missingFactory: "create_powder was not found in the Emscripten build."
@@ -35,6 +41,8 @@ const MESSAGES = {
     preparing: "Подготовка интерфейса…",
     fatalTitle: "Не удалось запустить игру",
     reload: "Перезапустить",
+    rotateTitle: "Поверните устройство",
+    rotateMessage: "The Powder Toy лучше работает в горизонтальном режиме.",
     unknown: "Неизвестная ошибка",
     loadScript: (src) => `Не удалось загрузить ${src}`,
     missingFactory: "Функция create_powder не найдена в Emscripten-сборке."
@@ -54,6 +62,8 @@ function applyPlatformLanguage(currentSDK) {
     fatalTitle.textContent = message("fatalTitle");
   }
   reloadButton.textContent = message("reload");
+  orientationTitle.textContent = message("rotateTitle");
+  orientationMessage.textContent = message("rotateMessage");
 }
 
 function message(key, ...args) {
@@ -64,12 +74,38 @@ function message(key, ...args) {
 let presentable = false;
 let fatalShown = false;
 let gameModule = null;
-let runtimePauseRequested = document.hidden;
+let platformPauseRequested = document.hidden;
+let orientationPauseRequested = false;
 let runtimePaused = false;
+let orientationBlocked = false;
 window.__tptRuntimePaused = false;
+window.__tptOrientationBlocked = false;
 
 function setStatus(message) {
   status.textContent = message;
+}
+
+function isTouchEnvironment() {
+  return Boolean(
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia?.("(pointer: coarse)")?.matches
+  );
+}
+
+function updateOrientationGate() {
+  const nextBlocked = Boolean(
+    presentable &&
+    isTouchEnvironment() &&
+    window.innerHeight > window.innerWidth
+  );
+
+  orientationBlocked = nextBlocked;
+  orientationGate.hidden = !orientationBlocked;
+  orientationPauseRequested = orientationBlocked;
+  window.__tptOrientationBlocked = orientationBlocked;
+
+  applyRuntimePauseState();
+  setGameplayBlocked(orientationBlocked);
 }
 
 function fitCanvas() {
@@ -112,22 +148,23 @@ function callRuntimeHook(name) {
 }
 
 function applyRuntimePauseState() {
-  if (!gameModule || runtimePaused === runtimePauseRequested) {
+  const requested = platformPauseRequested || orientationPauseRequested;
+  if (!gameModule || runtimePaused === requested) {
     return;
   }
 
-  const hook = runtimePauseRequested
+  const hook = requested
     ? "YandexWeb_PauseMainLoop"
     : "YandexWeb_ResumeMainLoop";
 
   if (callRuntimeHook(hook)) {
-    runtimePaused = runtimePauseRequested;
+    runtimePaused = requested;
     window.__tptRuntimePaused = runtimePaused;
   }
 }
 
 function setRuntimePaused(paused) {
-  runtimePauseRequested = Boolean(paused);
+  platformPauseRequested = Boolean(paused);
   applyRuntimePauseState();
 }
 
@@ -143,6 +180,8 @@ function showFatal(error) {
   void gameplayStop();
 
   loader.hidden = true;
+  orientationGate.hidden = true;
+  setGameplayBlocked(true);
   canvas.style.display = "none";
   fatalMessage.textContent =
     error instanceof Error ? error.message : String(error || message("unknown"));
@@ -172,6 +211,7 @@ async function onPresentable() {
   canvas.style.display = "block";
   loader.hidden = true;
   app.setAttribute("aria-busy", "false");
+  updateOrientationGate();
 
   await new Promise((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(resolve))
@@ -185,19 +225,24 @@ window.mark_presentable = () => {
   void onPresentable();
 };
 
-function scheduleCanvasFit() {
-  requestAnimationFrame(() => requestAnimationFrame(fitCanvas));
+function scheduleViewportUpdate() {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      fitCanvas();
+      updateOrientationGate();
+    })
+  );
 }
 
-window.addEventListener("resize", scheduleCanvasFit, { passive: true });
-window.addEventListener("orientationchange", scheduleCanvasFit, { passive: true });
-document.addEventListener("fullscreenchange", scheduleCanvasFit);
+window.addEventListener("resize", scheduleViewportUpdate, { passive: true });
+window.addEventListener("orientationchange", scheduleViewportUpdate, { passive: true });
+document.addEventListener("fullscreenchange", scheduleViewportUpdate);
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", scheduleCanvasFit, {
+  window.visualViewport.addEventListener("resize", scheduleViewportUpdate, {
     passive: true
   });
-  window.visualViewport.addEventListener("scroll", scheduleCanvasFit, {
+  window.visualViewport.addEventListener("scroll", scheduleViewportUpdate, {
     passive: true
   });
 }
