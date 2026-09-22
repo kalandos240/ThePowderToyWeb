@@ -125,6 +125,8 @@ jobs:
           set -euo pipefail
 
           cat > dist/sdk.js <<'EOF'
+          window.__yandexLoadingReady = false;
+          window.__yandexGameplayStarted = false;
           window.YaGames = {
             init: async () => ({
               environment: {
