@@ -109,7 +109,8 @@ open_uri_anchor = """void OpenURI(ByteString uri)
 open_uri_patch = """void OpenURI(ByteString uri)
 {
 	// Yandex Web: external URI navigation is disabled.
-	std::cerr << "External URI blocked in Yandex build: " << uri << std::endl;
+	(void)uri;
+	std::cerr << "External URI blocked in Yandex build." << std::endl;
 }"""
 if "external URI navigation is disabled" not in platform_text:
     if open_uri_anchor not in platform_text:
