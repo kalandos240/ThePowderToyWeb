@@ -177,6 +177,27 @@ def smoke_case(language: str, mobile: bool):
         assert state["canvasHeight"] <= state["viewportHeight"] + 1, (label, state)
         assert state["ready"] is True, (label, state)
 
+        if not mobile and language == "en":
+            locale_aliases = driver.execute_async_script(
+                """
+                const done = arguments[arguments.length - 1];
+                import('./src/yandex.js').then((module) => {
+                    const result = {};
+                    for (const lang of ['ru', 'be', 'kk', 'uk', 'uz', 'de', 'tr']) {
+                        result[lang] = module.getYandexLanguage({
+                            environment: {i18n: {lang}}
+                        });
+                    }
+                    done(result);
+                }).catch((error) => done({error: String(error)}));
+                """
+            )
+            assert "error" not in locale_aliases, (label, locale_aliases)
+            for alias in ["ru", "be", "kk", "uk", "uz"]:
+                assert locale_aliases[alias] == "ru", (label, alias, locale_aliases)
+            for alias in ["de", "tr"]:
+                assert locale_aliases[alias] == "en", (label, alias, locale_aliases)
+
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-initial.png"))
 
         if mobile:
