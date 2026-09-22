@@ -350,6 +350,47 @@ def smoke_case(language: str, mobile: bool):
                     landscape_cycle,
                 )
 
+            # Touch must still work after several orientation transitions.
+            post_cycle_before = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            cycle_rect = driver.execute_script(
+                """
+                const r = document.getElementById('canvas').getBoundingClientRect();
+                return {left:r.left, top:r.top, width:r.width, height:r.height};
+                """
+            )
+            cx0 = cycle_rect["left"] + cycle_rect["width"] * 0.58
+            cy0 = cycle_rect["top"] + cycle_rect["height"] * 0.34
+            cx1 = cycle_rect["left"] + cycle_rect["width"] * 0.70
+            cy1 = cycle_rect["top"] + cycle_rect["height"] * 0.44
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{"x": cx0, "y": cy0, "radiusX": 4, "radiusY": 4, "force": 1}],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchMove",
+                    "touchPoints": [{"x": cx1, "y": cy1, "radiusX": 4, "radiusY": 4, "force": 1}],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.25)
+            post_cycle_after = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            assert post_cycle_after > post_cycle_before, (
+                label,
+                f"touch stopped working after orientation cycles: before={post_cycle_before}, after={post_cycle_after}",
+            )
+
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-orientation-cycle-final.png")
             )
