@@ -217,6 +217,35 @@ def smoke_case(language: str, mobile: bool):
         )
         assert resumed["paused"] is False, (label, resumed)
 
+        # Stress test: seed thousands of particles and prove the native main loop keeps advancing.
+        if language == "en":
+            requested_stress = 4000 if mobile else 8000
+            seeded = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestSeedDust', 'number', ['number'], [arguments[0]])",
+                requested_stress,
+            )
+            assert seeded >= int(requested_stress * 0.75), (
+                label,
+                f"stress seed too small: requested={requested_stress}, seeded={seeded}",
+            )
+            frame_before = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestFrameCount', 'number', [], [])"
+            )
+            time.sleep(2.0)
+            frame_after = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestFrameCount', 'number', [], [])"
+            )
+            assert frame_after - frame_before >= 2, (
+                label,
+                f"stress main loop stalled: before={frame_before}, after={frame_after}",
+            )
+            assert driver.execute_script(
+                "return document.getElementById('fatal').hidden === true"
+            ), (label, "fatal overlay appeared under stress")
+            driver.save_screenshot(
+                os.path.join(ARTIFACT_DIR, f"{label}-stress.png")
+            )
+
         # IDBFS persistence: write a marker, flush IndexedDB, reload, and read it back.
         if not mobile and language == "en":
             driver.execute_script(
