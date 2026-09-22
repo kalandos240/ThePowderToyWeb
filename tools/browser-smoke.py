@@ -329,8 +329,8 @@ def smoke_case(language: str, mobile: bool):
             my1 = draw_rect["top"] + draw_rect["height"] * 0.40
 
             canvas_element = driver.find_element(By.ID, "canvas")
-            start_offset_x = int(draw_rect["width"] * 0.24)
-            start_offset_y = int(draw_rect["height"] * 0.30)
+            start_offset_x = int(draw_rect["width"] * (0.24 - 0.50))
+            start_offset_y = int(draw_rect["height"] * (0.30 - 0.50))
             move_offset_x = int(draw_rect["width"] * (0.42 - 0.24))
             move_offset_y = int(draw_rect["height"] * (0.40 - 0.30))
             (
