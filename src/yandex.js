@@ -3,6 +3,7 @@ let sdkInitPromise = null;
 let readySent = false;
 let gameplayActive = false;
 let platformPauseActive = false;
+let gameplayBlocked = false;
 
 export async function initYandexSDK() {
   if (sdkInitPromise) {
@@ -50,7 +51,7 @@ export async function signalGameReady() {
 }
 
 export async function gameplayStart() {
-  if (gameplayActive || document.hidden || platformPauseActive) {
+  if (gameplayActive || document.hidden || platformPauseActive || gameplayBlocked) {
     return;
   }
 
@@ -85,6 +86,20 @@ export async function gameplayStop() {
     console.error("[Yandex] GameplayAPI.stop failed.", error);
   } finally {
     gameplayActive = false;
+  }
+}
+
+export function setGameplayBlocked(blocked) {
+  const next = Boolean(blocked);
+  if (gameplayBlocked === next) {
+    return;
+  }
+
+  gameplayBlocked = next;
+  if (gameplayBlocked) {
+    void gameplayStop();
+  } else if (readySent && !document.hidden && !platformPauseActive) {
+    void gameplayStart();
   }
 }
 
