@@ -238,6 +238,117 @@ def smoke_case(language: str, mobile: bool):
         assert resized["orientationDisplay"] == "none", (label, resized)
         assert resized["gameplay"] is True, (label, resized)
 
+        if not mobile:
+            # Prove desktop mouse input can select a real UI element and draw.
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestSelectWater', null, [], [])"
+            )
+            desktop_before_tap = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestActiveToolIsDust', 'number', [], [])"
+            )
+            assert desktop_before_tap == 0, (label, "failed to switch away from DUST before mouse UI test")
+
+            dust_button = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                const logicalX = canvas.width - 41;
+                const logicalY = canvas.height - 13;
+                return {
+                    x: r.left + (logicalX / canvas.width) * r.width,
+                    y: r.top + (logicalY / canvas.height) * r.height,
+                };
+                """
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mousePressed",
+                    "x": dust_button["x"],
+                    "y": dust_button["y"],
+                    "button": "left",
+                    "buttons": 1,
+                    "clickCount": 1,
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mouseReleased",
+                    "x": dust_button["x"],
+                    "y": dust_button["y"],
+                    "button": "left",
+                    "buttons": 0,
+                    "clickCount": 1,
+                },
+            )
+            time.sleep(0.15)
+            desktop_after_tap = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestActiveToolIsDust', 'number', [], [])"
+            )
+            assert desktop_after_tap == 1, (
+                label,
+                f"clicking visible DUST button did not select DUST: point={dust_button}",
+            )
+
+            desktop_before_particles = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            draw_rect = driver.execute_script(
+                """
+                const r = document.getElementById('canvas').getBoundingClientRect();
+                return {left:r.left, top:r.top, width:r.width, height:r.height};
+                """
+            )
+            mx0 = draw_rect["left"] + draw_rect["width"] * 0.24
+            my0 = draw_rect["top"] + draw_rect["height"] * 0.30
+            mx1 = draw_rect["left"] + draw_rect["width"] * 0.42
+            my1 = draw_rect["top"] + draw_rect["height"] * 0.40
+
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mousePressed",
+                    "x": mx0,
+                    "y": my0,
+                    "button": "left",
+                    "buttons": 1,
+                    "clickCount": 1,
+                },
+            )
+            for step in range(1, 6):
+                t = step / 5
+                driver.execute_cdp_cmd(
+                    "Input.dispatchMouseEvent",
+                    {
+                        "type": "mouseMoved",
+                        "x": mx0 + (mx1 - mx0) * t,
+                        "y": my0 + (my1 - my0) * t,
+                        "button": "left",
+                        "buttons": 1,
+                    },
+                )
+                time.sleep(0.02)
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mouseReleased",
+                    "x": mx1,
+                    "y": my1,
+                    "button": "left",
+                    "buttons": 0,
+                    "clickCount": 1,
+                },
+            )
+            time.sleep(0.2)
+            desktop_after_particles = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            assert desktop_after_particles > desktop_before_particles, (
+                label,
+                f"desktop mouse drag did not draw particles: before={desktop_before_particles}, after={desktop_after_particles}",
+            )
+
         if mobile:
             # Prove a real touch on the visible DUST button changes the active tool.
             driver.execute_script(
