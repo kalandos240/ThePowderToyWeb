@@ -136,10 +136,22 @@ window.mark_presentable = () => {
   void onPresentable();
 };
 
-window.addEventListener("resize", fitCanvas, { passive: true });
-window.addEventListener("orientationchange", () => {
-  requestAnimationFrame(fitCanvas);
-});
+function scheduleCanvasFit() {
+  requestAnimationFrame(() => requestAnimationFrame(fitCanvas));
+}
+
+window.addEventListener("resize", scheduleCanvasFit, { passive: true });
+window.addEventListener("orientationchange", scheduleCanvasFit, { passive: true });
+document.addEventListener("fullscreenchange", scheduleCanvasFit);
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", scheduleCanvasFit, {
+    passive: true
+  });
+  window.visualViewport.addEventListener("scroll", scheduleCanvasFit, {
+    passive: true
+  });
+}
 
 canvas.addEventListener(
   "pointerdown",
