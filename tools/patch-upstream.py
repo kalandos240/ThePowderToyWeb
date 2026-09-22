@@ -93,6 +93,30 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
 {
 	emscripten_resume_main_loop();
 }
+
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestStorageWrite()
+{
+	EM_ASM({
+		window.__tptStorageFlushed = false;
+		FS.writeFile('/powder/.yandex-storage-test', 'tpt-yandex-storage-ok');
+		FS.syncfs(false, err => {
+			window.__tptStorageFlushError = err ? String(err) : '';
+			window.__tptStorageFlushed = !err;
+		});
+	});
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestStorageRead()
+{
+	return EM_ASM_INT({
+		try {
+			return UTF8ArrayToString(FS.readFile('/powder/.yandex-storage-test')) === 'tpt-yandex-storage-ok' ? 1 : 0;
+		} catch (e) {
+			return 0;
+		}
+	});
+}
 '''
 
 if "YandexWeb_PauseMainLoop" not in sdl_text:
