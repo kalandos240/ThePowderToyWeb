@@ -40,6 +40,10 @@ jobs:
           python3 -m pip install --user --upgrade meson ninja
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Check Russian font coverage
+        run: |
+          python3 tools/check-font.py
+
       - name: Apply Yandex Web patches
         run: |
           python3 tools/patch-upstream.py
