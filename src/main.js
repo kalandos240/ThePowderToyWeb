@@ -12,6 +12,7 @@ const canvas = document.getElementById("canvas");
 const loader = document.getElementById("loader");
 const status = document.getElementById("status");
 const fatal = document.getElementById("fatal");
+const fatalTitle = document.querySelector("#fatal h1");
 const fatalMessage = document.getElementById("fatal-message");
 const reloadButton = document.getElementById("reload");
 
@@ -21,9 +22,22 @@ const MESSAGES = {
     engine: "Loading engine…",
     simulation: "Starting simulation…",
     preparing: "Preparing interface…",
+    fatalTitle: "The game could not be started",
+    reload: "Reload",
     unknown: "Unknown error",
     loadScript: (src) => `Failed to load ${src}`,
     missingFactory: "create_powder was not found in the Emscripten build."
+  },
+  ru: {
+    init: "Инициализация Яндекс Игр…",
+    engine: "Загрузка движка…",
+    simulation: "Запуск симуляции…",
+    preparing: "Подготовка интерфейса…",
+    fatalTitle: "Не удалось запустить игру",
+    reload: "Перезапустить",
+    unknown: "Неизвестная ошибка",
+    loadScript: (src) => `Не удалось загрузить ${src}`,
+    missingFactory: "Функция create_powder не найдена в Emscripten-сборке."
   }
 };
 
@@ -31,11 +45,15 @@ let uiLanguage = "en";
 
 function applyPlatformLanguage(currentSDK) {
   const requested = getYandexLanguage(currentSDK);
-  // The first Yandex release is intentionally single-language (English).
-  // Still read i18n.lang as required by the platform and apply a supported fallback.
   uiLanguage = Object.hasOwn(MESSAGES, requested) ? requested : "en";
   document.documentElement.lang = uiLanguage;
   window.yandexDetectedLanguage = requested;
+  window.tptLanguage = uiLanguage;
+
+  if (fatalTitle) {
+    fatalTitle.textContent = message("fatalTitle");
+  }
+  reloadButton.textContent = message("reload");
 }
 
 function message(key, ...args) {
@@ -213,13 +231,13 @@ async function boot() {
   });
 
   setStatus(message("init"));
-  const sdkPromise = initYandexSDK().then((currentSDK) => {
-    applyPlatformLanguage(currentSDK);
-    return currentSDK;
-  });
+  const [currentSDK] = await Promise.all([
+    initYandexSDK(),
+    loadScript("./game/powder.js")
+  ]);
+  applyPlatformLanguage(currentSDK);
 
   setStatus(message("engine"));
-  await loadScript("./game/powder.js");
 
   if (typeof window.create_powder !== "function") {
     throw new Error(message("missingFactory"));
@@ -239,7 +257,9 @@ async function boot() {
     }
   });
 
-  const [, gameResult] = await Promise.allSettled([sdkPromise, gamePromise]);
+  const gameResult = await Promise.resolve(gamePromise)
+    .then((value) => ({ status: "fulfilled", value }))
+    .catch((reason) => ({ status: "rejected", reason }));
 
   if (gameResult.status === "rejected") {
     throw gameResult.reason;
