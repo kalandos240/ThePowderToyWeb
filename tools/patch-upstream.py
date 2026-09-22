@@ -20,6 +20,7 @@ confirm_prompt = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmPromp
 error_message = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
 information_message = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
+platform_emscripten = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -667,3 +668,39 @@ localized_intro = r'''inline ByteString IntroText()
 
 intro_source = intro_source[:start] + localized_intro + intro_source[end:]
 intro_text.write_text(intro_source, encoding="utf-8")
+
+
+# Disable external navigation in the Yandex archive build.
+platform_text = platform_emscripten.read_text(encoding="utf-8")
+open_uri_anchor = """void OpenURI(ByteString uri)
+{
+	EM_ASM({
+		open(UTF8ToString($0));
+	}, uri.c_str());
+}"""
+open_uri_patch = """void OpenURI(ByteString uri)
+{
+	// Yandex Games moderation does not allow navigation to external resources.
+	std::cerr << "External URI blocked in Yandex build: " << uri << std::endl;
+}"""
+if "External URI blocked in Yandex build" not in platform_text:
+    if open_uri_anchor not in platform_text:
+        raise SystemExit("Emscripten.cpp OpenURI anchor not found")
+    platform_text = platform_text.replace(open_uri_anchor, open_uri_patch, 1)
+platform_emscripten.write_text(platform_text, encoding="utf-8")
+
+# Hide the upstream credits button because its content contains external URLs.
+options_text = options_view.read_text(encoding="utf-8")
+credits_anchor = """	addButtonWithLabel(YandexWebText("Credits", "Авторы"), " - Find out who contributed to TPT", []{
+		auto *credits = new Credits();
+		ui::Engine::Ref().ShowWindow(credits);
+	});"""
+if credits_anchor in options_text:
+    options_text = options_text.replace(
+        credits_anchor,
+        """#if !defined(__EMSCRIPTEN__)
+""" + credits_anchor + """
+#endif""",
+        1,
+    )
+options_view.write_text(options_text, encoding="utf-8")
