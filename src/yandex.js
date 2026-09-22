@@ -2,6 +2,7 @@ let sdk = null;
 let sdkInitPromise = null;
 let readySent = false;
 let gameplayActive = false;
+let platformPauseActive = false;
 
 export async function initYandexSDK() {
   if (sdkInitPromise) {
@@ -49,7 +50,7 @@ export async function signalGameReady() {
 }
 
 export async function gameplayStart() {
-  if (gameplayActive || document.hidden) {
+  if (gameplayActive || document.hidden || platformPauseActive) {
     return;
   }
 
@@ -87,16 +88,53 @@ export async function gameplayStop() {
   }
 }
 
-export function installGameplayVisibilityBridge() {
+export function installPlatformPauseBridge({ onPause, onResume } = {}) {
+  const pauseRuntime = () => {
+    onPause?.();
+  };
+
+  const resumeRuntime = () => {
+    if (!document.hidden && !platformPauseActive) {
+      onResume?.();
+    }
+  };
+
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
+      pauseRuntime();
       void gameplayStop();
-    } else if (readySent) {
-      void gameplayStart();
+    } else {
+      resumeRuntime();
+      if (readySent) {
+        void gameplayStart();
+      }
     }
   });
 
   window.addEventListener("pagehide", () => {
+    pauseRuntime();
     void gameplayStop();
+  });
+
+  void initYandexSDK().then((currentSDK) => {
+    if (!currentSDK?.on) {
+      return;
+    }
+
+    currentSDK.on("game_api_pause", () => {
+      platformPauseActive = true;
+      gameplayActive = false;
+      pauseRuntime();
+      console.info("[Yandex] game_api_pause");
+    });
+
+    currentSDK.on("game_api_resume", () => {
+      platformPauseActive = false;
+      if (readySent && !document.hidden) {
+        gameplayActive = true;
+      }
+      resumeRuntime();
+      console.info("[Yandex] game_api_resume");
+    });
   });
 }
