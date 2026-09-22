@@ -12,6 +12,10 @@ on:
       - "tools/**"
       - ".github/workflows/build-yandex.yml"
 
+concurrency:
+  group: yandex-build-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
