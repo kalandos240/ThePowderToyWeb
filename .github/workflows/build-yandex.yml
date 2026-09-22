@@ -30,6 +30,11 @@ jobs:
           ref: v100.1.400
           path: upstream
 
+      - name: Install build tools
+        run: |
+          python3 -m pip install --user --upgrade meson ninja
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Build upstream Emscripten target without external HTTP features
         working-directory: upstream
         env:
