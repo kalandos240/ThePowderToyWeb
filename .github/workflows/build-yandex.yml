@@ -9,6 +9,7 @@ on:
       - "index.html"
       - "styles.css"
       - "src/**"
+      - "tools/**"
       - ".github/workflows/build-yandex.yml"
 
 permissions:
@@ -34,6 +35,10 @@ jobs:
         run: |
           python3 -m pip install --user --upgrade meson ninja
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Apply Yandex Web patches
+        run: |
+          python3 tools/patch-upstream.py
 
       - name: Build upstream Emscripten target without external HTTP features
         working-directory: upstream
@@ -76,7 +81,6 @@ jobs:
           fi
           cp upstream/LICENSE dist/LICENSE
 
-          # Yandex archive requirements: index.html at root and uncompressed content <= 100 MB.
           test -f dist/index.html
           SIZE_BYTES="$(du -sb dist | cut -f1)"
           echo "Uncompressed package size: $SIZE_BYTES bytes"
