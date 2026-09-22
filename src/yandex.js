@@ -147,8 +147,8 @@ export function installPlatformPauseBridge({ onPause, onResume } = {}) {
 export function getYandexLanguage(currentSDK = sdk) {
   const language =
     currentSDK?.environment?.i18n?.lang ||
-    document.documentElement.lang ||
     navigator.language ||
+    document.documentElement.lang ||
     "en";
 
   const normalized = String(language).toLowerCase().split("-")[0];
