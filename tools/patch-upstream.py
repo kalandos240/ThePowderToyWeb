@@ -19,6 +19,7 @@ colour_picker = root / "upstream" / "src" / "gui" / "colourpicker" / "ColourPick
 confirm_prompt = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmPrompt.cpp"
 error_message = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
 information_message = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
+intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -595,3 +596,74 @@ for old, new in render_replacements:
     if old in render_text:
         render_text = render_text.replace(old, new)
 render_view.write_text(render_text, encoding="utf-8")
+
+
+# Localized F1 help overlay. The Yandex build is intentionally local-only.
+intro_source = intro_text.read_text(encoding="utf-8")
+if '#include "YandexWebLocale.h"' not in intro_source:
+    intro_source = intro_source.replace(
+        '#include "common/String.h"\n',
+        '#include "common/String.h"\n#include "YandexWebLocale.h"\n',
+        1,
+    )
+
+start = intro_source.find("inline ByteString IntroText()")
+if start < 0:
+    raise SystemExit("IntroText.h function start not found")
+brace = intro_source.find("{", start)
+depth = 0
+end = None
+for i in range(brace, len(intro_source)):
+    if intro_source[i] == "{":
+        depth += 1
+    elif intro_source[i] == "}":
+        depth -= 1
+        if depth == 0:
+            end = i + 1
+            break
+if end is None:
+    raise SystemExit("IntroText.h function end not found")
+
+localized_intro = r'''inline ByteString IntroText()
+{
+	ByteStringBuilder sb;
+	sb << "\bl\bU" << APPNAME << "\bU - " << (YandexWebIsRussian() ? "Версия " : "Version ")
+	   << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\n\n";
+
+	if (YandexWebIsRussian())
+	{
+		sb << "\bgНажмите \boF1\bg, чтобы показать или скрыть эту справку.\n\n"
+		      "Выберите категорию элементов справа, затем материал.\n"
+		      "Рисуйте мышью или касанием по области симуляции.\n"
+		      "\boКолесо мыши\bg или \bo[ ]\bg меняют размер инструмента; \boTab\bg меняет форму кисти.\n"
+		      "\boCtrl+C / Ctrl+V / Ctrl+X\bg — копировать, вставить и вырезать.\n"
+		      "\boShift+перетаскивание\bg — линия; \boCtrl+перетаскивание\bg — заполненный прямоугольник.\n\n"
+		      "\boПробел\bg — пауза; \boF\bg — один кадр; \boF5\bg — перезапустить симуляцию.\n"
+		      "\boCtrl+Z\bg — отмена; \boCtrl+Y\bg или \boCtrl+Shift+Z\bg — повтор.\n"
+		      "\boS\bg — сохранить штамп; \boL\bg — загрузить последний; \boK\bg — библиотека штампов.\n"
+		      "\bo0–9\bg — режим отображения; \boH\bg — HUD; \boD\bg — отладочная информация.\n"
+		      "\boZ\bg — масштаб; \boCtrl+F\bg — подсветить выбранный элемент.\n\n"
+		      "\bgСохранения хранятся локально в этом браузере. Регистрация не требуется.\n";
+	}
+	else
+	{
+		sb << "\bgPress \boF1\bg to show or hide this help.\n\n"
+		      "Choose an element category on the right, then select a material.\n"
+		      "Draw with the mouse or touch input in the simulation area.\n"
+		      "\boMouse wheel\bg or \bo[ ]\bg changes tool size; \boTab\bg changes brush shape.\n"
+		      "\boCtrl+C / Ctrl+V / Ctrl+X\bg copy, paste and cut.\n"
+		      "\boShift+drag\bg draws a line; \boCtrl+drag\bg draws a filled rectangle.\n\n"
+		      "\boSpace\bg pauses physics; \boF\bg advances one frame; \boF5\bg reloads the simulation.\n"
+		      "\boCtrl+Z\bg undoes; \boCtrl+Y\bg or \boCtrl+Shift+Z\bg redoes.\n"
+		      "\boS\bg saves a stamp; \boL\bg loads the latest; \boK\bg opens the stamp library.\n"
+		      "\bo0–9\bg selects display modes; \boH\bg toggles HUD; \boD\bg toggles debug HUD.\n"
+		      "\boZ\bg opens zoom; \boCtrl+F\bg highlights the selected element.\n\n"
+		      "\bgSaves are stored locally in this browser. No registration is required.\n";
+	}
+
+	sb << "\n\bt" << VersionInfo();
+	return sb.Build();
+}'''
+
+intro_source = intro_source[:start] + localized_intro + intro_source[end:]
+intro_text.write_text(intro_source, encoding="utf-8")
