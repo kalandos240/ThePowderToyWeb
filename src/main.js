@@ -42,7 +42,7 @@ const MESSAGES = {
     fatalTitle: "Не удалось запустить игру",
     reload: "Перезапустить",
     rotateTitle: "Поверните устройство",
-    rotateMessage: "The Powder Toy лучше работает в горизонтальном режиме.",
+    rotateMessage: "Для The Powder Toy используйте горизонтальный режим.",
     unknown: "Неизвестная ошибка",
     loadScript: (src) => `Не удалось загрузить ${src}`,
     missingFactory: "Функция create_powder не найдена в Emscripten-сборке."
