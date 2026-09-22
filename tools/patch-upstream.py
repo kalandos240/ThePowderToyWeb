@@ -90,7 +90,30 @@ if "browserTouchUI" not in text:
 powder.write_text(text, encoding="utf-8")
 
 sdl_text = sdl_emscripten.read_text(encoding="utf-8")
+frame_anchor = """static void MainLoopBody()
+{
+	EngineProcess();
+	Platform::MaybeTriggerSyncFs();
+}"""
+frame_patch = """static unsigned int yandexWebTestFrameCount = 0;
+
+static void MainLoopBody()
+{
+	++yandexWebTestFrameCount;
+	EngineProcess();
+	Platform::MaybeTriggerSyncFs();
+}"""
+if "yandexWebTestFrameCount" not in sdl_text:
+    if frame_anchor not in sdl_text:
+        raise SystemExit("PowderToySDLEmscripten.cpp main loop anchor not found")
+    sdl_text = sdl_text.replace(frame_anchor, frame_patch, 1)
+
 pause_patch = '''
+
+EMSCRIPTEN_KEEPALIVE extern "C" unsigned int YandexWeb_TestFrameCount()
+{
+	return yandexWebTestFrameCount;
+}
 
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PauseMainLoop()
 {
@@ -1134,6 +1157,24 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 		return;
 	YandexWeb_TestGameModel->SetActiveTool(0, tool);
 	YandexWeb_TestGameModel->SetLastTool(tool);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestSeedDust(int requested)
+{
+	if (!YandexWeb_TestGameModel || requested <= 0)
+		return -1;
+	auto *sim = YandexWeb_TestGameModel->GetSimulation();
+	int before = sim->NUM_PARTS;
+	int added = 0;
+	for (int y = 8; y < YRES - 8 && added < requested; y += 3)
+	{
+		for (int x = 8; x < XRES - 8 && added < requested; x += 3)
+		{
+			if (sim->create_part(-1, x, y, PT_DUST) >= 0)
+				++added;
+		}
+	}
+	return sim->NUM_PARTS - before;
 }
 
 '''
