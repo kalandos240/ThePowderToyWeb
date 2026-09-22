@@ -3,6 +3,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 powder = root / "upstream" / "src" / "PowderToy.cpp"
+sdl_emscripten = root / "upstream" / "src" / "PowderToySDLEmscripten.cpp"
 
 text = powder.read_text(encoding="utf-8")
 
@@ -32,4 +33,23 @@ if "browserTouchUI" not in text:
     text = text.replace(touch_anchor, touch_patch, 1)
 
 powder.write_text(text, encoding="utf-8")
+
+sdl_text = sdl_emscripten.read_text(encoding="utf-8")
+pause_patch = '''
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PauseMainLoop()
+{
+	emscripten_pause_main_loop();
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
+{
+	emscripten_resume_main_loop();
+}
+'''
+
+if "YandexWeb_PauseMainLoop" not in sdl_text:
+    sdl_text = sdl_text.rstrip() + pause_patch + "\n"
+
+sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 print("Applied Yandex Web upstream patches.")
