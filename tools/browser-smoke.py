@@ -100,7 +100,43 @@ def smoke_case(language: str, mobile: bool):
         else:
             assert state["touchUI"] is False, (label, state)
 
-        print(f"[smoke] {label}: OK {state}")
+        if mobile:
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+        else:
+            driver.set_window_size(800, 600)
+
+        time.sleep(0.5)
+        resized = driver.execute_script(
+            """
+            const rect = document.getElementById('canvas').getBoundingClientRect();
+            return {
+                width: rect.width,
+                height: rect.height,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+                fatalHidden: document.getElementById('fatal').hidden,
+            };
+            """
+        )
+        assert resized["fatalHidden"] is True, (label, resized)
+        assert resized["width"] > 0 and resized["height"] > 0, (label, resized)
+        assert resized["width"] <= resized["viewportWidth"] + 1, (label, resized)
+        assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
+
+        print(f"[smoke] {label}: OK {state}; resized={resized}")
     finally:
         driver.quit()
 
