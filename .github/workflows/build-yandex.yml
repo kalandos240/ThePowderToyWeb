@@ -72,6 +72,15 @@ jobs:
           chmod +x .github/build.sh
           ./.github/build.sh
 
+      - name: Validate pthread-free browser output
+        run: |
+          set -euo pipefail
+          if grep -Eqi "SharedArrayBuffer|PThread|pthread_create" upstream/build/powder.js; then
+            echo "Threaded Emscripten runtime detected; Yandex ZIP build must be cross-origin-isolation independent."
+            exit 1
+          fi
+          echo "No pthread/SharedArrayBuffer runtime markers detected."
+
       - name: Assemble Yandex archive
         run: |
           set -euo pipefail
