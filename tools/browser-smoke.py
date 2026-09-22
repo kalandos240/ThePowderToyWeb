@@ -104,6 +104,64 @@ def smoke_case(language: str, mobile: bool):
         else:
             assert state["touchUI"] is False, (label, state)
 
+
+        if mobile:
+            # Prove actual touch input reaches native TPT and draws particles.
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestSelectDust', null, [], [])"
+            )
+            before_particles = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            touch_rect = driver.execute_script(
+                """
+                const r = document.getElementById('canvas').getBoundingClientRect();
+                return {left:r.left, top:r.top, width:r.width, height:r.height};
+                """
+            )
+            x0 = touch_rect["left"] + touch_rect["width"] * 0.30
+            y0 = touch_rect["top"] + touch_rect["height"] * 0.38
+            x1 = touch_rect["left"] + touch_rect["width"] * 0.45
+            y1 = touch_rect["top"] + touch_rect["height"] * 0.48
+
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{"x": x0, "y": y0, "radiusX": 4, "radiusY": 4, "force": 1}],
+                },
+            )
+            for step in range(1, 6):
+                t = step / 5
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {
+                        "type": "touchMove",
+                        "touchPoints": [{
+                            "x": x0 + (x1 - x0) * t,
+                            "y": y0 + (y1 - y0) * t,
+                            "radiusX": 4,
+                            "radiusY": 4,
+                            "force": 1,
+                        }],
+                    },
+                )
+                time.sleep(0.03)
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.3)
+
+            after_particles = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            assert before_particles >= 0, (label, before_particles)
+            assert after_particles > before_particles, (
+                label,
+                f"touch did not draw particles: before={before_particles}, after={after_particles}",
+            )
+
         if mobile:
             driver.execute_cdp_cmd(
                 "Emulation.setDeviceMetricsOverride",
