@@ -142,3 +142,11 @@ export function installPlatformPauseBridge({ onPause, onResume } = {}) {
     });
   });
 }
+
+
+export function getYandexLanguage(currentSDK = sdk) {
+  const language = currentSDK?.environment?.i18n?.lang;
+  return typeof language === "string" && language.length > 0
+    ? language.toLowerCase()
+    : "en";
+}
