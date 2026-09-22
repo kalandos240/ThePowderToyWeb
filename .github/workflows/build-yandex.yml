@@ -46,6 +46,10 @@ jobs:
         run: |
           python3 tools/check-font.py
 
+      - name: Check complete Russian element localization
+        run: |
+          python3 tools/check-element-localization.py
+
       - name: Apply Yandex Web patches
         run: |
           python3 tools/patch-upstream.py
