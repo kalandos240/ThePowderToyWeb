@@ -1138,6 +1138,22 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 	YandexWeb_TestGameModel->SetLastTool(tool);
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
+{
+	if (!YandexWeb_TestGameModel)
+		return -1;
+	auto *sim = YandexWeb_TestGameModel->GetSimulation();
+	target = std::max(0, std::min(target, 50000));
+	for (int y = 20; y < YRES - 20 && sim->NUM_PARTS < target; y += 2)
+	{
+		for (int x = 20; x < XRES - 20 && sim->NUM_PARTS < target; x += 2)
+		{
+			sim->create_part(-1, x, y, PT_DUST);
+		}
+	}
+	return sim->NUM_PARTS;
+}
+
 '''
 if diag_block not in model_text:
     if diag_anchor not in model_text:
