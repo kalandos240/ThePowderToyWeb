@@ -54,6 +54,15 @@ jobs:
         run: |
           python3 tools/patch-upstream.py
 
+      - name: Check Yandex UI has no external community links
+        run: |
+          set -euo pipefail
+          if grep -RInE 'powdertoy\.co\.uk|tpt\.io/discord|irc\.libera\.chat|github\.com/The-Powder-Toy' upstream/src/gui; then
+            echo "External community link remains in Yandex UI."
+            exit 1
+          fi
+          echo "Yandex UI external-link audit: OK"
+
       - name: Build upstream Emscripten target without external HTTP features
         working-directory: upstream
         env:
