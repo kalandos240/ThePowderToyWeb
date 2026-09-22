@@ -4,6 +4,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 powder = root / "upstream" / "src" / "PowderToy.cpp"
 sdl_emscripten = root / "upstream" / "src" / "PowderToySDLEmscripten.cpp"
+game_view = root / "upstream" / "src" / "gui" / "game" / "GameView.cpp"
 
 text = powder.read_text(encoding="utf-8")
 
@@ -55,3 +56,35 @@ if "YandexWeb_PauseMainLoop" not in sdl_text:
 
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 print("Applied Yandex Web upstream patches.")
+
+
+game_view_text = game_view.read_text(encoding="utf-8")
+
+search_anchor = '''	searchButton->SetActionCallback({ [this] {
+		if (CtrlBehaviour())
+			c->OpenLocalBrowse();
+		else
+			c->OpenSearch("");
+	} });'''
+search_patch = '''	// Yandex Web: local-only search. The build intentionally disables HTTP.
+	searchButton->SetToolTip("Open a local simulation.");
+	searchButton->SetActionCallback({ [this] {
+		c->OpenLocalBrowse();
+	} });'''
+
+if "Yandex Web: local-only search" not in game_view_text:
+    if search_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp search button anchor not found")
+    game_view_text = game_view_text.replace(search_anchor, search_patch, 1)
+
+login_anchor = "	AddComponent(loginButton);"
+login_patch = '''	AddComponent(loginButton);
+	// Yandex Web has no connection to the upstream account/server backend.
+	loginButton->Visible = false;'''
+
+if "loginButton->Visible = false;" not in game_view_text:
+    if login_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp login button anchor not found")
+    game_view_text = game_view_text.replace(login_anchor, login_patch, 1)
+
+game_view.write_text(game_view_text, encoding="utf-8")
