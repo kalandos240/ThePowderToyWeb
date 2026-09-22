@@ -166,8 +166,18 @@ jobs:
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           sleep 1
 
-          TPT_SMOKE_URL=http://127.0.0.1:8765 python3 tools/browser-smoke.py
+          TPT_SMOKE_URL=http://127.0.0.1:8765 \
+          TPT_SMOKE_ARTIFACT_DIR=test-artifacts \
+          python3 tools/browser-smoke.py
           rm -f dist/sdk.js
+
+      - name: Upload browser smoke screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThePowderToy-Smoke-Screenshots
+          path: test-artifacts/*.png
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload Yandex Games ZIP
         uses: actions/upload-artifact@v4
