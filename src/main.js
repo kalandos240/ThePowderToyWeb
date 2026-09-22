@@ -74,8 +74,15 @@ function setStatus(message) {
 function fitCanvas() {
   const logicalWidth = canvas.width || 612;
   const logicalHeight = canvas.height || 384;
-  const availableWidth = app.clientWidth;
-  const availableHeight = app.clientHeight;
+  const appStyle = getComputedStyle(app);
+  const horizontalPadding =
+    (Number.parseFloat(appStyle.paddingLeft) || 0) +
+    (Number.parseFloat(appStyle.paddingRight) || 0);
+  const verticalPadding =
+    (Number.parseFloat(appStyle.paddingTop) || 0) +
+    (Number.parseFloat(appStyle.paddingBottom) || 0);
+  const availableWidth = Math.max(0, app.clientWidth - horizontalPadding);
+  const availableHeight = Math.max(0, app.clientHeight - verticalPadding);
 
   if (!logicalWidth || !logicalHeight || !availableWidth || !availableHeight) {
     return;
@@ -190,6 +197,7 @@ function scheduleCanvasFit() {
 window.addEventListener("resize", scheduleCanvasFit, { passive: true });
 window.addEventListener("orientationchange", scheduleCanvasFit, { passive: true });
 document.addEventListener("fullscreenchange", scheduleCanvasFit);
+window.addEventListener("pageshow", scheduleCanvasFit);
 
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", scheduleCanvasFit, {
