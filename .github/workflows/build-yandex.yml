@@ -5,12 +5,17 @@ on:
   push:
     branches:
       - main
+      - experiment/no-pthreads
     paths:
       - "index.html"
       - "styles.css"
       - "src/**"
       - "tools/**"
       - ".github/workflows/build-yandex.yml"
+
+concurrency:
+  group: yandex-build-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
