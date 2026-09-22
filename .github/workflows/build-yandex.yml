@@ -147,7 +147,16 @@ jobs:
                   }
                 }
               },
-              on() {}
+              __listeners: {},
+              on(event, callback) {
+                this.__listeners[event] ??= [];
+                this.__listeners[event].push(callback);
+              },
+              emit(event) {
+                for (const callback of this.__listeners[event] || []) {
+                  callback();
+                }
+              }
             })
           };
           EOF
