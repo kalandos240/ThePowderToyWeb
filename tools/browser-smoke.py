@@ -7,6 +7,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
 BASE_URL = os.environ.get("TPT_SMOKE_URL", "http://127.0.0.1:8765")
+ARTIFACT_DIR = os.environ.get("TPT_SMOKE_ARTIFACT_DIR", "test-artifacts")
+os.makedirs(ARTIFACT_DIR, exist_ok=True)
 
 
 def make_driver(mobile: bool):
@@ -94,6 +96,8 @@ def smoke_case(language: str, mobile: bool):
         assert state["canvasHeight"] <= state["viewportHeight"] + 1, (label, state)
         assert state["ready"] is True and state["gameplay"] is True, (label, state)
 
+        driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-initial.png"))
+
         if mobile:
             assert state["maxTouchPoints"] > 0 or state["coarsePointer"], (label, state)
             assert state["touchUI"] is True, (label, state)
@@ -135,6 +139,7 @@ def smoke_case(language: str, mobile: bool):
         assert resized["width"] > 0 and resized["height"] > 0, (label, resized)
         assert resized["width"] <= resized["viewportWidth"] + 1, (label, resized)
         assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
+        driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
         # Yandex platform pause/resume must stop and restart the native loop.
         driver.execute_script("window.ysdk.emit('game_api_pause')")
