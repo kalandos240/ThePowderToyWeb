@@ -21,6 +21,7 @@ error_message = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.
 information_message = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 platform_emscripten = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
+lua_misc = root / "upstream" / "src" / "lua" / "LuaMisc.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -704,3 +705,36 @@ if credits_anchor in options_text:
         1,
     )
 options_view.write_text(options_text, encoding="utf-8")
+
+
+# Disable the third-party Lua script manager installer in the Yandex build.
+lua_text = lua_misc.read_text(encoding="utf-8")
+lua_install_anchor = """static int installScriptManager(lua_State *L)
+{
+	auto *lsi = GetLSI();"""
+lua_install_patch = """static int installScriptManager(lua_State *L)
+{
+#if defined(__EMSCRIPTEN__)
+	// The Yandex archive is self-contained and does not download third-party scripts.
+	return 0;
+#else
+	auto *lsi = GetLSI();"""
+if "does not download third-party scripts" not in lua_text:
+    if lua_install_anchor not in lua_text:
+        raise SystemExit("LuaMisc.cpp script manager anchor not found")
+    lua_text = lua_text.replace(lua_install_anchor, lua_install_patch, 1)
+    end_anchor = """	lsi->scriptManagerDownload->Start();
+	return 0;
+}
+
+void LuaMisc::Tick"""
+    end_patch = """	lsi->scriptManagerDownload->Start();
+	return 0;
+#endif
+}
+
+void LuaMisc::Tick"""
+    if end_anchor not in lua_text:
+        raise SystemExit("LuaMisc.cpp script manager end anchor not found")
+    lua_text = lua_text.replace(end_anchor, end_patch, 1)
+lua_misc.write_text(lua_text, encoding="utf-8")
