@@ -13,6 +13,12 @@ locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
+render_view = root / "upstream" / "src" / "gui" / "render" / "RenderView.cpp"
+element_search = root / "upstream" / "src" / "gui" / "elementsearch" / "ElementSearchActivity.cpp"
+colour_picker = root / "upstream" / "src" / "gui" / "colourpicker" / "ColourPickerActivity.cpp"
+confirm_prompt = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmPrompt.cpp"
+error_message = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
+information_message = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -201,6 +207,12 @@ include_locale(game_view, '#include "Config.h"\n')
 include_locale(local_browser, '#include "SimulationConfig.h"\n')
 include_locale(local_save, '#include "Config.h"\n')
 include_locale(options_view, '#include "Config.h"\n')
+include_locale(render_view, '#include "gui/game/GameView.h"\n')
+include_locale(element_search, '#include "gui/game/ToolButton.h"\n')
+include_locale(colour_picker, '#include "Misc.h"\n')
+include_locale(confirm_prompt, '#include "graphics/Graphics.h"\n')
+include_locale(error_message, '#include "graphics/Graphics.h"\n')
+include_locale(information_message, '#include "graphics/Graphics.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -508,3 +520,78 @@ for func, next_func in [
         view_text = view_text[:idx] + segment + view_text[next_idx:]
 
 game_view.write_text(view_text, encoding="utf-8")
+
+
+# Additional RU/EN user-facing windows.
+search_text = element_search.read_text(encoding="utf-8")
+for old, new in [
+    ('"Element Search"', 'YandexWebText("Element Search", "Поиск элементов")'),
+    ('"Close"', 'YandexWebText("Close", "Закрыть")'),
+]:
+    if old in search_text:
+        search_text = search_text.replace(old, new)
+element_search.write_text(search_text, encoding="utf-8")
+
+picker_text = colour_picker.read_text(encoding="utf-8")
+picker_text = picker_text.replace(
+    '"Done"',
+    'YandexWebText("Done", "Готово")'
+)
+colour_picker.write_text(picker_text, encoding="utf-8")
+
+confirm_text = confirm_prompt.read_text(encoding="utf-8")
+confirm_text = confirm_text.replace(
+    '"Cancel"',
+    'YandexWebText("Cancel", "Отмена")'
+)
+confirm_prompt.write_text(confirm_text, encoding="utf-8")
+
+error_text = error_message.read_text(encoding="utf-8")
+error_text = error_text.replace(
+    '"Dismiss"',
+    'YandexWebText("Dismiss", "Закрыть")'
+)
+error_message.write_text(error_text, encoding="utf-8")
+
+info_text = information_message.read_text(encoding="utf-8")
+info_text = info_text.replace(
+    '"Dismiss"',
+    'YandexWebText("Dismiss", "Закрыть")'
+)
+information_message.write_text(info_text, encoding="utf-8")
+
+render_text = render_view.read_text(encoding="utf-8")
+render_replacements = [
+    ('"Velocity display mode preset"', 'YandexWebText("Velocity display mode preset", "Режим отображения скорости")'),
+    ('"Pressure display mode preset"', 'YandexWebText("Pressure display mode preset", "Режим отображения давления")'),
+    ('"Persistent display mode preset"', 'YandexWebText("Persistent display mode preset", "Режим следов")'),
+    ('"Fire display mode preset"', 'YandexWebText("Fire display mode preset", "Режим огня")'),
+    ('"Blob display mode preset"', 'YandexWebText("Blob display mode preset", "Режим капель")'),
+    ('"Heat display mode preset"', 'YandexWebText("Heat display mode preset", "Режим температуры")'),
+    ('"Fancy display mode preset"', 'YandexWebText("Fancy display mode preset", "Расширенный режим")'),
+    ('"Nothing display mode preset"', 'YandexWebText("Nothing display mode preset", "Базовый режим")'),
+    ('"Heat gradient display mode preset"', 'YandexWebText("Heat gradient display mode preset", "Градиент температуры")'),
+    ('"Alternative Velocity display mode preset"', 'YandexWebText("Alternative Velocity display mode preset", "Альтернативная скорость")'),
+    ('"Life display mode preset"', 'YandexWebText("Life display mode preset", "Режим времени жизни")'),
+    ('"Adds Special flare effects to some elements"', 'YandexWebText("Adds Special flare effects to some elements", "Добавляет специальные эффекты некоторым элементам")'),
+    ('"Fire effect for gasses"', 'YandexWebText("Fire effect for gasses", "Эффект огня для газов")'),
+    ('"Glow effect on some elements"', 'YandexWebText("Glow effect on some elements", "Свечение некоторых элементов")'),
+    ('"Blur effect for liquids"', 'YandexWebText("Blur effect for liquids", "Размытие жидкостей")'),
+    ('"Makes everything be drawn like a blob"', 'YandexWebText("Makes everything be drawn like a blob", "Отображает всё как капли")'),
+    ('"Basic rendering, without this, most things will be invisible"', 'YandexWebText("Basic rendering, without this, most things will be invisible", "Базовый рендеринг; без него большинство объектов невидимо")'),
+    ('"Glow effect on sparks"', 'YandexWebText("Glow effect on sparks", "Свечение искр")'),
+    ('"Displays pressure as red and blue, and velocity as white"', 'YandexWebText("Displays pressure as red and blue, and velocity as white", "Давление красным/синим, скорость белым")'),
+    ('"Displays pressure, red is positive and blue is negative"', 'YandexWebText("Displays pressure, red is positive and blue is negative", "Давление: красный — положительное, синий — отрицательное")'),
+    ('"Displays the temperature of the air like heat display does"', 'YandexWebText("Displays the temperature of the air like heat display does", "Показывает температуру воздуха")'),
+    ('"Displays vorticity, red is clockwise and blue is anticlockwise"', 'YandexWebText("Displays vorticity, red is clockwise and blue is anticlockwise", "Завихрение: красный по часовой, синий против часовой")'),
+    ('"Gravity lensing, Newtonian Gravity bends light with this on"', 'YandexWebText("Gravity lensing, Newtonian Gravity bends light with this on", "Гравитационное линзирование света")'),
+    ('"Element paths persist on the screen for a while"', 'YandexWebText("Element paths persist on the screen for a while", "Следы элементов некоторое время остаются на экране")'),
+    ('"Displays temperatures of the elements, dark blue is coldest, pink is hottest"', 'YandexWebText("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: синий — холод, розовый — жар")'),
+    ('"Displays the life value of elements in greyscale gradients"', 'YandexWebText("Displays the life value of elements in greyscale gradients", "Показывает время жизни элементов оттенками серого")'),
+    ('"Changes colors of elements slightly to show heat diffusing through them"', 'YandexWebText("Changes colors of elements slightly to show heat diffusing through them", "Меняет цвета элементов, показывая распространение тепла")'),
+    ('"No special effects at all for anything, overrides all other options and deco"', 'YandexWebText("No special effects at all for anything, overrides all other options and deco", "Отключает специальные эффекты и декорации")'),
+]
+for old, new in render_replacements:
+    if old in render_text:
+        render_text = render_text.replace(old, new)
+render_view.write_text(render_text, encoding="utf-8")
