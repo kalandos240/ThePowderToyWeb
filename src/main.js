@@ -66,6 +66,7 @@ let fatalShown = false;
 let gameModule = null;
 let runtimePauseRequested = document.hidden;
 let runtimePaused = false;
+window.__tptRuntimePaused = false;
 
 function setStatus(message) {
   status.textContent = message;
@@ -121,6 +122,7 @@ function applyRuntimePauseState() {
 
   if (callRuntimeHook(hook)) {
     runtimePaused = runtimePauseRequested;
+    window.__tptRuntimePaused = runtimePaused;
   }
 }
 
