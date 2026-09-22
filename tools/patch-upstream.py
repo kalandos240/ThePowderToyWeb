@@ -88,3 +88,44 @@ if "loginButton->Visible = false;" not in game_view_text:
     game_view_text = game_view_text.replace(login_anchor, login_patch, 1)
 
 game_view.write_text(game_view_text, encoding="utf-8")
+
+
+# Yandex Web: hide upstream server-only controls and use browser-local wording.
+game_view_text = game_view.read_text(encoding="utf-8")
+
+server_controls_anchor = """	ResetVoteButtons();
+
+	tagSimulationButton = new ui::Button"""
+server_controls_patch = """	ResetVoteButtons();
+	// Yandex Web: hide upstream server-only controls.
+	upVoteButton->Visible = false;
+	downVoteButton->Visible = false;
+
+	tagSimulationButton = new ui::Button"""
+if "Yandex Web: hide upstream server-only controls" not in game_view_text:
+    if server_controls_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp server controls anchor not found")
+    game_view_text = game_view_text.replace(server_controls_anchor, server_controls_patch, 1)
+
+tag_add_anchor = "	AddComponent(tagSimulationButton);"
+tag_add_patch = """	AddComponent(tagSimulationButton);
+	tagSimulationButton->Visible = false;"""
+if "tagSimulationButton->Visible = false;" not in game_view_text:
+    if tag_add_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp tag button anchor not found")
+    game_view_text = game_view_text.replace(tag_add_anchor, tag_add_patch, 1)
+
+game_view_text = game_view_text.replace(
+    "Overwrite the open simulation on your hard drive.",
+    "Overwrite the open local simulation."
+)
+game_view_text = game_view_text.replace(
+    "Save the simulation to your hard drive. Login to save online.",
+    "Save the simulation locally in this browser."
+)
+game_view_text = game_view_text.replace(
+    "Save the simulation to your hard drive.",
+    "Save the simulation locally in this browser."
+)
+
+game_view.write_text(game_view_text, encoding="utf-8")
