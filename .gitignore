@@ -1,0 +1,6 @@
+dist/
+game/
+*.zip
+*.tar
+*.wasm
+*.wasm.map
