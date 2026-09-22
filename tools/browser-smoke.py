@@ -274,7 +274,7 @@ def smoke_case(language: str, mobile: bool):
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
                 const logicalX = canvas.width - 41;
-                const logicalY = canvas.height - 13;
+                const logicalY = canvas.height - 30;
                 return {
                     x: r.left + (logicalX / canvas.width) * r.width,
                     y: r.top + (logicalY / canvas.height) * r.height,
@@ -385,7 +385,7 @@ def smoke_case(language: str, mobile: bool):
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
                 const logicalX = canvas.width - 41;
-                const logicalY = canvas.height - 13;
+                const logicalY = canvas.height - 30;
                 return {
                     x: r.left + (logicalX / canvas.width) * r.width,
                     y: r.top + (logicalY / canvas.height) * r.height,
