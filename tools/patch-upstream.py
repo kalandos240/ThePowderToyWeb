@@ -22,6 +22,7 @@ game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
+emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -97,6 +98,25 @@ if "YandexWeb_PauseMainLoop" not in sdl_text:
     sdl_text = sdl_text.rstrip() + pause_patch + "\n"
 
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
+
+platform_text = emscripten_platform.read_text(encoding="utf-8")
+open_uri_anchor = """void OpenURI(ByteString uri)
+{
+	EM_ASM({
+		open(UTF8ToString($0));
+	}, uri.c_str());
+}"""
+open_uri_patch = """void OpenURI(ByteString uri)
+{
+	// Yandex Web: external URI navigation is disabled.
+	std::cerr << "External URI blocked in Yandex build: " << uri << std::endl;
+}"""
+if "external URI navigation is disabled" not in platform_text:
+    if open_uri_anchor not in platform_text:
+        raise SystemExit("Emscripten.cpp OpenURI anchor not found")
+    platform_text = platform_text.replace(open_uri_anchor, open_uri_patch, 1)
+emscripten_platform.write_text(platform_text, encoding="utf-8")
+
 print("Applied Yandex Web upstream patches.")
 
 
