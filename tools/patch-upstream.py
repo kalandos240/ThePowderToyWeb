@@ -394,6 +394,109 @@ options_replacements = [
 for old, new in options_replacements:
     if old in options_text:
         options_text = options_text.replace(old, new)
+
+extra_options_replacements = [
+    ('"Heat simulation \\bgIntroduced in version 34"', 'YandexWebText("Heat simulation \\bgIntroduced in version 34", "Тепловая симуляция \\bgверсия 34+")'),
+    ('"Can cause odd behaviour when disabled"', 'YandexWebText("Can cause odd behaviour when disabled", "Отключение может изменить поведение симуляции")'),
+    ('"Newtonian gravity \\bgIntroduced in version 48"', 'YandexWebText("Newtonian gravity \\bgIntroduced in version 48", "Ньютоновская гравитация \\bgверсия 48+")'),
+    ('"May cause poor performance on older computers"', 'YandexWebText("May cause poor performance on older computers", "Может снижать производительность на слабых устройствах")'),
+    ('"Ambient heat simulation \\bgIntroduced in version 50"', 'YandexWebText("Ambient heat simulation \\bgIntroduced in version 50", "Фоновая тепловая симуляция \\bgверсия 50+")'),
+    ('"Can cause odd / broken behaviour with many saves"', 'YandexWebText("Can cause odd / broken behaviour with many saves", "Некоторые старые сохранения могут работать иначе")'),
+    ('"Water equalisation \\bgIntroduced in version 61"', 'YandexWebText("Water equalisation \\bgIntroduced in version 61", "Выравнивание воды \\bgверсия 61+")'),
+    ('"May cause poor performance with a lot of water"', 'YandexWebText("May cause poor performance with a lot of water", "Большое количество воды может снижать FPS")'),
+    ('" - Set both limits to sane defaults"', 'YandexWebText(" - Set both limits to sane defaults", " - Вернуть стандартные лимиты")'),
+    ('"Window scale factor for larger screens"', 'YandexWebText("Window scale factor for larger screens", "Масштаб интерфейса")'),
+    ('"current"', 'YandexWebText("current", "текущий")'),
+    ('"Blurry scaling \\bg- more blurry, better on very big screens"', 'YandexWebText("Blurry scaling \\bg- more blurry, better on very big screens", "Сглаженное масштабирование \\bgдля больших экранов")'),
+    ('"Momentum (old) scrolling"', 'YandexWebText("Momentum (old) scrolling", "Плавная прокрутка")'),
+    ('"Accelerating instead of step scroll"', 'YandexWebText("Accelerating instead of step scroll", "Прокрутка с инерцией")'),
+    ('"Sticky categories"', 'YandexWebText("Sticky categories", "Фиксировать категории")'),
+    ('"Switch between categories by clicking"', 'YandexWebText("Switch between categories by clicking", "Переключать категории только нажатием")'),
+    ('"Include pressure"', 'YandexWebText("Include pressure", "Сохранять давление")'),
+    ('"When saving, copying, stamping, etc."', 'YandexWebText("When saving, copying, stamping, etc.", "При сохранении, копировании и создании штампов")'),
+    ('"Perfect circle brush"', 'YandexWebText("Perfect circle brush", "Точная круглая кисть")'),
+    ('"Better circle brush, without incorrect points on edges"', 'YandexWebText("Better circle brush, without incorrect points on edges", "Более точная форма круглой кисти")'),
+    ('"Key under Esc exits console"', 'YandexWebText("Key under Esc exits console", "Клавиша под Esc закрывает консоль")'),
+    ('"Disable if that key is 0 on your keyboard"', 'YandexWebText("Disable if that key is 0 on your keyboard", "Отключите, если эта клавиша вводит 0")'),
+    ('"Use platform clipboard"', 'YandexWebText("Use platform clipboard", "Использовать системный буфер обмена")'),
+    ('"Allows copying and pasting across TPT instances"', 'YandexWebText("Allows copying and pasting across TPT instances", "Позволяет копировать между окнами TPT")'),
+    ('"Separate rendering thread"', 'YandexWebText("Separate rendering thread", "Отдельный поток рендера")'),
+    ('"May increase framerate when fancy effects are in use"', 'YandexWebText("May increase framerate when fancy effects are in use", "Может повысить FPS с графическими эффектами")'),
+    ('"Colour space used by decoration tools"', 'YandexWebText("Colour space used by decoration tools", "Цветовое пространство декораций")'),
+    ('"Linear"', 'YandexWebText("Linear", "Линейное")'),
+    ('"Save errors and other messages to a file"', 'YandexWebText("Save errors and other messages to a file", "Сохранять ошибки и сообщения в файл")'),
+    ('"Developers may ask for this when trying to fix problems"', 'YandexWebText("Developers may ask for this when trying to fix problems", "Полезно для диагностики ошибок")'),
+    ('" - Find out who contributed to TPT"', 'YandexWebText(" - Find out who contributed to TPT", " - Участники разработки TPT")'),
+]
+for old, new in extra_options_replacements:
+    if old in options_text:
+        options_text = options_text.replace(old, new)
+
+show_avatars_anchor = '''	showAvatars = addCheckbox(0, "Show avatars", "Disable if you have a slow connection", [this] {
+		c->SetShowAvatars(showAvatars->GetChecked());
+	});'''
+show_avatars_patch = '''	if constexpr (!NOHTTP)
+	{
+		showAvatars = addCheckbox(0, "Show avatars", "Disable if you have a slow connection", [this] {
+			c->SetShowAvatars(showAvatars->GetChecked());
+		});
+	}'''
+if show_avatars_anchor in options_text:
+    options_text = options_text.replace(show_avatars_anchor, show_avatars_patch, 1)
+
+startup_anchor = '''	String autoStartupRequestNote = "Done once at startup";
+	if (!IGNORE_UPDATES)
+	{
+		autoStartupRequestNote += ", also checks for updates";
+	}
+	autoStartupRequest = addCheckbox(0, "Fetch the message of the day and notifications", autoStartupRequestNote, [this] {
+		auto checked = autoStartupRequest->GetChecked();
+		if (checked)
+		{
+			Client::Ref().BeginStartupRequest();
+		}
+		c->SetAutoStartupRequest(checked);
+	});
+	startupRequestStatus = addButtonWithLabel("Fetch them now", "", []{
+		Client::Ref().BeginStartupRequest();
+	});
+	UpdateStartupRequestStatus();'''
+startup_patch = '''	if constexpr (!NOHTTP)
+	{
+		String autoStartupRequestNote = "Done once at startup";
+		if (!IGNORE_UPDATES)
+		{
+			autoStartupRequestNote += ", also checks for updates";
+		}
+		autoStartupRequest = addCheckbox(0, "Fetch the message of the day and notifications", autoStartupRequestNote, [this] {
+			auto checked = autoStartupRequest->GetChecked();
+			if (checked)
+			{
+				Client::Ref().BeginStartupRequest();
+			}
+			c->SetAutoStartupRequest(checked);
+		});
+		startupRequestStatus = addButtonWithLabel("Fetch them now", "", []{
+			Client::Ref().BeginStartupRequest();
+		});
+		UpdateStartupRequestStatus();
+	}'''
+if startup_anchor in options_text:
+    options_text = options_text.replace(startup_anchor, startup_patch, 1)
+
+options_text = options_text.replace(
+    'void OptionsView::UpdateStartupRequestStatus()\n{',
+    'void OptionsView::UpdateStartupRequestStatus()\n{\n\tif constexpr (NOHTTP)\n\t\treturn;'
+)
+options_text = options_text.replace(
+    '\tshowAvatars->SetChecked(sender->GetShowAvatars());',
+    '\tif (showAvatars)\n\t\tshowAvatars->SetChecked(sender->GetShowAvatars());'
+)
+options_text = options_text.replace(
+    '\tautoStartupRequest->SetChecked(sender->GetAutoStartupRequest());',
+    '\tif (autoStartupRequest)\n\t\tautoStartupRequest->SetChecked(sender->GetAutoStartupRequest());'
+)
+
 options_view.write_text(options_text, encoding="utf-8")
 
 
