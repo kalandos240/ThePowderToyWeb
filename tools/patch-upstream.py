@@ -334,6 +334,49 @@ for old, new in browser_replacements:
 local_browser.write_text(browser_text, encoding="utf-8")
 
 save_text = local_save.read_text(encoding="utf-8")
+if '#include <emscripten.h>' not in save_text:
+    save_text = save_text.replace('#include "Config.h"\n', '#include "Config.h"\n#include <emscripten.h>\n', 1)
+
+local_save_diag = r'''static LocalSaveActivity *YandexWeb_TestLocalSaveActivity = nullptr;
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLocalSaveOpen()
+{
+	return YandexWeb_TestLocalSaveActivity ? 1 : 0;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCloseLocalSave()
+{
+	if (YandexWeb_TestLocalSaveActivity)
+		YandexWeb_TestLocalSaveActivity->Exit();
+}
+
+'''
+ctor_marker = 'LocalSaveActivity::LocalSaveActivity(std::unique_ptr<SaveFile> newSave, OnSaved onSaved_) :'
+if local_save_diag not in save_text:
+    if ctor_marker not in save_text:
+        raise SystemExit("LocalSaveActivity constructor anchor missing")
+    save_text = save_text.replace(ctor_marker, local_save_diag + ctor_marker, 1)
+
+ctor_body = '''	onSaved(onSaved_)
+{
+'''
+ctor_body_patch = '''	onSaved(onSaved_)
+{
+	YandexWeb_TestLocalSaveActivity = this;
+'''
+if ctor_body in save_text and 'YandexWeb_TestLocalSaveActivity = this;' not in save_text:
+    save_text = save_text.replace(ctor_body, ctor_body_patch, 1)
+
+dtor_marker = '''LocalSaveActivity::~LocalSaveActivity()
+{
+'''
+dtor_patch = '''LocalSaveActivity::~LocalSaveActivity()
+{
+	if (YandexWeb_TestLocalSaveActivity == this)
+		YandexWeb_TestLocalSaveActivity = nullptr;
+'''
+if dtor_marker in save_text and 'YandexWeb_TestLocalSaveActivity = nullptr;' not in save_text:
+    save_text = save_text.replace(dtor_marker, dtor_patch, 1)
 save_replacements = [
     ('"Save to computer:"', 'YandexWebText("Save locally:", "Локальное сохранение:")'),
     ('"[filename]"', 'YandexWebText("[filename]", "[имя файла]")'),
