@@ -239,10 +239,54 @@ def smoke_case(language: str, mobile: bool):
         assert resized["gameplay"] is True, (label, resized)
 
         if mobile:
-            # Prove touch still maps into the simulation after portrait -> landscape.
+            # Prove a real touch on the visible DUST button changes the active tool.
             driver.execute_script(
-                "window.__tptGameModule.ccall('YandexWeb_TestSelectDust', null, [], [])"
+                "window.__tptGameModule.ccall('YandexWeb_TestSelectWater', null, [], [])"
             )
+            active_before_tap = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestActiveToolIsDust', 'number', [], [])"
+            )
+            assert active_before_tap == 0, (label, "failed to switch away from DUST before UI tap")
+
+            dust_button = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                const logicalX = canvas.width - 41;
+                const logicalY = canvas.height - 13;
+                return {
+                    x: r.left + (logicalX / canvas.width) * r.width,
+                    y: r.top + (logicalY / canvas.height) * r.height,
+                };
+                """
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{
+                        "x": dust_button["x"],
+                        "y": dust_button["y"],
+                        "radiusX": 4,
+                        "radiusY": 4,
+                        "force": 1,
+                    }],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.2)
+            active_after_tap = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestActiveToolIsDust', 'number', [], [])"
+            )
+            assert active_after_tap == 1, (
+                label,
+                f"touching visible DUST button did not select DUST: point={dust_button}",
+            )
+
+            # Prove touch still maps into the simulation after portrait -> landscape.
             before_particles = driver.execute_script(
                 "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
             )
