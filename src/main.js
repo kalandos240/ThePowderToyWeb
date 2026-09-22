@@ -1,6 +1,6 @@
 import {
   initYandexSDK,
-  installGameplayVisibilityBridge,
+  installPlatformPauseBridge,
   signalGameReady,
   gameplayStart,
   gameplayStop
@@ -16,6 +16,9 @@ const reloadButton = document.getElementById("reload");
 
 let presentable = false;
 let fatalShown = false;
+let gameModule = null;
+let runtimePauseRequested = document.hidden;
+let runtimePaused = false;
 
 function setStatus(message) {
   status.textContent = message;
@@ -40,6 +43,45 @@ function fitCanvas() {
   canvas.style.height = `${Math.max(1, Math.floor(logicalHeight * scale))}px`;
 }
 
+function callRuntimeHook(name) {
+  if (!gameModule) {
+    return false;
+  }
+
+  const direct = gameModule[`_${name}`];
+  if (typeof direct === "function") {
+    direct();
+    return true;
+  }
+
+  if (typeof gameModule.ccall === "function") {
+    gameModule.ccall(name, null, [], []);
+    return true;
+  }
+
+  console.warn(`[TPT] Runtime hook ${name} is unavailable.`);
+  return false;
+}
+
+function applyRuntimePauseState() {
+  if (!gameModule || runtimePaused === runtimePauseRequested) {
+    return;
+  }
+
+  const hook = runtimePauseRequested
+    ? "YandexWeb_PauseMainLoop"
+    : "YandexWeb_ResumeMainLoop";
+
+  if (callRuntimeHook(hook)) {
+    runtimePaused = runtimePauseRequested;
+  }
+}
+
+function setRuntimePaused(paused) {
+  runtimePauseRequested = Boolean(paused);
+  applyRuntimePauseState();
+}
+
 function showFatal(error) {
   if (fatalShown) {
     return;
@@ -48,6 +90,7 @@ function showFatal(error) {
   fatalShown = true;
   console.error("[TPT] Fatal startup error:", error);
 
+  setRuntimePaused(true);
   void gameplayStop();
 
   loader.hidden = true;
@@ -81,7 +124,6 @@ async function onPresentable() {
   loader.hidden = true;
   app.setAttribute("aria-busy", "false");
 
-  // Let the browser paint the final interactive canvas before reporting Game Ready.
   await new Promise((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(resolve))
   );
@@ -124,7 +166,10 @@ reloadButton.addEventListener("click", () => {
 });
 
 async function boot() {
-  installGameplayVisibilityBridge();
+  installPlatformPauseBridge({
+    onPause: () => setRuntimePaused(true),
+    onResume: () => setRuntimePaused(false)
+  });
 
   setStatus("Инициализация Яндекс Игр…");
   const sdkPromise = initYandexSDK();
@@ -150,12 +195,14 @@ async function boot() {
     }
   });
 
-  // SDK failure must never block the native game startup.
   const [, gameResult] = await Promise.allSettled([sdkPromise, gamePromise]);
 
   if (gameResult.status === "rejected") {
     throw gameResult.reason;
   }
+
+  gameModule = gameResult.value;
+  applyRuntimePauseState();
 
   if (!presentable) {
     setStatus("Подготовка интерфейса…");
