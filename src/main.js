@@ -3,7 +3,8 @@ import {
   installPlatformPauseBridge,
   signalGameReady,
   gameplayStart,
-  gameplayStop
+  gameplayStop,
+  getYandexLanguage
 } from "./yandex.js";
 
 const app = document.getElementById("app");
@@ -13,6 +14,34 @@ const status = document.getElementById("status");
 const fatal = document.getElementById("fatal");
 const fatalMessage = document.getElementById("fatal-message");
 const reloadButton = document.getElementById("reload");
+
+const MESSAGES = {
+  en: {
+    init: "Initializing Yandex Games…",
+    engine: "Loading engine…",
+    simulation: "Starting simulation…",
+    preparing: "Preparing interface…",
+    unknown: "Unknown error",
+    loadScript: (src) => `Failed to load ${src}`,
+    missingFactory: "create_powder was not found in the Emscripten build."
+  }
+};
+
+let uiLanguage = "en";
+
+function applyPlatformLanguage(currentSDK) {
+  const requested = getYandexLanguage(currentSDK);
+  // The first Yandex release is intentionally single-language (English).
+  // Still read i18n.lang as required by the platform and apply a supported fallback.
+  uiLanguage = Object.hasOwn(MESSAGES, requested) ? requested : "en";
+  document.documentElement.lang = uiLanguage;
+  window.yandexDetectedLanguage = requested;
+}
+
+function message(key, ...args) {
+  const value = MESSAGES[uiLanguage]?.[key] ?? MESSAGES.en[key];
+  return typeof value === "function" ? value(...args) : value;
+}
 
 let presentable = false;
 let fatalShown = false;
@@ -96,7 +125,7 @@ function showFatal(error) {
   loader.hidden = true;
   canvas.style.display = "none";
   fatalMessage.textContent =
-    error instanceof Error ? error.message : String(error || "Неизвестная ошибка");
+    error instanceof Error ? error.message : String(error || message("unknown"));
   fatal.hidden = false;
   app.setAttribute("aria-busy", "false");
 }
@@ -107,7 +136,7 @@ function loadScript(src) {
     script.src = src;
     script.async = true;
     script.onload = resolve;
-    script.onerror = () => reject(new Error(`Не удалось загрузить ${src}`));
+    script.onerror = () => reject(new Error(message("loadScript", src)));
     document.head.appendChild(script);
   });
 }
@@ -183,17 +212,20 @@ async function boot() {
     onResume: () => setRuntimePaused(false)
   });
 
-  setStatus("Инициализация Яндекс Игр…");
-  const sdkPromise = initYandexSDK();
+  setStatus(message("init"));
+  const sdkPromise = initYandexSDK().then((currentSDK) => {
+    applyPlatformLanguage(currentSDK);
+    return currentSDK;
+  });
 
-  setStatus("Загрузка движка…");
+  setStatus(message("engine"));
   await loadScript("./game/powder.js");
 
   if (typeof window.create_powder !== "function") {
-    throw new Error("Функция create_powder не найдена в Emscripten-сборке.");
+    throw new Error(message("missingFactory"));
   }
 
-  setStatus("Запуск симуляции…");
+  setStatus(message("simulation"));
 
   const gamePromise = window.create_powder({
     canvas,
@@ -217,7 +249,7 @@ async function boot() {
   applyRuntimePauseState();
 
   if (!presentable) {
-    setStatus("Подготовка интерфейса…");
+    setStatus(message("preparing"));
   }
 }
 
