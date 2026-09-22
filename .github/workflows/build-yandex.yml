@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - experiment/perf-smoke
     paths:
       - "index.html"
       - "styles.css"
