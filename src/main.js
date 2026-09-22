@@ -21,6 +21,25 @@ function setStatus(message) {
   status.textContent = message;
 }
 
+function fitCanvas() {
+  const logicalWidth = canvas.width || 612;
+  const logicalHeight = canvas.height || 384;
+  const availableWidth = app.clientWidth;
+  const availableHeight = app.clientHeight;
+
+  if (!logicalWidth || !logicalHeight || !availableWidth || !availableHeight) {
+    return;
+  }
+
+  const scale = Math.min(
+    availableWidth / logicalWidth,
+    availableHeight / logicalHeight
+  );
+
+  canvas.style.width = `${Math.max(1, Math.floor(logicalWidth * scale))}px`;
+  canvas.style.height = `${Math.max(1, Math.floor(logicalHeight * scale))}px`;
+}
+
 function showFatal(error) {
   if (fatalShown) {
     return;
@@ -56,12 +75,16 @@ async function onPresentable() {
   }
 
   presentable = true;
+  fitCanvas();
+
   canvas.style.display = "block";
   loader.hidden = true;
   app.setAttribute("aria-busy", "false");
 
   // Let the browser paint the final interactive canvas before reporting Game Ready.
-  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  await new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  );
 
   await signalGameReady();
   await gameplayStart();
@@ -70,6 +93,19 @@ async function onPresentable() {
 window.mark_presentable = () => {
   void onPresentable();
 };
+
+window.addEventListener("resize", fitCanvas, { passive: true });
+window.addEventListener("orientationchange", () => {
+  requestAnimationFrame(fitCanvas);
+});
+
+canvas.addEventListener(
+  "pointerdown",
+  () => {
+    canvas.focus({ preventScroll: true });
+  },
+  { passive: true }
+);
 
 window.addEventListener("error", (event) => {
   if (!presentable) {
@@ -115,7 +151,11 @@ async function boot() {
   });
 
   // SDK failure must never block the native game startup.
-  await Promise.allSettled([sdkPromise, gamePromise]);
+  const [, gameResult] = await Promise.allSettled([sdkPromise, gamePromise]);
+
+  if (gameResult.status === "rejected") {
+    throw gameResult.reason;
+  }
 
   if (!presentable) {
     setStatus("Подготовка интерфейса…");
