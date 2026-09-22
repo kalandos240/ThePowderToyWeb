@@ -733,6 +733,80 @@ def smoke_case(language: str, mobile: bool):
                 os.path.join(ARTIFACT_DIR, f"{label}-fullscreen-cycle-final.png")
             )
 
+        # Prove the real Save button opens the local-save dialog on both
+        # desktop mouse and mobile touch input.
+        save_button = driver.execute_script(
+            """
+            const canvas = document.getElementById('canvas');
+            const r = canvas.getBoundingClientRect();
+            const logicalX = 45;
+            const logicalY = canvas.height - 8;
+            return {
+                x: r.left + (logicalX / canvas.width) * r.width,
+                y: r.top + (logicalY / canvas.height) * r.height,
+            };
+            """
+        )
+        if mobile:
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{
+                        "x": save_button["x"],
+                        "y": save_button["y"],
+                        "radiusX": 4,
+                        "radiusY": 4,
+                        "force": 1,
+                    }],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+        else:
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mousePressed",
+                    "x": save_button["x"],
+                    "y": save_button["y"],
+                    "button": "left",
+                    "buttons": 1,
+                    "clickCount": 1,
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mouseReleased",
+                    "x": save_button["x"],
+                    "y": save_button["y"],
+                    "button": "left",
+                    "buttons": 0,
+                    "clickCount": 1,
+                },
+            )
+
+        wait.until(
+            lambda d: d.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 1"
+            )
+        )
+        save_open = driver.execute_script(
+            "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], [])"
+        )
+        assert save_open == 1, (label, f"real Save button did not open LocalSaveActivity: {save_button}")
+        driver.execute_script(
+            "window.__tptGameModule.ccall('YandexWeb_TestCloseLocalSave', null, [], [])"
+        )
+        wait.until(
+            lambda d: d.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+            )
+        )
+
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
         # Yandex platform pause/resume must stop and restart the native loop.
