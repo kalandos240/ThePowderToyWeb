@@ -220,6 +220,140 @@ def smoke_case(language: str, mobile: bool):
                 f"landscape touch did not draw particles: before={before_particles}, after={after_particles}",
             )
 
+            # Repeat portrait/landscape transitions to catch intermittent stale-viewport bugs.
+            for cycle in range(2, 5):
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": 390,
+                        "height": 844,
+                        "deviceScaleFactor": 3.0,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "portraitPrimary",
+                            "angle": 0,
+                        },
+                    },
+                )
+                driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptOrientationBlocked === true && "
+                        "window.__tptRuntimePaused === true && "
+                        "window.__yandexGameplayStarted === false"
+                    )
+                )
+
+                portrait_cycle = driver.execute_script(
+                    """
+                    const gate = document.getElementById('orientation-gate');
+                    return {
+                        blocked: window.__tptOrientationBlocked === true,
+                        paused: window.__tptRuntimePaused === true,
+                        gameplay: window.__yandexGameplayStarted,
+                        gateDisplay: getComputedStyle(gate).display,
+                        viewportWidth: window.innerWidth,
+                        viewportHeight: window.innerHeight,
+                    };
+                    """
+                )
+                assert portrait_cycle["blocked"] is True, (label, cycle, portrait_cycle)
+                assert portrait_cycle["paused"] is True, (label, cycle, portrait_cycle)
+                assert portrait_cycle["gameplay"] is False, (label, cycle, portrait_cycle)
+                assert portrait_cycle["gateDisplay"] != "none", (label, cycle, portrait_cycle)
+
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": 844,
+                        "height": 390,
+                        "deviceScaleFactor": 3.0,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "landscapePrimary",
+                            "angle": 90,
+                        },
+                    },
+                )
+                driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptOrientationBlocked === false && "
+                        "window.__tptRuntimePaused === false && "
+                        "window.__yandexGameplayStarted === true"
+                    )
+                )
+                time.sleep(0.2)
+
+                landscape_cycle = driver.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    const r = canvas.getBoundingClientRect();
+                    const app = document.getElementById('app').getBoundingClientRect();
+                    return {
+                        blocked: window.__tptOrientationBlocked === true,
+                        paused: window.__tptRuntimePaused === true,
+                        gameplay: window.__yandexGameplayStarted,
+                        gateDisplay: getComputedStyle(document.getElementById('orientation-gate')).display,
+                        left: r.left,
+                        top: r.top,
+                        right: r.right,
+                        bottom: r.bottom,
+                        width: r.width,
+                        height: r.height,
+                        appLeft: app.left,
+                        appTop: app.top,
+                        appRight: app.right,
+                        appBottom: app.bottom,
+                        viewportWidth: window.innerWidth,
+                        viewportHeight: window.innerHeight,
+                    };
+                    """
+                )
+                assert landscape_cycle["blocked"] is False, (label, cycle, landscape_cycle)
+                assert landscape_cycle["paused"] is False, (label, cycle, landscape_cycle)
+                assert landscape_cycle["gameplay"] is True, (label, cycle, landscape_cycle)
+                assert landscape_cycle["gateDisplay"] == "none", (label, cycle, landscape_cycle)
+                assert landscape_cycle["width"] > 0 and landscape_cycle["height"] > 0, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+                assert landscape_cycle["left"] >= landscape_cycle["appLeft"] - 1, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+                assert landscape_cycle["top"] >= landscape_cycle["appTop"] - 1, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+                assert landscape_cycle["right"] <= landscape_cycle["appRight"] + 1, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+                assert landscape_cycle["bottom"] <= landscape_cycle["appBottom"] + 1, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+                assert landscape_cycle["right"] <= landscape_cycle["viewportWidth"] + 1, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+                assert landscape_cycle["bottom"] <= landscape_cycle["viewportHeight"] + 1, (
+                    label,
+                    cycle,
+                    landscape_cycle,
+                )
+
+            driver.save_screenshot(
+                os.path.join(ARTIFACT_DIR, f"{label}-orientation-cycle-final.png")
+            )
+
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
         # Yandex platform pause/resume must stop and restart the native loop.
