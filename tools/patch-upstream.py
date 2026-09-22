@@ -1166,6 +1166,32 @@ if dtor_anchor in model_text:
 game_model_cpp.write_text(model_text, encoding="utf-8")
 
 
+# Localise frequently visible HUD labels while keeping technical debug field names intact.
+game_view_text = game_view.read_text(encoding="utf-8")
+hud_replacements = [
+    ('sampleInfo << ", Temp: ";',
+     'sampleInfo << YandexWebText(", Temp: ", ", Темп.: ");'),
+    ('sampleInfo << ", Life: " << sample.particle.life;',
+     'sampleInfo << YandexWebText(", Life: ", ", Жизнь: ") << sample.particle.life;'),
+    ('sampleInfo << ", Pressure: " << sample.AirPressure;',
+     'sampleInfo << YandexWebText(", Pressure: ", ", Давление: ") << sample.AirPressure;'),
+    ('sampleInfo << "Empty, Pressure: " << sample.AirPressure;',
+     'sampleInfo << YandexWebText("Empty, Pressure: ", "Пусто, Давление: ") << sample.AirPressure;'),
+    ('sampleInfo << "Empty";',
+     'sampleInfo << YandexWebText("Empty", "Пусто");'),
+    ('sampleInfo << ", AHeat: ";',
+     'sampleInfo << YandexWebText(", AHeat: ", ", Фон. темп.: ");'),
+    ('fpsInfo << " Parts: " << rendererStats.foundParticles << "/" << sample.NumParts;',
+     'fpsInfo << YandexWebText(" Parts: ", " Частиц: ") << rendererStats.foundParticles << "/" << sample.NumParts;'),
+    ('fpsInfo << " Parts: " << sample.NumParts;',
+     'fpsInfo << YandexWebText(" Parts: ", " Частиц: ") << sample.NumParts;'),
+]
+for old, new in hud_replacements:
+    if old in game_view_text:
+        game_view_text = game_view_text.replace(old, new)
+game_view.write_text(game_view_text, encoding="utf-8")
+
+
 # Yandex single-thread Emscripten fallback.
 # The Yandex ZIP must not require SharedArrayBuffer or cross-origin isolation.
 
