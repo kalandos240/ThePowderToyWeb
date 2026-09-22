@@ -202,6 +202,48 @@ def smoke_case(language: str, mobile: bool):
         assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
+        if mobile:
+            # Verify touch coordinates still map into the simulation after orientation/resize.
+            before_landscape = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            landscape_rect = driver.execute_script(
+                """
+                const r = document.getElementById('canvas').getBoundingClientRect();
+                return {left:r.left, top:r.top, width:r.width, height:r.height};
+                """
+            )
+            lx0 = landscape_rect["left"] + landscape_rect["width"] * 0.34
+            ly0 = landscape_rect["top"] + landscape_rect["height"] * 0.34
+            lx1 = landscape_rect["left"] + landscape_rect["width"] * 0.50
+            ly1 = landscape_rect["top"] + landscape_rect["height"] * 0.44
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{"x": lx0, "y": ly0, "radiusX": 4, "radiusY": 4, "force": 1}],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchMove",
+                    "touchPoints": [{"x": lx1, "y": ly1, "radiusX": 4, "radiusY": 4, "force": 1}],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.25)
+            after_landscape = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+            )
+            assert after_landscape > before_landscape, (
+                label,
+                f"landscape touch did not draw particles: before={before_landscape}, after={after_landscape}",
+            )
+
         # Yandex platform pause/resume must stop and restart the native loop.
         driver.execute_script("window.ysdk.emit('game_api_pause')")
         wait.until(lambda d: d.execute_script("return window.__tptRuntimePaused === true"))
