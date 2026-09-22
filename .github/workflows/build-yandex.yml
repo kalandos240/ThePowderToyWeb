@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - work/ru-mobile
     paths:
       - "index.html"
       - "styles.css"

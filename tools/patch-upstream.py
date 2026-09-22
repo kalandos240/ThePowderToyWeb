@@ -13,6 +13,15 @@ locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
+render_view = root / "upstream" / "src" / "gui" / "render" / "RenderView.cpp"
+element_search = root / "upstream" / "src" / "gui" / "elementsearch" / "ElementSearchActivity.cpp"
+colour_picker = root / "upstream" / "src" / "gui" / "colourpicker" / "ColourPickerActivity.cpp"
+confirm_prompt = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmPrompt.cpp"
+error_message = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
+information_message = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
+intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
+platform_emscripten = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
+lua_misc = root / "upstream" / "src" / "lua" / "LuaMisc.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -201,6 +210,12 @@ include_locale(game_view, '#include "Config.h"\n')
 include_locale(local_browser, '#include "SimulationConfig.h"\n')
 include_locale(local_save, '#include "Config.h"\n')
 include_locale(options_view, '#include "Config.h"\n')
+include_locale(render_view, '#include "gui/game/GameView.h"\n')
+include_locale(element_search, '#include "gui/game/ToolButton.h"\n')
+include_locale(colour_picker, '#include "Misc.h"\n')
+include_locale(confirm_prompt, '#include "graphics/Graphics.h"\n')
+include_locale(error_message, '#include "graphics/Graphics.h"\n')
+include_locale(information_message, '#include "graphics/Graphics.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -508,3 +523,218 @@ for func, next_func in [
         view_text = view_text[:idx] + segment + view_text[next_idx:]
 
 game_view.write_text(view_text, encoding="utf-8")
+
+
+# Additional RU/EN user-facing windows.
+search_text = element_search.read_text(encoding="utf-8")
+for old, new in [
+    ('"Element Search"', 'YandexWebText("Element Search", "Поиск элементов")'),
+    ('"Close"', 'YandexWebText("Close", "Закрыть")'),
+]:
+    if old in search_text:
+        search_text = search_text.replace(old, new)
+element_search.write_text(search_text, encoding="utf-8")
+
+picker_text = colour_picker.read_text(encoding="utf-8")
+picker_text = picker_text.replace(
+    '"Done"',
+    'YandexWebText("Done", "Готово")'
+)
+colour_picker.write_text(picker_text, encoding="utf-8")
+
+confirm_text = confirm_prompt.read_text(encoding="utf-8")
+confirm_text = confirm_text.replace(
+    '"Cancel"',
+    'YandexWebText("Cancel", "Отмена")'
+)
+confirm_prompt.write_text(confirm_text, encoding="utf-8")
+
+error_text = error_message.read_text(encoding="utf-8")
+error_text = error_text.replace(
+    '"Dismiss"',
+    'YandexWebText("Dismiss", "Закрыть")'
+)
+error_message.write_text(error_text, encoding="utf-8")
+
+info_text = information_message.read_text(encoding="utf-8")
+info_text = info_text.replace(
+    '"Dismiss"',
+    'YandexWebText("Dismiss", "Закрыть")'
+)
+information_message.write_text(info_text, encoding="utf-8")
+
+render_text = render_view.read_text(encoding="utf-8")
+render_replacements = [
+    ('"Velocity display mode preset"', 'YandexWebText("Velocity display mode preset", "Режим отображения скорости")'),
+    ('"Pressure display mode preset"', 'YandexWebText("Pressure display mode preset", "Режим отображения давления")'),
+    ('"Persistent display mode preset"', 'YandexWebText("Persistent display mode preset", "Режим следов")'),
+    ('"Fire display mode preset"', 'YandexWebText("Fire display mode preset", "Режим огня")'),
+    ('"Blob display mode preset"', 'YandexWebText("Blob display mode preset", "Режим капель")'),
+    ('"Heat display mode preset"', 'YandexWebText("Heat display mode preset", "Режим температуры")'),
+    ('"Fancy display mode preset"', 'YandexWebText("Fancy display mode preset", "Расширенный режим")'),
+    ('"Nothing display mode preset"', 'YandexWebText("Nothing display mode preset", "Базовый режим")'),
+    ('"Heat gradient display mode preset"', 'YandexWebText("Heat gradient display mode preset", "Градиент температуры")'),
+    ('"Alternative Velocity display mode preset"', 'YandexWebText("Alternative Velocity display mode preset", "Альтернативная скорость")'),
+    ('"Life display mode preset"', 'YandexWebText("Life display mode preset", "Режим времени жизни")'),
+    ('"Adds Special flare effects to some elements"', 'YandexWebText("Adds Special flare effects to some elements", "Добавляет специальные эффекты некоторым элементам")'),
+    ('"Fire effect for gasses"', 'YandexWebText("Fire effect for gasses", "Эффект огня для газов")'),
+    ('"Glow effect on some elements"', 'YandexWebText("Glow effect on some elements", "Свечение некоторых элементов")'),
+    ('"Blur effect for liquids"', 'YandexWebText("Blur effect for liquids", "Размытие жидкостей")'),
+    ('"Makes everything be drawn like a blob"', 'YandexWebText("Makes everything be drawn like a blob", "Отображает всё как капли")'),
+    ('"Basic rendering, without this, most things will be invisible"', 'YandexWebText("Basic rendering, without this, most things will be invisible", "Базовый рендеринг; без него большинство объектов невидимо")'),
+    ('"Glow effect on sparks"', 'YandexWebText("Glow effect on sparks", "Свечение искр")'),
+    ('"Displays pressure as red and blue, and velocity as white"', 'YandexWebText("Displays pressure as red and blue, and velocity as white", "Давление красным/синим, скорость белым")'),
+    ('"Displays pressure, red is positive and blue is negative"', 'YandexWebText("Displays pressure, red is positive and blue is negative", "Давление: красный — положительное, синий — отрицательное")'),
+    ('"Displays the temperature of the air like heat display does"', 'YandexWebText("Displays the temperature of the air like heat display does", "Показывает температуру воздуха")'),
+    ('"Displays vorticity, red is clockwise and blue is anticlockwise"', 'YandexWebText("Displays vorticity, red is clockwise and blue is anticlockwise", "Завихрение: красный по часовой, синий против часовой")'),
+    ('"Gravity lensing, Newtonian Gravity bends light with this on"', 'YandexWebText("Gravity lensing, Newtonian Gravity bends light with this on", "Гравитационное линзирование света")'),
+    ('"Element paths persist on the screen for a while"', 'YandexWebText("Element paths persist on the screen for a while", "Следы элементов некоторое время остаются на экране")'),
+    ('"Displays temperatures of the elements, dark blue is coldest, pink is hottest"', 'YandexWebText("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: синий — холод, розовый — жар")'),
+    ('"Displays the life value of elements in greyscale gradients"', 'YandexWebText("Displays the life value of elements in greyscale gradients", "Показывает время жизни элементов оттенками серого")'),
+    ('"Changes colors of elements slightly to show heat diffusing through them"', 'YandexWebText("Changes colors of elements slightly to show heat diffusing through them", "Меняет цвета элементов, показывая распространение тепла")'),
+    ('"No special effects at all for anything, overrides all other options and deco"', 'YandexWebText("No special effects at all for anything, overrides all other options and deco", "Отключает специальные эффекты и декорации")'),
+]
+for old, new in render_replacements:
+    if old in render_text:
+        render_text = render_text.replace(old, new)
+render_view.write_text(render_text, encoding="utf-8")
+
+
+# Localized F1 help overlay. The Yandex build is intentionally local-only.
+intro_source = intro_text.read_text(encoding="utf-8")
+if '#include "YandexWebLocale.h"' not in intro_source:
+    intro_source = intro_source.replace(
+        '#include "common/String.h"\n',
+        '#include "common/String.h"\n#include "YandexWebLocale.h"\n',
+        1,
+    )
+
+start = intro_source.find("inline ByteString IntroText()")
+if start < 0:
+    raise SystemExit("IntroText.h function start not found")
+brace = intro_source.find("{", start)
+depth = 0
+end = None
+for i in range(brace, len(intro_source)):
+    if intro_source[i] == "{":
+        depth += 1
+    elif intro_source[i] == "}":
+        depth -= 1
+        if depth == 0:
+            end = i + 1
+            break
+if end is None:
+    raise SystemExit("IntroText.h function end not found")
+
+localized_intro = r'''inline ByteString IntroText()
+{
+	ByteStringBuilder sb;
+	sb << "\bl\bU" << APPNAME << "\bU - " << (YandexWebIsRussian() ? "Версия " : "Version ")
+	   << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\n\n";
+
+	if (YandexWebIsRussian())
+	{
+		sb << "\bgНажмите \boF1\bg, чтобы показать или скрыть эту справку.\n\n"
+		      "Выберите категорию элементов справа, затем материал.\n"
+		      "Рисуйте мышью или касанием по области симуляции.\n"
+		      "\boКолесо мыши\bg или \bo[ ]\bg меняют размер инструмента; \boTab\bg меняет форму кисти.\n"
+		      "\boCtrl+C / Ctrl+V / Ctrl+X\bg — копировать, вставить и вырезать.\n"
+		      "\boShift+перетаскивание\bg — линия; \boCtrl+перетаскивание\bg — заполненный прямоугольник.\n\n"
+		      "\boПробел\bg — пауза; \boF\bg — один кадр; \boF5\bg — перезапустить симуляцию.\n"
+		      "\boCtrl+Z\bg — отмена; \boCtrl+Y\bg или \boCtrl+Shift+Z\bg — повтор.\n"
+		      "\boS\bg — сохранить штамп; \boL\bg — загрузить последний; \boK\bg — библиотека штампов.\n"
+		      "\bo0–9\bg — режим отображения; \boH\bg — HUD; \boD\bg — отладочная информация.\n"
+		      "\boZ\bg — масштаб; \boCtrl+F\bg — подсветить выбранный элемент.\n\n"
+		      "\bgСохранения хранятся локально в этом браузере. Регистрация не требуется.\n";
+	}
+	else
+	{
+		sb << "\bgPress \boF1\bg to show or hide this help.\n\n"
+		      "Choose an element category on the right, then select a material.\n"
+		      "Draw with the mouse or touch input in the simulation area.\n"
+		      "\boMouse wheel\bg or \bo[ ]\bg changes tool size; \boTab\bg changes brush shape.\n"
+		      "\boCtrl+C / Ctrl+V / Ctrl+X\bg copy, paste and cut.\n"
+		      "\boShift+drag\bg draws a line; \boCtrl+drag\bg draws a filled rectangle.\n\n"
+		      "\boSpace\bg pauses physics; \boF\bg advances one frame; \boF5\bg reloads the simulation.\n"
+		      "\boCtrl+Z\bg undoes; \boCtrl+Y\bg or \boCtrl+Shift+Z\bg redoes.\n"
+		      "\boS\bg saves a stamp; \boL\bg loads the latest; \boK\bg opens the stamp library.\n"
+		      "\bo0–9\bg selects display modes; \boH\bg toggles HUD; \boD\bg toggles debug HUD.\n"
+		      "\boZ\bg opens zoom; \boCtrl+F\bg highlights the selected element.\n\n"
+		      "\bgSaves are stored locally in this browser. No registration is required.\n";
+	}
+
+	sb << "\n\bt" << VersionInfo();
+	return sb.Build();
+}'''
+
+intro_source = intro_source[:start] + localized_intro + intro_source[end:]
+intro_text.write_text(intro_source, encoding="utf-8")
+
+
+# Disable external navigation in the Yandex archive build.
+platform_text = platform_emscripten.read_text(encoding="utf-8")
+open_uri_anchor = """void OpenURI(ByteString uri)
+{
+	EM_ASM({
+		open(UTF8ToString($0));
+	}, uri.c_str());
+}"""
+open_uri_patch = """void OpenURI(ByteString uri)
+{
+	// Yandex Games moderation does not allow navigation to external resources.
+	std::cerr << "External URI blocked in Yandex build: " << uri << std::endl;
+}"""
+if "External URI blocked in Yandex build" not in platform_text:
+    if open_uri_anchor not in platform_text:
+        raise SystemExit("Emscripten.cpp OpenURI anchor not found")
+    platform_text = platform_text.replace(open_uri_anchor, open_uri_patch, 1)
+platform_emscripten.write_text(platform_text, encoding="utf-8")
+
+# Hide the upstream credits button because its content contains external URLs.
+options_text = options_view.read_text(encoding="utf-8")
+credits_anchor = """	addButtonWithLabel(YandexWebText("Credits", "Авторы"), " - Find out who contributed to TPT", []{
+		auto *credits = new Credits();
+		ui::Engine::Ref().ShowWindow(credits);
+	});"""
+if credits_anchor in options_text:
+    options_text = options_text.replace(
+        credits_anchor,
+        """#if !defined(__EMSCRIPTEN__)
+""" + credits_anchor + """
+#endif""",
+        1,
+    )
+options_view.write_text(options_text, encoding="utf-8")
+
+
+# Disable the third-party Lua script manager installer in the Yandex build.
+lua_text = lua_misc.read_text(encoding="utf-8")
+lua_install_anchor = """static int installScriptManager(lua_State *L)
+{
+	auto *lsi = GetLSI();"""
+lua_install_patch = """static int installScriptManager(lua_State *L)
+{
+#if defined(__EMSCRIPTEN__)
+	// The Yandex archive is self-contained and does not download third-party scripts.
+	return 0;
+#else
+	auto *lsi = GetLSI();"""
+if "does not download third-party scripts" not in lua_text:
+    if lua_install_anchor not in lua_text:
+        raise SystemExit("LuaMisc.cpp script manager anchor not found")
+    lua_text = lua_text.replace(lua_install_anchor, lua_install_patch, 1)
+    end_anchor = """	lsi->scriptManagerDownload->Start();
+	return 0;
+}
+
+void LuaMisc::Tick"""
+    end_patch = """	lsi->scriptManagerDownload->Start();
+	return 0;
+#endif
+}
+
+void LuaMisc::Tick"""
+    if end_anchor not in lua_text:
+        raise SystemExit("LuaMisc.cpp script manager end anchor not found")
+    lua_text = lua_text.replace(end_anchor, end_patch, 1)
+lua_misc.write_text(lua_text, encoding="utf-8")
