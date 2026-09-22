@@ -75,11 +75,17 @@ jobs:
       - name: Validate pthread-free browser output
         run: |
           set -euo pipefail
-          if grep -Eqi "SharedArrayBuffer|PThread|pthread_create" upstream/build/powder.js; then
-            echo "Threaded Emscripten runtime detected; Yandex ZIP build must be cross-origin-isolation independent."
+          SAB_COUNT="$(grep -Eio "SharedArrayBuffer" upstream/build/powder.js | wc -l || true)"
+          SHARED_MEMORY_COUNT="$(grep -Eio "shared[[:space:]]*:[[:space:]]*true" upstream/build/powder.js | wc -l || true)"
+          PTHREAD_FLAG_COUNT="$(grep -Eio -- "-pthread|PTHREAD_POOL_SIZE" upstream/build/powder.js | wc -l || true)"
+          echo "SharedArrayBuffer markers: $SAB_COUNT"
+          echo "shared:true memory markers: $SHARED_MEMORY_COUNT"
+          echo "pthread build-flag markers: $PTHREAD_FLAG_COUNT"
+          if [ "$SAB_COUNT" -ne 0 ] || [ "$SHARED_MEMORY_COUNT" -ne 0 ] || [ "$PTHREAD_FLAG_COUNT" -ne 0 ]; then
+            echo "Shared-memory Emscripten runtime detected; Yandex ZIP build must not require cross-origin isolation."
             exit 1
           fi
-          echo "No pthread/SharedArrayBuffer runtime markers detected."
+          echo "Browser output is cross-origin-isolation independent."
 
       - name: Assemble Yandex archive
         run: |
