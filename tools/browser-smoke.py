@@ -60,7 +60,11 @@ def smoke_case(language: str, mobile: bool):
                     loader && loader.hidden &&
                     getComputedStyle(loader).display === 'none' &&
                     window.__yandexLoadingReady === true &&
-                    window.__yandexGameplayStarted === true
+                    (
+                        window.__tptOrientationBlocked === true
+                            ? window.__yandexGameplayStarted === false
+                            : window.__yandexGameplayStarted === true
+                    )
                 );
                 """
             )
@@ -83,6 +87,8 @@ def smoke_case(language: str, mobile: bool):
                 viewportHeight: window.innerHeight,
                 maxTouchPoints: navigator.maxTouchPoints,
                 coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+                orientationBlocked: window.__tptOrientationBlocked === true,
+                orientationDisplay: getComputedStyle(document.getElementById('orientation-gate')).display,
                 ready: window.__yandexLoadingReady,
                 gameplay: window.__yandexGameplayStarted,
             };
@@ -97,19 +103,71 @@ def smoke_case(language: str, mobile: bool):
         assert state["canvasWidth"] > 0 and state["canvasHeight"] > 0, (label, state)
         assert state["canvasWidth"] <= state["viewportWidth"] + 1, (label, state)
         assert state["canvasHeight"] <= state["viewportHeight"] + 1, (label, state)
-        assert state["ready"] is True and state["gameplay"] is True, (label, state)
+        assert state["ready"] is True, (label, state)
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-initial.png"))
 
         if mobile:
             assert state["maxTouchPoints"] > 0 or state["coarsePointer"], (label, state)
             assert state["touchUI"] is True, (label, state)
+            assert state["orientationBlocked"] is True, (label, state)
+            assert state["orientationDisplay"] != "none", (label, state)
+            assert state["gameplay"] is False, (label, state)
         else:
             assert state["touchUI"] is False, (label, state)
-
+            assert state["orientationBlocked"] is False, (label, state)
+            assert state["orientationDisplay"] == "none", (label, state)
+            assert state["gameplay"] is True, (label, state)
 
         if mobile:
-            # Prove actual touch input reaches native TPT and draws particles.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && window.__yandexGameplayStarted === true"
+                )
+            )
+        else:
+            driver.set_window_size(800, 600)
+
+        time.sleep(0.5)
+        resized = driver.execute_script(
+            """
+            const rect = document.getElementById('canvas').getBoundingClientRect();
+            return {
+                width: rect.width,
+                height: rect.height,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+                fatalHidden: document.getElementById('fatal').hidden,
+                orientationBlocked: window.__tptOrientationBlocked === true,
+                orientationDisplay: getComputedStyle(document.getElementById('orientation-gate')).display,
+                gameplay: window.__yandexGameplayStarted,
+            };
+            """
+        )
+        assert resized["fatalHidden"] is True, (label, resized)
+        assert resized["width"] > 0 and resized["height"] > 0, (label, resized)
+        assert resized["width"] <= resized["viewportWidth"] + 1, (label, resized)
+        assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
+        assert resized["orientationBlocked"] is False, (label, resized)
+        assert resized["orientationDisplay"] == "none", (label, resized)
+        assert resized["gameplay"] is True, (label, resized)
+
+        if mobile:
+            # Prove touch still maps into the simulation after portrait -> landscape.
             driver.execute_script(
                 "window.__tptGameModule.ccall('YandexWeb_TestSelectDust', null, [], [])"
             )
@@ -124,9 +182,8 @@ def smoke_case(language: str, mobile: bool):
             )
             x0 = touch_rect["left"] + touch_rect["width"] * 0.30
             y0 = touch_rect["top"] + touch_rect["height"] * 0.38
-            x1 = touch_rect["left"] + touch_rect["width"] * 0.45
+            x1 = touch_rect["left"] + touch_rect["width"] * 0.48
             y1 = touch_rect["top"] + touch_rect["height"] * 0.48
-
             driver.execute_cdp_cmd(
                 "Input.dispatchTouchEvent",
                 {
@@ -155,51 +212,14 @@ def smoke_case(language: str, mobile: bool):
                 {"type": "touchEnd", "touchPoints": []},
             )
             time.sleep(0.3)
-
             after_particles = driver.execute_script(
                 "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
             )
-            assert before_particles >= 0, (label, before_particles)
             assert after_particles > before_particles, (
                 label,
-                f"touch did not draw particles: before={before_particles}, after={after_particles}",
+                f"landscape touch did not draw particles: before={before_particles}, after={after_particles}",
             )
 
-        if mobile:
-            driver.execute_cdp_cmd(
-                "Emulation.setDeviceMetricsOverride",
-                {
-                    "width": 844,
-                    "height": 390,
-                    "deviceScaleFactor": 3.0,
-                    "mobile": True,
-                    "screenOrientation": {
-                        "type": "landscapePrimary",
-                        "angle": 90,
-                    },
-                },
-            )
-            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
-        else:
-            driver.set_window_size(800, 600)
-
-        time.sleep(0.5)
-        resized = driver.execute_script(
-            """
-            const rect = document.getElementById('canvas').getBoundingClientRect();
-            return {
-                width: rect.width,
-                height: rect.height,
-                viewportWidth: window.innerWidth,
-                viewportHeight: window.innerHeight,
-                fatalHidden: document.getElementById('fatal').hidden,
-            };
-            """
-        )
-        assert resized["fatalHidden"] is True, (label, resized)
-        assert resized["width"] > 0 and resized["height"] > 0, (label, resized)
-        assert resized["width"] <= resized["viewportWidth"] + 1, (label, resized)
-        assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
         # Yandex platform pause/resume must stop and restart the native loop.
