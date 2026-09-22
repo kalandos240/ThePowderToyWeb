@@ -21,6 +21,10 @@ game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameControll
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
+intro_text_h = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
+property_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "PropertyTool.cpp"
+sign_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "SignTool.cpp"
+element_search_cpp = root / "upstream" / "src" / "gui" / "elementsearch" / "ElementSearchActivity.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 
@@ -264,6 +268,10 @@ include_locale(label_cpp, '#include "graphics/FontReader.h"\n')
 include_locale(game_controller_cpp, '#include "Config.h"\n')
 include_locale(game_model_cpp, '#include "Config.h"\n')
 include_locale(quick_options_cpp, '#include "simulation/Simulation.h"\n')
+include_locale(intro_text_h, '#include "common/String.h"\n')
+include_locale(property_tool_cpp, '#include "Format.h"\n')
+include_locale(sign_tool_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(element_search_cpp, '#include "graphics/Graphics.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -883,6 +891,117 @@ element_patch = """	elements = GetElements();
 if "Central Russian descriptions" not in simulation_text and element_anchor in simulation_text:
     simulation_text = simulation_text.replace(element_anchor, element_patch, 1)
 simulation_data.write_text(simulation_text, encoding="utf-8")
+
+
+intro_text = intro_text_h.read_text(encoding="utf-8")
+intro_start = intro_text.find("inline ByteString IntroText()")
+if intro_start < 0:
+    raise SystemExit("IntroText() not found")
+intro_end = intro_text.find("\n}\n", intro_start)
+if intro_end < 0:
+    raise SystemExit("IntroText() end not found")
+intro_end += 3
+intro_replacement = r'''inline ByteString IntroText()
+{
+	ByteStringBuilder sb;
+	if (YandexWebIsRussian())
+	{
+		sb << "\bl\bU" << APPNAME << "\bU - Версия " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\n"
+		      "\n"
+		      "\bgНажмите \boF1\bg, чтобы показать или скрыть эту справку.\n"
+		      "\n"
+		      "\bgВыберите категорию справа, затем материал левой или правой кнопкой мыши.\n"
+		      "Рисуйте частицами, удерживая кнопку мыши или касаясь экрана.\n"
+		      "Колесо мыши или клавиши \bo[\bg и \bo]\bg меняют размер инструмента. \boTab\bg меняет форму кисти.\n"
+		      "\boСредняя кнопка\bg или \boAlt+клик\bg выбирают материал с поля.\n"
+		      "\boCtrl+C/V/X\bg — копировать, вставить и вырезать.\n"
+		      "При вставке \boR\bg поворачивает, а \boShift+R\bg / \boShift+Ctrl+R\bg отражают область.\n"
+		      "\boShift+перетаскивание\bg рисует линии, \boCtrl+перетаскивание\bg — заполненные прямоугольники.\n"
+		      "\n"
+		      "\boПробел\bg ставит физику на паузу. \boF\bg — один кадр, \boF5\bg — перезапуск симуляции.\n"
+		      "\boCtrl+Z\bg — отмена, \boCtrl+Y\bg или \boCtrl+Shift+Z\bg — повтор.\n"
+		      "\boS\bg создаёт штамп, \boL\bg загружает последний, \boK\bg открывает библиотеку штампов.\n"
+		      "\n"
+		      "\bo0-9\bg выбирают режим отображения. \boH\bg включает HUD. \boZ\bg — увеличение.\n"
+		      "\boCtrl+F\bg подсвечивает выбранный элемент.\n"
+		      "\n"
+		      "\bgСохранения этой версии хранятся локально в браузере. Серверные функции отключены.\n";
+	}
+	else
+	{
+		sb << "\bl\bU" << APPNAME << "\bU - Version " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\n"
+		      "\n"
+		      "\bgPress \boF1\bg to show or hide this help.\n"
+		      "\n"
+		      "\bgChoose a category on the right, then select a material with the left or right mouse button.\n"
+		      "Draw by holding a mouse button or touching the screen.\n"
+		      "Use the mouse wheel or \bo[\bg and \bo]\bg to change tool size. Press \boTab\bg to change brush shape.\n"
+		      "\boMiddle click\bg or \boAlt+click\bg samples material from the field.\n"
+		      "\boCtrl+C/V/X\bg are copy, paste and cut.\n"
+		      "When pasting, \boR\bg rotates; \boShift+R\bg and \boShift+Ctrl+R\bg mirror the selection.\n"
+		      "\boShift+drag\bg draws lines; \boCtrl+drag\bg draws filled rectangles.\n"
+		      "\n"
+		      "\boSpace\bg pauses physics. \boF\bg advances one frame; \boF5\bg reloads the simulation.\n"
+		      "\boCtrl+Z\bg is undo; \boCtrl+Y\bg or \boCtrl+Shift+Z\bg is redo.\n"
+		      "\boS\bg creates a stamp, \boL\bg loads the latest one, and \boK\bg opens the stamp library.\n"
+		      "\n"
+		      "\bo0-9\bg selects display modes. \boH\bg toggles the HUD. \boZ\bg enables zoom.\n"
+		      "\boCtrl+F\bg highlights the selected element.\n"
+		      "\n"
+		      "\bgSaves in this build are stored locally in the browser. Server features are disabled.\n";
+	}
+	sb << "\n\bt" << VersionInfo();
+	return sb.Build();
+}
+'''
+intro_text = intro_text[:intro_start] + intro_replacement + intro_text[intro_end:]
+intro_text_h.write_text(intro_text, encoding="utf-8")
+
+property_text = property_tool_cpp.read_text(encoding="utf-8")
+property_replacements = [
+    ('ui::Point(Size.X-8, 14), "Edit property")',
+     'ui::Point(Size.X-8, 14), YandexWebText("Edit property", "Изменить свойство"))'),
+    ('ui::Point(Size.X-16, 16), "", "[value]")',
+     'ui::Point(Size.X-16, 16), "", YandexWebText("[value]", "[значение]"))'),
+]
+for old, new in property_replacements:
+    if old in property_text:
+        property_text = property_text.replace(old, new)
+property_tool_cpp.write_text(property_text, encoding="utf-8")
+
+sign_text = sign_tool_cpp.read_text(encoding="utf-8")
+sign_replacements = [
+    ('ui::Point(Size.X-8, 15), "New sign")',
+     'ui::Point(Size.X-8, 15), YandexWebText("New sign", "Новая надпись"))'),
+    ('ui::Point(40, 15), "Pointer:")',
+     'ui::Point(40, 15), YandexWebText("Pointer:", "Указатель:"))'),
+    ('0xE020 + String(" Left")', '0xE020 + YandexWebText(" Left", " Слева")'),
+    ('0xE01E + String(" Middle")', '0xE01E + YandexWebText(" Middle", " Центр")'),
+    ('0xE01F + String(" Right")', '0xE01F + YandexWebText(" Right", " Справа")'),
+    ('0xE01D + String(" None")', '0xE01D + YandexWebText(" None", " Нет")'),
+    ('ui::Point(Size.X-16, 17), "", "[message]")',
+     'ui::Point(Size.X-16, 17), "", YandexWebText("[message]", "[текст]"))'),
+    ('messageLabel->SetText("Edit sign");',
+     'messageLabel->SetText(YandexWebText("Edit sign", "Изменить надпись"));'),
+    ('16), "Move")', '16), YandexWebText("Move", "Переместить"))'),
+    ('16), "Delete")', '16), YandexWebText("Delete", "Удалить"))'),
+]
+for old, new in sign_replacements:
+    if old in sign_text:
+        sign_text = sign_text.replace(old, new)
+sign_tool_cpp.write_text(sign_text, encoding="utf-8")
+
+search_text = element_search_cpp.read_text(encoding="utf-8")
+search_replacements = [
+    ('ui::Point(Size.X-8, 15), "Element Search")',
+     'ui::Point(Size.X-8, 15), YandexWebText("Element Search", "Поиск элементов"))'),
+    ('ui::Point((Size.X/2)+1, 15), "Close")',
+     'ui::Point((Size.X/2)+1, 15), YandexWebText("Close", "Закрыть"))'),
+]
+for old, new in search_replacements:
+    if old in search_text:
+        search_text = search_text.replace(old, new)
+element_search_cpp.write_text(search_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
