@@ -31,6 +31,7 @@ confirm_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmP
 error_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
 text_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "TextPrompt.cpp"
 information_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
+credits_cpp = root / "upstream" / "src" / "gui" / "credits" / "Credits.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 
@@ -284,6 +285,7 @@ include_locale(confirm_prompt_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(error_message_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(text_prompt_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(information_message_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(credits_cpp, '#include "gui/interface/Separator.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -1164,6 +1166,55 @@ if dtor_anchor in model_text:
     model_text = model_text.replace(dtor_anchor, dtor_patch, 1)
 
 game_model_cpp.write_text(model_text, encoding="utf-8")
+
+
+credits_text = credits_cpp.read_text(encoding="utf-8")
+credits_replacements = [
+    (
+        'addHeader("The Powder Toy is an open source project, developed by members of the community.\\n"\n'
+        '\t\t\t"We\'d like to thank everyone who contributed to our \\bt{a:https://github.com/The-Powder-Toy/The-Powder-Toy|GitHub repo}\\x0E:", false);',
+        'addHeader(YandexWebText('
+        '"The Powder Toy is an open source project, developed by members of the community.\\nWe would like to thank everyone who contributed to the project:", '
+        '"The Powder Toy — проект с открытым исходным кодом, созданный сообществом.\\nСпасибо всем, кто участвовал в разработке:"'
+        '), false);'
+    ),
+    (
+        'addHeader("Staff - volunteers that run the community and keep the site running");',
+        'addHeader(YandexWebText("Staff - community volunteers", "Команда — волонтёры сообщества"));'
+    ),
+    (
+        'addHeader("Former Staff", false);',
+        'addHeader(YandexWebText("Former Staff", "Бывшие участники команды"), false);'
+    ),
+    (
+        'addHeader("The following users have been credited in the intro text from the start.\\n"\n'
+        '\t\t\t"Their contributions to the early beginnings of The Powder Toy were invaluable in shaping it into what it is today.");',
+        'addHeader(YandexWebText('
+        '"The following users were credited from the earliest versions of The Powder Toy.\\nTheir contributions helped shape the project.", '
+        '"Эти участники упоминаются в проекте с самых ранних версий The Powder Toy.\\nИх вклад помог сформировать игру."'
+        '));'
+    ),
+    (
+        'auto components = AddCredit(username.FromUtf8(), "", Large, GetProfileUri(username), true);',
+        'auto components = AddCredit(username.FromUtf8(), "", Large, "", false);'
+    ),
+    (
+        'auto components = AddCredit(username.FromUtf8(), "", Small, "", true);',
+        'auto components = AddCredit(username.FromUtf8(), "", Small, "", false);'
+    ),
+    (
+        'auto *closeButton = new ui::Button({ 0, Size.Y - 12 }, { Size.X, 12 }, "Close");',
+        'auto *closeButton = new ui::Button({ 0, Size.Y - 12 }, { Size.X, 12 }, YandexWebText("Close", "Закрыть"));'
+    ),
+    (
+        'return "https://powdertoy.co.uk/User.html?Name=" + username;',
+        'return "";'
+    ),
+]
+for old, new in credits_replacements:
+    if old in credits_text:
+        credits_text = credits_text.replace(old, new)
+credits_cpp.write_text(credits_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
