@@ -347,7 +347,11 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLocalSaveOpen()
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCloseLocalSave()
 {
 	if (YandexWeb_TestLocalSaveActivity)
-		YandexWeb_TestLocalSaveActivity->Exit();
+	{
+		auto *activity = YandexWeb_TestLocalSaveActivity;
+		YandexWeb_TestLocalSaveActivity = nullptr;
+		activity->Exit();
+	}
 }
 
 '''
