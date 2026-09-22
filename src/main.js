@@ -268,6 +268,7 @@ async function boot() {
   }
 
   gameModule = gameResult.value;
+  window.__tptGameModule = gameModule;
   applyRuntimePauseState();
 
   if (!presentable) {
