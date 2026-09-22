@@ -2,8 +2,16 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
+meson = root / "upstream" / "meson.build"
 powder = root / "upstream" / "src" / "PowderToy.cpp"
 sdl_emscripten = root / "upstream" / "src" / "PowderToySDLEmscripten.cpp"
+
+meson_text = meson.read_text(encoding="utf-8")
+pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
+if pthread_arg not in meson_text:
+    raise SystemExit("meson.build USE_PTHREADS anchor not found")
+meson_text = meson_text.replace(pthread_arg, "", 1)
+meson.write_text(meson_text, encoding="utf-8")
 
 text = powder.read_text(encoding="utf-8")
 
