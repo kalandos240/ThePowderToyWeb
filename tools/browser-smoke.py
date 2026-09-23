@@ -1191,6 +1191,18 @@ def smoke_case(language: str, mobile: bool):
         )
         assert save_open == 1, (label, "native local-save workflow did not open")
 
+        wait.until(
+            lambda d: d.execute_script(
+                "return window.__tptNativeModalBlocked === true && "
+                "window.__yandexGameplayStarted === false"
+            )
+        )
+        save_modal_state = driver.execute_script(
+            "return {blocked: window.__tptNativeModalBlocked, gameplay: window.__yandexGameplayStarted};"
+        )
+        assert save_modal_state["blocked"] is True, (label, save_modal_state)
+        assert save_modal_state["gameplay"] is False, (label, save_modal_state)
+
         # EN performs the full native local-save path on desktop and mobile.
         # RU mobile additionally proves that the DOM/SDL bridge accepts
         # Cyrillic text, Backspace editing, and a UTF-8 filename end-to-end.
@@ -1507,6 +1519,16 @@ def smoke_case(language: str, mobile: bool):
                     label,
                     "local save browser unexpectedly opened the mobile keyboard",
                 )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptNativeModalBlocked === true && "
+                        "window.__yandexGameplayStarted === false"
+                    )
+                )
+                assert driver.execute_script(
+                    "return window.__tptNativeModalBlocked"
+                ) is True, (label, "local save browser did not block gameplay markup")
+
                 driver.save_screenshot(
                     os.path.join(ARTIFACT_DIR, f"{label}-local-browser.png")
                 )
@@ -1628,6 +1650,16 @@ def smoke_case(language: str, mobile: bool):
                     },
                 )
 
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptNativeModalBlocked === false && "
+                        "window.__yandexGameplayStarted === true"
+                    )
+                )
+                assert driver.execute_script(
+                    "return window.__yandexGameplayStarted"
+                ) is True, (label, "local browser did not restore gameplay markup")
+
             driver.execute_script(
                 "window.__tptGameModule.ccall('YandexWeb_TestStorageFlush', null, [], [])"
             )
@@ -1647,6 +1679,18 @@ def smoke_case(language: str, mobile: bool):
                     "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
                 )
             )
+
+        wait.until(
+            lambda d: d.execute_script(
+                "return window.__tptNativeModalBlocked === false && "
+                "window.__yandexGameplayStarted === true"
+            )
+        )
+        gameplay_after_local_modal = driver.execute_script(
+            "return {blocked: window.__tptNativeModalBlocked, gameplay: window.__yandexGameplayStarted};"
+        )
+        assert gameplay_after_local_modal["blocked"] is False, (label, gameplay_after_local_modal)
+        assert gameplay_after_local_modal["gameplay"] is True, (label, gameplay_after_local_modal)
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
@@ -1877,6 +1921,15 @@ def smoke_case(language: str, mobile: bool):
                     "return window.__tptGameModule.ccall('YandexWeb_TestOptionsOpen', 'number', [], []) === 1"
                 )
             )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptNativeModalBlocked === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+            assert driver.execute_script(
+                "return window.__tptNativeModalBlocked"
+            ) is True, (label, "settings did not block gameplay markup")
             threaded_control_present = driver.execute_script(
                 """
                 return window.__tptGameModule.ccall(
