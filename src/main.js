@@ -111,8 +111,13 @@ function updateOrientationGate() {
 function fitCanvas() {
   const logicalWidth = canvas.width || 612;
   const logicalHeight = canvas.height || 384;
-  const availableWidth = app.clientWidth;
-  const availableHeight = app.clientHeight;
+  const appStyle = getComputedStyle(app);
+  const horizontalPadding =
+    parseFloat(appStyle.paddingLeft) + parseFloat(appStyle.paddingRight);
+  const verticalPadding =
+    parseFloat(appStyle.paddingTop) + parseFloat(appStyle.paddingBottom);
+  const availableWidth = Math.max(0, app.clientWidth - horizontalPadding);
+  const availableHeight = Math.max(0, app.clientHeight - verticalPadding);
 
   if (!logicalWidth || !logicalHeight || !availableWidth || !availableHeight) {
     return;
