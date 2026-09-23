@@ -510,6 +510,8 @@ static int YandexWeb_TestDustButtonX = -1;
 static int YandexWeb_TestDustButtonY = -1;
 static int YandexWeb_TestSaveButtonX = -1;
 static int YandexWeb_TestSaveButtonY = -1;
+static int YandexWeb_TestSettingsButtonX = -1;
+static int YandexWeb_TestSettingsButtonY = -1;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiWidth() { return YandexWeb_TestUiWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexWeb_TestUiHeight; }
@@ -517,6 +519,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonX() { return Yand
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonY() { return YandexWeb_TestDustButtonY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonX() { return YandexWeb_TestSaveButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonY() { return YandexWeb_TestSaveButtonY; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonX() { return YandexWeb_TestSettingsButtonX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonY() { return YandexWeb_TestSettingsButtonY; }
 #endif
 
 '''
@@ -543,6 +547,14 @@ ui_geometry_patch = r'''
 			saveSimulationButton->Position.X + saveSimulationButton->GetSplitPosition() / 2;
 		YandexWeb_TestSaveButtonY =
 			saveSimulationButton->Position.Y + saveSimulationButton->Size.Y / 2;
+	}
+
+	if (simulationOptionButton)
+	{
+		YandexWeb_TestSettingsButtonX =
+			simulationOptionButton->Position.X + simulationOptionButton->Size.X / 2;
+		YandexWeb_TestSettingsButtonY =
+			simulationOptionButton->Position.Y + simulationOptionButton->Size.Y / 2;
 	}
 
 	YandexWeb_TestDustButtonX = -1;
@@ -830,6 +842,35 @@ for old, new in save_replacements:
 local_save.write_text(save_text, encoding="utf-8")
 
 options_text = options_view.read_text(encoding="utf-8")
+if '#include <emscripten.h>' not in options_text:
+    options_text = options_text.replace(
+        '#include <SDL.h>\n',
+        '#include <SDL.h>\n#if defined(__EMSCRIPTEN__)\n#include <emscripten.h>\n#endif\n',
+        1,
+    )
+
+options_diag = r'''#if defined(__EMSCRIPTEN__)
+static OptionsView *YandexWeb_TestOptionsView = nullptr;
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestOptionsOpen()
+{
+	return YandexWeb_TestOptionsView ? 1 : 0;
+}
+#endif
+
+'''
+options_ctor_anchor = 'OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))\n{'
+options_ctor_patch = '''OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
+{
+#if defined(__EMSCRIPTEN__)
+	YandexWeb_TestOptionsView = this;
+#endif'''
+if 'YandexWeb_TestOptionsOpen' not in options_text:
+    if options_ctor_anchor not in options_text:
+        raise SystemExit("OptionsView constructor anchor missing")
+    options_text = options_text.replace(options_ctor_anchor, options_ctor_patch, 1)
+    options_text = options_diag + options_text
+
 options_replacements = [
     ('"Settings"', 'YandexWebText("Settings", "Настройки")'),
     ('"Preview"', 'YandexWebText("Preview", "Предпросмотр")'),
