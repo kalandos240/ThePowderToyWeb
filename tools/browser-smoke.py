@@ -1042,6 +1042,12 @@ def smoke_case(language: str, mobile: bool):
                         """
                     )
                 )
+                assert driver.execute_script(
+                    "return window.__tptMobileTextInputActive"
+                ) is False, (
+                    label,
+                    "local save browser unexpectedly opened the mobile keyboard",
+                )
                 driver.save_screenshot(
                     os.path.join(ARTIFACT_DIR, f"{label}-local-browser.png")
                 )
