@@ -63,18 +63,12 @@ jobs:
           fi
           echo "Yandex UI external-link audit: OK"
 
-      - name: Record Emscripten cache version
-        run: |
-          set -euo pipefail
-          EMCC_VERSION="$(emcc --version | head -n 1 | sha256sum | cut -c1-16)"
-          echo "TPT_EMCC_CACHE_VERSION=$EMCC_VERSION" >> "$GITHUB_ENV"
-
       - name: Restore Emscripten build cache
         id: emscripten-build-cache
         uses: actions/cache@v4
         with:
           path: upstream/build
-          key: tpt-yandex-v100.1.400-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ env.TPT_EMCC_CACHE_VERSION }}-${{ hashFiles('tools/patch-upstream.py', 'upstream/.github/build.sh') }}
+          key: tpt-yandex-v100.1.400-emsdk-3.1.72-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ hashFiles('tools/patch-upstream.py', 'upstream/.github/build.sh') }}
 
       - name: Build upstream Emscripten target without external HTTP features
         if: steps.emscripten-build-cache.outputs.cache-hit != 'true'
