@@ -2017,6 +2017,13 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestParticleCount()
 	return YandexWeb_TestGameModel->GetSimulation()->NUM_PARTS;
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestClearSimulation()
+{
+	if (!YandexWeb_TestGameModel)
+		return;
+	YandexWeb_TestGameModel->GetSimulation()->clear_sim();
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestEngineFps()
 {
 	return ui::Engine::Ref().GetFps();
