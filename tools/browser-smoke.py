@@ -971,6 +971,54 @@ def smoke_case(language: str, mobile: bool):
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
+        if mobile:
+            # Simulate a platform-controlled safe-area/banner inset changing
+            # without window.resize. ResizeObserver must refit the canvas.
+            dynamic_inset = driver.execute_async_script(
+                """
+                const done = arguments[arguments.length - 1];
+                const app = document.getElementById('app');
+                const canvas = document.getElementById('canvas');
+                app.style.paddingRight = '28px';
+                app.style.paddingBottom = '24px';
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    const style = getComputedStyle(app);
+                    const horizontalPadding =
+                        parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+                    const verticalPadding =
+                        parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+                    const availableWidth = app.clientWidth - horizontalPadding;
+                    const availableHeight = app.clientHeight - verticalPadding;
+                    const logicalWidth = canvas.width;
+                    const logicalHeight = canvas.height;
+                    const scale = Math.min(
+                        availableWidth / logicalWidth,
+                        availableHeight / logicalHeight
+                    );
+                    const r = canvas.getBoundingClientRect();
+                    done({
+                        width: r.width,
+                        height: r.height,
+                        expectedWidth: Math.max(1, Math.floor(logicalWidth * scale)),
+                        expectedHeight: Math.max(1, Math.floor(logicalHeight * scale)),
+                    });
+                }));
+                """
+            )
+            assert abs(dynamic_inset["width"] - dynamic_inset["expectedWidth"]) <= 2, (
+                label,
+                dynamic_inset,
+            )
+            assert abs(dynamic_inset["height"] - dynamic_inset["expectedHeight"]) <= 2, (
+                label,
+                dynamic_inset,
+            )
+            driver.execute_script(
+                "const app=document.getElementById('app');"
+                "app.style.paddingRight=''; app.style.paddingBottom='';"
+            )
+            time.sleep(0.2)
+
         # Returning through browser history/BFCache must not leave the native
         # Emscripten loop frozen after pagehide -> pageshow.
         driver.execute_script(
@@ -1067,6 +1115,68 @@ def smoke_case(language: str, mobile: bool):
                     12000,
                 ),
             ]
+
+        if mobile:
+            # Open Settings through the real native button coordinates and a
+            # real browser touch event. This guards tiny-hit-target regressions.
+            settings_button = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                const m = window.__tptGameModule;
+                const nativeX = m.ccall('YandexWeb_TestGetSettingsButtonX', 'number', [], []);
+                const nativeY = m.ccall('YandexWeb_TestGetSettingsButtonY', 'number', [], []);
+                const windowX = m.ccall(
+                    'YandexWeb_TestLogicalToWindowX',
+                    'number',
+                    ['number', 'number'],
+                    [nativeX, nativeY]
+                );
+                const windowY = m.ccall(
+                    'YandexWeb_TestLogicalToWindowY',
+                    'number',
+                    ['number', 'number'],
+                    [nativeX, nativeY]
+                );
+                const windowWidth = m.ccall('YandexWeb_TestWindowWidth', 'number', [], []);
+                const windowHeight = m.ccall('YandexWeb_TestWindowHeight', 'number', [], []);
+                return {
+                    x: r.left + (windowX / windowWidth) * r.width,
+                    y: r.top + (windowY / windowHeight) * r.height,
+                    nativeX,
+                    nativeY,
+                };
+                """
+            )
+            assert settings_button["nativeX"] >= 0 and settings_button["nativeY"] >= 0, (
+                label,
+                settings_button,
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{
+                        "x": settings_button["x"],
+                        "y": settings_button["y"],
+                        "radiusX": 4,
+                        "radiusY": 4,
+                        "force": 1,
+                    }],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestOptionsOpen', 'number', [], []) === 1"
+                )
+            )
+            driver.save_screenshot(
+                os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
+            )
 
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
