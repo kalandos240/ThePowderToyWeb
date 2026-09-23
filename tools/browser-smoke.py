@@ -892,6 +892,7 @@ def smoke_case(language: str, mobile: bool):
                     """
                 )
                 assert bridge_state["active"] is True, (label, bridge_state)
+                assert bridge_state["focused"] is True, (label, bridge_state)
                 assert bridge_state["hidden"] is False, (label, bridge_state)
 
                 mobile_input = driver.find_element(By.ID, "mobile-text-input")
