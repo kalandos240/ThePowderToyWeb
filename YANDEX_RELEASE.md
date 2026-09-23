@@ -36,15 +36,19 @@ The build workflow currently checks:
 - Uncompressed package size <= 100 MB.
 - Desktop EN and RU startup.
 - Mobile EN and RU startup.
+- Yandex SDK device classification through the documented `ysdk.deviceInfo()` method, with browser touch detection as a fallback.
 - Real desktop mouse selection and drawing.
 - Real mobile touch selection and drawing.
 - Portrait -> landscape behavior and repeated orientation cycles.
 - Repeated fullscreen-like mobile viewport changes.
+- Desktop effective viewport checks corresponding to the 80%, 100%, and 125% browser-zoom moderation range, with no page scrollbar or canvas overflow.
 - Yandex pause/resume events.
 - IndexedDB/IDBFS persistence across page reload.
-- Browser smoke screenshots.
-- Desktop/mobile frame-time telemetry on an approximately 20,000-particle stress scene.
-- Current 20k-particle CI baseline: median 16.7 ms / ~59.88 FPS, p95 16.7 ms on both desktop and mobile emulation.
+- Full mobile local-save flow: create a CPS save, reopen it from the native local browser, and restore simulation state.
+- Browser smoke screenshots for desktop/mobile EN/RU plus mobile settings, local-browser, orientation, and fullscreen states.
+- Yandex ZIP validation: one root `index.html`, archive integrity, safe relative paths, ASCII/no-whitespace filenames, and unpacked size <= 100 MB.
+- Desktop/mobile frame-time telemetry on DUST and water+Newtonian-gravity stress scenes at approximately 20k/12k and 45k/28k particles.
+- Current heavy-scene GitHub-runner baseline is approximately 59-60 engine FPS with p95 browser frame time around 16.7-16.8 ms.
 
 ## Monetization
 
@@ -68,7 +72,7 @@ For this sandbox game, a console-configured sticky banner is the lowest-risk fir
 - Test at least one desktop browser and one real Android/iOS device.
 - On mobile, repeat portrait/landscape and fullscreen transitions several times.
 - Verify long press does not open a browser context menu.
-- Create a real local save, reload the page, and reopen it.
+- Create a real local save, reload the page, and reopen it on a physical device even though the same flow is covered in browser CI.
 - Verify RU and EN through the Yandex language mock.
 - Run a heavy simulation for several minutes and check responsiveness.
 - Confirm the sticky banner/ad configuration, or state in the developer comment that the game is intentionally non-monetized.
