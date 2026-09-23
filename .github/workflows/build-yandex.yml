@@ -159,14 +159,18 @@ jobs:
                   lang: new URLSearchParams(location.search).get("lang") || "en"
                 }
               },
-              deviceInfo: {
-                type: new URLSearchParams(location.search).get("device") || "desktop",
-                isMobile() {
-                  return this.type === "mobile";
-                },
-                isTablet() {
-                  return this.type === "tablet";
-                }
+              deviceInfo() {
+                const type =
+                  new URLSearchParams(location.search).get("device") || "desktop";
+                return {
+                  type,
+                  isMobile() {
+                    return type === "mobile";
+                  },
+                  isTablet() {
+                    return type === "tablet";
+                  }
+                };
               },
               features: {
                 LoadingAPI: {
