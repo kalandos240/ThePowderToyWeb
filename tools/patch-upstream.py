@@ -869,10 +869,16 @@ if '#include <emscripten.h>' not in options_text:
 
 options_diag = r'''#if defined(__EMSCRIPTEN__)
 static OptionsView *YandexWeb_TestOptionsView = nullptr;
+static int YandexWeb_TestThreadedRenderingControlPresent = -1;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestOptionsOpen()
 {
 	return YandexWeb_TestOptionsView ? 1 : 0;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestThreadedRenderingPresent()
+{
+	return YandexWeb_TestThreadedRenderingControlPresent;
 }
 #endif
 
@@ -1046,6 +1052,8 @@ threaded_rendering_patch = '''#if !defined(__EMSCRIPTEN__)
 \tthreadedRendering = addCheckbox(0, YandexWebText("Separate rendering thread", "Отдельный поток рендера"), YandexWebText("May increase framerate when fancy effects are in use", "Может повысить FPS с графическими эффектами"), [this] {
 \t\tc->SetThreadedRendering(threadedRendering->GetChecked());
 \t});
+#else
+\tYandexWeb_TestThreadedRenderingControlPresent = threadedRendering ? 1 : 0;
 #endif'''
 if threaded_rendering_anchor not in options_text:
     raise SystemExit("OptionsView localized threaded-rendering anchor missing")
