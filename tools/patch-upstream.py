@@ -305,41 +305,58 @@ if '#include <emscripten.h>' not in game_view_text:
         1
     )
 
-# Export real GameView-space centres for browser UI smoke tests. Using the
-# native UI coordinates avoids confusing SDL/GameView scale with canvas backing pixels.
+# Export real GameView-space centres for browser UI smoke tests. Using
+# native integer getters avoids confusing SDL/GameView scale with canvas backing pixels.
+ui_geometry_globals = r'''
+#if defined(__EMSCRIPTEN__)
+static int YandexWeb_TestUiWidth = -1;
+static int YandexWeb_TestUiHeight = -1;
+static int YandexWeb_TestDustButtonX = -1;
+static int YandexWeb_TestDustButtonY = -1;
+static int YandexWeb_TestSaveButtonX = -1;
+static int YandexWeb_TestSaveButtonY = -1;
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiWidth() { return YandexWeb_TestUiWidth; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexWeb_TestUiHeight; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonX() { return YandexWeb_TestDustButtonX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonY() { return YandexWeb_TestDustButtonY; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonX() { return YandexWeb_TestSaveButtonX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonY() { return YandexWeb_TestSaveButtonY; }
+#endif
+
+'''
+game_view_ctor_anchor = 'GameView::GameView():\n'
+if 'YandexWeb_TestGetDustButtonX' not in game_view_text:
+    if game_view_ctor_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp constructor anchor missing for UI diagnostics")
+    game_view_text = game_view_text.replace(
+        game_view_ctor_anchor,
+        ui_geometry_globals + game_view_ctor_anchor,
+        1
+    )
+
 ui_geometry_anchor = '\n}\n\nvoid GameView::OnMouseMove(int x, int y, int dx, int dy)\n'
 ui_geometry_patch = r'''
 #if defined(__EMSCRIPTEN__)
+	YandexWeb_TestUiWidth = Size.X;
+	YandexWeb_TestUiHeight = Size.Y;
+
 	if (saveSimulationButton)
 	{
-		EM_ASM({
-			window.__tptSaveButton = window.__tptSaveButton || {};
-			window.__tptSaveButton.x = $0;
-			window.__tptSaveButton.y = $1;
-			window.__tptSaveButton.viewWidth = $2;
-			window.__tptSaveButton.viewHeight = $3;
-		},
-		saveSimulationButton->Position.X + saveSimulationButton->Size.X / 2,
-		saveSimulationButton->Position.Y + saveSimulationButton->Size.Y / 2,
-		Size.X,
-		Size.Y);
+		YandexWeb_TestSaveButtonX =
+			saveSimulationButton->Position.X + saveSimulationButton->Size.X / 2;
+		YandexWeb_TestSaveButtonY =
+			saveSimulationButton->Position.Y + saveSimulationButton->Size.Y / 2;
 	}
 
+	YandexWeb_TestDustButtonX = -1;
+	YandexWeb_TestDustButtonY = -1;
 	for (auto *button : toolButtons)
 	{
 		if (button && button->tool && button->tool->Identifier == "DEFAULT_PT_DUST")
 		{
-			EM_ASM({
-				window.__tptDustButton = window.__tptDustButton || {};
-				window.__tptDustButton.x = $0;
-				window.__tptDustButton.y = $1;
-				window.__tptDustButton.viewWidth = $2;
-				window.__tptDustButton.viewHeight = $3;
-			},
-			button->Position.X + button->Size.X / 2,
-			button->Position.Y + button->Size.Y / 2,
-			Size.X,
-			Size.Y);
+			YandexWeb_TestDustButtonX = button->Position.X + button->Size.X / 2;
+			YandexWeb_TestDustButtonY = button->Position.Y + button->Size.Y / 2;
 			break;
 		}
 	}
@@ -348,7 +365,7 @@ ui_geometry_patch = r'''
 
 void GameView::OnMouseMove(int x, int y, int dx, int dy)
 '''
-if 'window.__tptDustButton' not in game_view_text:
+if 'YandexWeb_TestUiWidth = Size.X;' not in game_view_text:
     if ui_geometry_anchor not in game_view_text:
         raise SystemExit("GameView.cpp UI geometry anchor missing")
     game_view_text = game_view_text.replace(ui_geometry_anchor, '\n' + ui_geometry_patch, 1)
