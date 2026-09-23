@@ -118,6 +118,7 @@ def make_driver(mobile: bool):
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1365,768")
+    options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
     if mobile:
         options.add_experimental_option(
             "mobileEmulation",
@@ -1660,6 +1661,34 @@ def smoke_case(language: str, mobile: bool):
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
             )
+
+        browser_logs = driver.get_log("browser")
+        browser_log_path = os.path.join(
+            ARTIFACT_DIR, f"{label}-browser-console.json"
+        )
+        with open(browser_log_path, "w", encoding="utf-8") as handle:
+            json.dump(browser_logs, handle, ensure_ascii=False, indent=2)
+
+        fatal_markers = (
+            "Uncaught",
+            "TypeError",
+            "ReferenceError",
+            "SyntaxError",
+            "net::ERR",
+            "Failed to load resource",
+        )
+        fatal_browser_logs = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "favicon.ico" not in entry.get("message", "")
+            and any(marker in entry.get("message", "") for marker in fatal_markers)
+        ]
+        assert not fatal_browser_logs, (
+            label,
+            "fatal browser console errors",
+            fatal_browser_logs,
+        )
 
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
