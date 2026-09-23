@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - experiment/full-save-ui
     paths:
       - "index.html"
       - "styles.css"
