@@ -344,6 +344,14 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLocalSaveOpen()
 	return YandexWeb_TestLocalSaveActivity ? 1 : 0;
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLocalSaveFileExists(const char *stem)
+{
+	if (!stem || !*stem)
+		return 0;
+	auto path = ByteString::Build(LOCAL_SAVE_DIR, PATH_SEP_CHAR, stem, ".cps");
+	return Platform::FileExists(path) ? 1 : 0;
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCloseLocalSave()
 {
 	if (YandexWeb_TestLocalSaveActivity)
