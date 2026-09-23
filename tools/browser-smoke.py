@@ -153,6 +153,28 @@ def smoke_case(language: str, mobile: bool):
             )
         )
 
+        external_resources = driver.execute_script(
+            """
+            const origin = location.origin;
+            return performance.getEntriesByType('resource')
+                .map(entry => entry.name)
+                .filter(name => {
+                    try {
+                        const url = new URL(name, location.href);
+                        return (url.protocol === 'http:' || url.protocol === 'https:') &&
+                               url.origin !== origin;
+                    } catch {
+                        return false;
+                    }
+                });
+            """
+        )
+        assert external_resources == [], (
+            label,
+            "external runtime resources detected",
+            external_resources,
+        )
+
         state = driver.execute_script(
             """
             const canvas = document.getElementById('canvas');
