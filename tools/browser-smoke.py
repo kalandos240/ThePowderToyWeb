@@ -62,6 +62,11 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     median_ms = statistics.median(ordered)
     p95_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
     average_ms = statistics.fmean(ordered)
+    engine_fps = float(
+        driver.execute_script(
+            "return window.__tptGameModule.ccall('YandexWeb_TestEngineFps', 'number', [], [])"
+        )
+    )
 
     metric = {
         "label": label,
@@ -72,6 +77,7 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
         "median_frame_ms": round(median_ms, 3),
         "p95_frame_ms": round(p95_ms, 3),
         "median_fps": round(1000.0 / median_ms, 2) if median_ms > 0 else None,
+        "engine_fps": round(engine_fps, 2),
     }
 
     report_path = os.path.join(ARTIFACT_DIR, "performance.json")
