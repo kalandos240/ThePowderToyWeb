@@ -327,6 +327,7 @@ function updateOrientationGate() {
     isTouchEnvironment() &&
     window.innerHeight > window.innerWidth
   );
+  const wasBlocked = orientationBlocked;
 
   orientationBlocked = nextBlocked;
   orientationGate.hidden = !orientationBlocked;
@@ -336,6 +337,13 @@ function updateOrientationGate() {
   if (orientationBlocked && document.activeElement === mobileTextInput) {
     mobileTextInput.blur();
     window.__tptMobileTextInputFocused = false;
+  } else if (
+    wasBlocked &&
+    !orientationBlocked &&
+    mobileTextInputActive &&
+    isTouchEnvironment()
+  ) {
+    focusMobileTextInput();
   }
 
   applyRuntimePauseState();
