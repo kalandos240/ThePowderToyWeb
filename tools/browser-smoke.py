@@ -1263,6 +1263,18 @@ def smoke_case(language: str, mobile: bool):
                     "return window.__tptGameModule.ccall('YandexWeb_TestOptionsOpen', 'number', [], []) === 1"
                 )
             )
+            threaded_control_present = driver.execute_script(
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestThreadedRenderingPresent', 'number', [], []
+                );
+                """
+            )
+            assert threaded_control_present == 0, (
+                label,
+                "pthread-free web build exposed threaded rendering setting",
+                threaded_control_present,
+            )
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
             )
