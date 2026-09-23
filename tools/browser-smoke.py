@@ -153,6 +153,56 @@ def smoke_case(language: str, mobile: bool):
             )
         )
 
+        interaction_guards = driver.execute_script(
+            """
+            const canvas = document.getElementById('canvas');
+            const bodyStyle = getComputedStyle(document.body);
+            const canvasStyle = getComputedStyle(canvas);
+            const contextEvent = new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 20,
+                clientY: 20,
+            });
+            const dispatchResult = canvas.dispatchEvent(contextEvent);
+            return {
+                contextPrevented:
+                    contextEvent.defaultPrevented === true && dispatchResult === false,
+                bodyUserSelect: bodyStyle.userSelect,
+                canvasTouchAction: canvasStyle.touchAction,
+                scrollWidth: document.documentElement.scrollWidth,
+                scrollHeight: document.documentElement.scrollHeight,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+            };
+            """
+        )
+        assert interaction_guards["contextPrevented"] is True, (
+            label,
+            "canvas context menu was not prevented",
+            interaction_guards,
+        )
+        assert interaction_guards["bodyUserSelect"] == "none", (
+            label,
+            "browser text selection is enabled",
+            interaction_guards,
+        )
+        assert interaction_guards["canvasTouchAction"] == "none", (
+            label,
+            "canvas browser gestures are enabled",
+            interaction_guards,
+        )
+        assert interaction_guards["scrollWidth"] <= interaction_guards["viewportWidth"] + 1, (
+            label,
+            "horizontal browser scrolling is possible",
+            interaction_guards,
+        )
+        assert interaction_guards["scrollHeight"] <= interaction_guards["viewportHeight"] + 1, (
+            label,
+            "vertical browser scrolling is possible",
+            interaction_guards,
+        )
+
         external_resources = driver.execute_script(
             """
             const origin = location.origin;
