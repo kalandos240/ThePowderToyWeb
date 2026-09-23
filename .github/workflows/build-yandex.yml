@@ -159,6 +159,15 @@ jobs:
                   lang: new URLSearchParams(location.search).get("lang") || "en"
                 }
               },
+              deviceInfo: {
+                type: new URLSearchParams(location.search).get("device") || "desktop",
+                isMobile() {
+                  return this.type === "mobile";
+                },
+                isTablet() {
+                  return this.type === "tablet";
+                }
+              },
               features: {
                 LoadingAPI: {
                   ready() {
