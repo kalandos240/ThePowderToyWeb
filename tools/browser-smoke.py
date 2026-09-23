@@ -284,9 +284,8 @@ def smoke_case(language: str, mobile: bool):
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
                 const logicalX = canvas.width - 41;
-                // Intentionally tap above the visible button; TouchUI should
-                // resolve this to the nearest button within the expanded hit halo.
-                const logicalY = canvas.height - 45;
+                // Desktop has no TouchUI hit halo: click the actual button centre.
+                const logicalY = canvas.height - 14;
                 return {
                     x: r.left + (logicalX / canvas.width) * r.width,
                     y: r.top + (logicalY / canvas.height) * r.height,
