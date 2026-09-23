@@ -1129,8 +1129,73 @@ def smoke_case(language: str, mobile: bool):
 
                 mobile_input = driver.find_element(By.ID, "mobile-text-input")
                 if language == "ru":
-                    mobile_input.send_keys(save_name + "x")
+                    first_character = save_name[0]
+                    driver.execute_script(
+                        """
+                        const input = document.getElementById('mobile-text-input');
+                        const value = arguments[0];
+                        input.dispatchEvent(new CompositionEvent(
+                            'compositionstart',
+                            { bubbles: true, data: '' }
+                        ));
+                        input.value = value;
+                        input.dispatchEvent(new InputEvent(
+                            'input',
+                            {
+                                bubbles: true,
+                                data: value,
+                                inputType: 'insertCompositionText',
+                                isComposing: true,
+                            }
+                        ));
+                        input.dispatchEvent(new CompositionEvent(
+                            'compositionend',
+                            { bubbles: true, data: value }
+                        ));
+                        input.dispatchEvent(new InputEvent(
+                            'input',
+                            {
+                                bubbles: true,
+                                data: value,
+                                inputType: 'insertText',
+                                isComposing: false,
+                            }
+                        ));
+                        """,
+                        first_character,
+                    )
+                    wait.until(
+                        lambda d: d.execute_script(
+                            """
+                            const m = window.__tptGameModule;
+                            m.ccall(
+                                'YandexWeb_TestCaptureLocalSaveFilename',
+                                null,
+                                [],
+                                []
+                            );
+                            return window.__tptTestLocalSaveFilename === arguments[0];
+                            """,
+                            first_character,
+                        )
+                    )
+                    mobile_input.send_keys(save_name[1:] + "x")
                     mobile_input.send_keys(Keys.BACKSPACE)
+                    wait.until(
+                        lambda d: d.execute_script(
+                            """
+                            const m = window.__tptGameModule;
+                            m.ccall(
+                                'YandexWeb_TestCaptureLocalSaveFilename',
+                                null,
+                                [],
+                                []
+                            );
+                            return window.__tptTestLocalSaveFilename === arguments[0];
+                            """,
+                            save_name,
+                        )
+                    )
                 else:
                     mobile_input.send_keys(save_name)
                 mobile_input.send_keys(Keys.ENTER)
