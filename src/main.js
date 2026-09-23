@@ -98,19 +98,28 @@ function isTouchEnvironment() {
   );
 }
 
-function applyPlatformDevice(currentSDK) {
-  const deviceInfo = currentSDK?.deviceInfo;
+async function applyPlatformDevice(currentSDK) {
   let mobilePlatform = null;
 
   try {
+    const source = currentSDK?.deviceInfo;
+    const deviceInfo =
+      typeof source === "function"
+        ? await Promise.resolve(source.call(currentSDK))
+        : source;
+
     if (typeof deviceInfo?.type === "string") {
       const type = deviceInfo.type.toLowerCase();
       mobilePlatform = type === "mobile" || type === "tablet";
     } else if (deviceInfo) {
       const mobile =
-        typeof deviceInfo.isMobile === "function" && deviceInfo.isMobile();
+        typeof deviceInfo.isMobile === "function"
+          ? deviceInfo.isMobile()
+          : Boolean(deviceInfo.isMobile);
       const tablet =
-        typeof deviceInfo.isTablet === "function" && deviceInfo.isTablet();
+        typeof deviceInfo.isTablet === "function"
+          ? deviceInfo.isTablet()
+          : Boolean(deviceInfo.isTablet);
       mobilePlatform = Boolean(mobile || tablet);
     }
   } catch (error) {
@@ -566,7 +575,7 @@ async function boot() {
     initYandexSDK(),
     loadScript("./game/powder.js")
   ]);
-  applyPlatformDevice(currentSDK);
+  await applyPlatformDevice(currentSDK);
   applyPlatformLanguage(currentSDK);
 
   setStatus(message("engine"));
