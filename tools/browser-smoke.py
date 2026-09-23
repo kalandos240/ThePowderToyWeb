@@ -220,6 +220,65 @@ def smoke_case(language: str, mobile: bool):
             interaction_guards,
         )
 
+        if not mobile:
+            # Yandex moderation checks desktop page scrolling around the
+            # 80%-125% browser-zoom range. CSS zoom is used here as a stable
+            # headless layout stress proxy for those scale changes.
+            for zoom in (0.8, 1.0, 1.25):
+                zoom_state = driver.execute_script(
+                    """
+                    document.documentElement.style.zoom = String(arguments[0]);
+                    window.dispatchEvent(new Event('resize'));
+                    return new Promise((resolve) => {
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            const canvas = document.getElementById('canvas');
+                            const rect = canvas.getBoundingClientRect();
+                            resolve({
+                                scrollWidth: document.documentElement.scrollWidth,
+                                scrollHeight: document.documentElement.scrollHeight,
+                                viewportWidth: window.innerWidth,
+                                viewportHeight: window.innerHeight,
+                                canvasLeft: rect.left,
+                                canvasTop: rect.top,
+                                canvasRight: rect.right,
+                                canvasBottom: rect.bottom,
+                            });
+                        }));
+                    });
+                    """,
+                    zoom,
+                )
+                assert zoom_state["scrollWidth"] <= zoom_state["viewportWidth"] + 1, (
+                    label,
+                    f"horizontal scroll at layout scale {zoom}",
+                    zoom_state,
+                )
+                assert zoom_state["scrollHeight"] <= zoom_state["viewportHeight"] + 1, (
+                    label,
+                    f"vertical scroll at layout scale {zoom}",
+                    zoom_state,
+                )
+                assert zoom_state["canvasLeft"] >= -1 and zoom_state["canvasTop"] >= -1, (
+                    label,
+                    f"canvas starts outside viewport at layout scale {zoom}",
+                    zoom_state,
+                )
+                assert zoom_state["canvasRight"] <= zoom_state["viewportWidth"] + 1, (
+                    label,
+                    f"canvas exceeds viewport width at layout scale {zoom}",
+                    zoom_state,
+                )
+                assert zoom_state["canvasBottom"] <= zoom_state["viewportHeight"] + 1, (
+                    label,
+                    f"canvas exceeds viewport height at layout scale {zoom}",
+                    zoom_state,
+                )
+
+            driver.execute_script(
+                "document.documentElement.style.zoom = ''; window.dispatchEvent(new Event('resize'));"
+            )
+            time.sleep(0.1)
+
         external_resources = driver.execute_script(
             """
             const origin = location.origin;
