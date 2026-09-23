@@ -278,16 +278,25 @@ def smoke_case(language: str, mobile: bool):
             )
             assert desktop_before_tap == 0, (label, "failed to switch away from DUST before mouse UI test")
 
+            wait.until(
+                lambda d: d.execute_script(
+                    "return Boolean(window.__tptDustButton && "
+                    "window.__tptDustButton.viewWidth > 0 && "
+                    "window.__tptDustButton.viewHeight > 0)"
+                )
+            )
             dust_button = driver.execute_script(
                 """
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
-                const logicalX = canvas.width - 41;
-                // Desktop has no TouchUI hit halo: click the actual button centre.
-                const logicalY = canvas.height - 14;
+                const p = window.__tptDustButton;
                 return {
-                    x: r.left + (logicalX / canvas.width) * r.width,
-                    y: r.top + (logicalY / canvas.height) * r.height,
+                    x: r.left + (p.x / p.viewWidth) * r.width,
+                    y: r.top + (p.y / p.viewHeight) * r.height,
+                    nativeX: p.x,
+                    nativeY: p.y,
+                    viewWidth: p.viewWidth,
+                    viewHeight: p.viewHeight,
                 };
                 """
             )
@@ -374,15 +383,25 @@ def smoke_case(language: str, mobile: bool):
             )
             assert active_before_tap == 0, (label, "failed to switch away from DUST before UI tap")
 
+            wait.until(
+                lambda d: d.execute_script(
+                    "return Boolean(window.__tptDustButton && "
+                    "window.__tptDustButton.viewWidth > 0 && "
+                    "window.__tptDustButton.viewHeight > 0)"
+                )
+            )
             dust_button = driver.execute_script(
                 """
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
-                const logicalX = canvas.width - 41;
-                const logicalY = canvas.height - 30;
+                const p = window.__tptDustButton;
                 return {
-                    x: r.left + (logicalX / canvas.width) * r.width,
-                    y: r.top + (logicalY / canvas.height) * r.height,
+                    x: r.left + (p.x / p.viewWidth) * r.width,
+                    y: r.top + (p.y / p.viewHeight) * r.height,
+                    nativeX: p.x,
+                    nativeY: p.y,
+                    viewWidth: p.viewWidth,
+                    viewHeight: p.viewHeight,
                 };
                 """
             )
@@ -742,17 +761,25 @@ def smoke_case(language: str, mobile: bool):
 
         # Prove the real Save button opens the local-save dialog on both
         # desktop mouse and mobile touch input.
+        wait.until(
+            lambda d: d.execute_script(
+                "return Boolean(window.__tptSaveButton && "
+                "window.__tptSaveButton.viewWidth > 0 && "
+                "window.__tptSaveButton.viewHeight > 0)"
+            )
+        )
         save_button = driver.execute_script(
             """
             const canvas = document.getElementById('canvas');
             const r = canvas.getBoundingClientRect();
-            const logicalX = 45;
-            // On mobile intentionally tap ~6 logical px above the Save button.
-            // Desktop keeps the exact visible-button click.
-            const logicalY = canvas.height - (window.tptTouchUIDetected ? 22 : 8);
+            const p = window.__tptSaveButton;
             return {
-                x: r.left + (logicalX / canvas.width) * r.width,
-                y: r.top + (logicalY / canvas.height) * r.height,
+                x: r.left + (p.x / p.viewWidth) * r.width,
+                y: r.top + (p.y / p.viewHeight) * r.height,
+                nativeX: p.x,
+                nativeY: p.y,
+                viewWidth: p.viewWidth,
+                viewHeight: p.viewHeight,
             };
             """
         )
@@ -775,36 +802,27 @@ def smoke_case(language: str, mobile: bool):
                 {"type": "touchEnd", "touchPoints": []},
             )
         else:
-            canvas_element = driver.find_element(By.ID, "canvas")
-            save_geometry = driver.execute_script(
-                """
-                const canvas = document.getElementById('canvas');
-                const r = canvas.getBoundingClientRect();
-                return {
-                    width: r.width,
-                    height: r.height,
-                    logicalWidth: canvas.width,
-                    logicalHeight: canvas.height,
-                };
-                """
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mousePressed",
+                    "x": save_button["x"],
+                    "y": save_button["y"],
+                    "button": "left",
+                    "buttons": 1,
+                    "clickCount": 1,
+                },
             )
-            save_offset_x = int(
-                save_geometry["width"]
-                * ((45 / save_geometry["logicalWidth"]) - 0.50)
-            )
-            save_offset_y = int(
-                save_geometry["height"]
-                * (((save_geometry["logicalHeight"] - 8) / save_geometry["logicalHeight"]) - 0.50)
-            )
-            (
-                ActionChains(driver)
-                .move_to_element_with_offset(
-                    canvas_element,
-                    save_offset_x,
-                    save_offset_y,
-                )
-                .click()
-                .perform()
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mouseReleased",
+                    "x": save_button["x"],
+                    "y": save_button["y"],
+                    "button": "left",
+                    "buttons": 0,
+                    "clickCount": 1,
+                },
             )
 
         wait.until(
