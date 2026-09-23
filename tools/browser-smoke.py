@@ -801,7 +801,7 @@ def smoke_case(language: str, mobile: bool):
             os.path.join(ARTIFACT_DIR, f"{label}-save-click.png")
         )
 
-                wait.until(
+        wait.until(
             lambda d: d.execute_script(
                 "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 1"
             )
