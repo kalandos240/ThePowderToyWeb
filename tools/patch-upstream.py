@@ -1703,8 +1703,8 @@ file_browser_diag = r'''
 #if defined(__EMSCRIPTEN__)
 static FileBrowserActivity *YandexWeb_TestFileBrowserActivity = nullptr;
 static int YandexWeb_TestFileBrowserCount = -1;
-static int YandexWeb_TestFileBrowserFirstX = -1;
-static int YandexWeb_TestFileBrowserFirstY = -1;
+static int YandexWeb_TestFileBrowserFirstXValue = -1;
+static int YandexWeb_TestFileBrowserFirstYValue = -1;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserOpen()
 {
@@ -1718,12 +1718,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserFileCount()
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserFirstX()
 {
-	return YandexWeb_TestFileBrowserFirstX;
+	return YandexWeb_TestFileBrowserFirstXValue;
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserFirstY()
 {
-	return YandexWeb_TestFileBrowserFirstY;
+	return YandexWeb_TestFileBrowserFirstYValue;
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCloseFileBrowser()
@@ -1748,8 +1748,8 @@ file_ctor_patch = '''	totalFiles(0)
 #if defined(__EMSCRIPTEN__)
 	YandexWeb_TestFileBrowserActivity = this;
 	YandexWeb_TestFileBrowserCount = -1;
-	YandexWeb_TestFileBrowserFirstX = -1;
-	YandexWeb_TestFileBrowserFirstY = -1;
+	YandexWeb_TestFileBrowserFirstXValue = -1;
+	YandexWeb_TestFileBrowserFirstYValue = -1;
 #endif
 '''
 if 'YandexWeb_TestFileBrowserActivity = this;' not in file_text:
@@ -1786,15 +1786,15 @@ first_button_patch = '''\t\t\tsaveButton->SetActionCallback({
 #if defined(__EMSCRIPTEN__)
 \t\t\tif (i == 0)
 \t\t\t{
-\t\t\t\tYandexWeb_TestFileBrowserFirstX =
+\t\t\t\tYandexWeb_TestFileBrowserFirstXValue =
 \t\t\t\t\tPosition.X + itemList->Position.X + saveButton->Position.X + saveButton->Size.X / 2;
-\t\t\t\tYandexWeb_TestFileBrowserFirstY =
+\t\t\t\tYandexWeb_TestFileBrowserFirstYValue =
 \t\t\t\t\tPosition.Y + itemList->Position.Y + saveButton->Position.Y + saveButton->Size.Y / 2;
 \t\t\t}
 #endif
 
 \t\t\tprogressBar->SetStatus("Rendering thumbnails");'''
-if 'YandexWeb_TestFileBrowserFirstX =' not in file_text:
+if 'YandexWeb_TestFileBrowserFirstXValue =' not in file_text:
     if first_button_anchor not in file_text:
         raise SystemExit("FileBrowserActivity first SaveButton anchor missing")
     file_text = file_text.replace(first_button_anchor, first_button_patch, 1)
@@ -1810,8 +1810,8 @@ dtor_patch = '''FileBrowserActivity::~FileBrowserActivity()
 	{
 		YandexWeb_TestFileBrowserActivity = nullptr;
 		YandexWeb_TestFileBrowserCount = -1;
-		YandexWeb_TestFileBrowserFirstX = -1;
-		YandexWeb_TestFileBrowserFirstY = -1;
+		YandexWeb_TestFileBrowserFirstXValue = -1;
+		YandexWeb_TestFileBrowserFirstYValue = -1;
 	}
 #endif
 	cleanup();
