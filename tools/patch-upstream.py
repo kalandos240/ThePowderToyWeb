@@ -295,6 +295,7 @@ include_locale(credits_cpp, '#include "gui/interface/Separator.h"\n')
 include_locale(gol_tool_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(task_window_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(client_cpp, '#include "Config.h"\n')
+include_locale(powder, '#include "Config.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -450,6 +451,30 @@ client_text = client_text.replace(
     'new ErrorMessage(YandexWebText("Error renaming stamp", "Ошибка переименования штампа"), YandexWebText("Could not rename the stamp.", "Не удалось переименовать штамп."));'
 )
 client_cpp.write_text(client_text, encoding="utf-8")
+
+powder_text = powder.read_text(encoding="utf-8")
+powder_local_replacements = [
+    (
+        'new ErrorMessage("Error", "Could not read file");',
+        'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Could not read file", "Не удалось прочитать файл"));'
+    ),
+    (
+        'new ErrorMessage("Error", "Could not open save file:\\n" + ByteString(e.what()).FromUtf8()) ;',
+        'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Could not open save file:\\n", "Не удалось открыть сохранение:\\n") + ByteString(e.what()).FromUtf8()) ;'
+    ),
+    (
+        'new ErrorMessage("Error", "Could not open file");',
+        'new ErrorMessage(YandexWebText("Error", "Ошибка"), YandexWebText("Could not open file", "Не удалось открыть файл"));'
+    ),
+    (
+        'String loadingText = "Loading save...";',
+        'String loadingText = YandexWebText("Loading save...", "Загрузка сохранения...");'
+    ),
+]
+for old, new in powder_local_replacements:
+    if old in powder_text:
+        powder_text = powder_text.replace(old, new)
+powder.write_text(powder_text, encoding="utf-8")
 
 browser_text = local_browser.read_text(encoding="utf-8")
 browser_replacements = [
