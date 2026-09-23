@@ -114,6 +114,8 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
 
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestStorageWrite()
 {
+	if (!EM_ASM_INT({ return window.__tptSmokeMode === true ? 1 : 0; }))
+		return;
 	EM_ASM({
 		window.__tptStorageFlushed = false;
 		FS.writeFile('/powder/.yandex-storage-test', 'tpt-yandex-storage-ok');
@@ -126,6 +128,8 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestStorageWrite()
 
 EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestStorageRead()
 {
+	if (!EM_ASM_INT({ return window.__tptSmokeMode === true ? 1 : 0; }))
+		return 0;
 	return EM_ASM_INT({
 		try {
 			return UTF8ArrayToString(FS.readFile('/powder/.yandex-storage-test')) === 'tpt-yandex-storage-ok' ? 1 : 0;
@@ -250,6 +254,17 @@ inline bool YandexWebIsRussian()
 		"window.tptLanguage === 'ru' ? 1 : 0"
 	) != 0;
 	return russian;
+#else
+	return false;
+#endif
+}
+
+inline bool YandexWebSmokeMode()
+{
+#if defined(__EMSCRIPTEN__)
+	return emscripten_run_script_int(
+		"window.__tptSmokeMode === true ? 1 : 0"
+	) != 0;
 #else
 	return false;
 #endif
@@ -475,11 +490,15 @@ local_save_diag = r'''static LocalSaveActivity *YandexWeb_TestLocalSaveActivity 
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLocalSaveOpen()
 {
+	if (!YandexWebSmokeMode())
+		return 0;
 	return YandexWeb_TestLocalSaveActivity ? 1 : 0;
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCloseLocalSave()
 {
+	if (!YandexWebSmokeMode())
+		return;
 	if (YandexWeb_TestLocalSaveActivity)
 	{
 		auto *activity = YandexWeb_TestLocalSaveActivity;
@@ -500,7 +519,8 @@ ctor_body = '''	onSaved(onSaved_)
 '''
 ctor_body_patch = '''	onSaved(onSaved_)
 {
-	YandexWeb_TestLocalSaveActivity = this;
+	if (YandexWebSmokeMode())
+		YandexWeb_TestLocalSaveActivity = this;
 '''
 if ctor_body in save_text and 'YandexWeb_TestLocalSaveActivity = this;' not in save_text:
     save_text = save_text.replace(ctor_body, ctor_body_patch, 1)
@@ -1406,6 +1426,8 @@ diag_block = r'''static GameModel *YandexWeb_TestGameModel = nullptr;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestParticleCount()
 {
+	if (!YandexWebSmokeMode())
+		return -1;
 	if (!YandexWeb_TestGameModel)
 		return -1;
 	return YandexWeb_TestGameModel->GetSimulation()->NUM_PARTS;
@@ -1413,11 +1435,15 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestParticleCount()
 
 extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestEngineFps()
 {
+	if (!YandexWebSmokeMode())
+		return 0.0;
 	return ui::Engine::Ref().GetFps();
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 {
+	if (!YandexWebSmokeMode())
+		return;
 	if (!YandexWeb_TestGameModel)
 		return;
 	auto *tool = YandexWeb_TestGameModel->GetToolFromIdentifier("DEFAULT_PT_DUST");
@@ -1429,6 +1455,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectWater()
 {
+	if (!YandexWebSmokeMode())
+		return;
 	if (!YandexWeb_TestGameModel)
 		return;
 	auto *tool = YandexWeb_TestGameModel->GetToolFromIdentifier("DEFAULT_PT_WATR");
@@ -1440,6 +1468,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectWater()
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestActiveToolIsDust()
 {
+	if (!YandexWebSmokeMode())
+		return 0;
 	if (!YandexWeb_TestGameModel)
 		return 0;
 	auto *tool = YandexWeb_TestGameModel->GetActiveTool(0);
@@ -1448,6 +1478,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestActiveToolIsDust()
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
 {
+	if (!YandexWebSmokeMode())
+		return -1;
 	if (!YandexWeb_TestGameModel)
 		return -1;
 	auto *sim = YandexWeb_TestGameModel->GetSimulation();
@@ -1464,6 +1496,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillWaterGravity(int target)
 {
+	if (!YandexWebSmokeMode())
+		return -1;
 	if (!YandexWeb_TestGameModel)
 		return -1;
 	auto *sim = YandexWeb_TestGameModel->GetSimulation();
@@ -1491,7 +1525,8 @@ ctor_anchor = '''	view(newView)
 	sim = Simulation::Factory();'''
 ctor_patch = '''	view(newView)
 {
-	YandexWeb_TestGameModel = this;
+	if (YandexWebSmokeMode())
+		YandexWeb_TestGameModel = this;
 	sim = Simulation::Factory();'''
 if ctor_anchor in model_text:
     model_text = model_text.replace(ctor_anchor, ctor_patch, 1)
