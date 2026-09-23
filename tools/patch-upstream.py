@@ -938,6 +938,23 @@ if 'YandexWeb_TestOptionsOpen' not in options_text:
     )
     options_text = options_text.replace(options_ctor_anchor, options_ctor_patch, 1)
 
+options_exit_anchor = '''void OptionsView::OnTryExit(ExitMethod method)
+{
+	c->Exit();
+}'''
+options_exit_patch = '''void OptionsView::OnTryExit(ExitMethod method)
+{
+#if defined(__EMSCRIPTEN__)
+	if (YandexWeb_TestOptionsView == this)
+		YandexWeb_TestOptionsView = nullptr;
+#endif
+	c->Exit();
+}'''
+if 'YandexWeb_TestOptionsView == this' not in options_text:
+    if options_exit_anchor not in options_text:
+        raise SystemExit("OptionsView exit diagnostic anchor missing")
+    options_text = options_text.replace(options_exit_anchor, options_exit_patch, 1)
+
 options_replacements = [
     ('"Settings"', 'YandexWebText("Settings", "Настройки")'),
     ('"Preview"', 'YandexWebText("Preview", "Предпросмотр")'),
