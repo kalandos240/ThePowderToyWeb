@@ -752,27 +752,36 @@ def smoke_case(language: str, mobile: bool):
                 {"type": "touchEnd", "touchPoints": []},
             )
         else:
-            driver.execute_cdp_cmd(
-                "Input.dispatchMouseEvent",
-                {
-                    "type": "mousePressed",
-                    "x": save_button["x"],
-                    "y": save_button["y"],
-                    "button": "left",
-                    "buttons": 1,
-                    "clickCount": 1,
-                },
+            canvas_element = driver.find_element(By.ID, "canvas")
+            save_geometry = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                return {
+                    width: r.width,
+                    height: r.height,
+                    logicalWidth: canvas.width,
+                    logicalHeight: canvas.height,
+                };
+                """
             )
-            driver.execute_cdp_cmd(
-                "Input.dispatchMouseEvent",
-                {
-                    "type": "mouseReleased",
-                    "x": save_button["x"],
-                    "y": save_button["y"],
-                    "button": "left",
-                    "buttons": 0,
-                    "clickCount": 1,
-                },
+            save_offset_x = int(
+                save_geometry["width"]
+                * ((45 / save_geometry["logicalWidth"]) - 0.50)
+            )
+            save_offset_y = int(
+                save_geometry["height"]
+                * (((save_geometry["logicalHeight"] - 8) / save_geometry["logicalHeight"]) - 0.50)
+            )
+            (
+                ActionChains(driver)
+                .move_to_element_with_offset(
+                    canvas_element,
+                    save_offset_x,
+                    save_offset_y,
+                )
+                .click()
+                .perform()
             )
 
         wait.until(
