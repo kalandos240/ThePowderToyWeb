@@ -917,6 +917,63 @@ def smoke_case(language: str, mobile: bool):
                 assert bridge_state["focused"] is True, (label, bridge_state)
                 assert bridge_state["hidden"] is False, (label, bridge_state)
 
+                # Rotate away while the native textbox is active. Portrait
+                # must dismiss the browser input; returning to landscape must
+                # restore focus without closing the TPT Save activity.
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": 390,
+                        "height": 844,
+                        "deviceScaleFactor": 3.0,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "portraitPrimary",
+                            "angle": 0,
+                        },
+                    },
+                )
+                driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptOrientationBlocked === true &&
+                               window.__tptMobileTextInputActive === true &&
+                               window.__tptMobileTextInputFocused === false &&
+                               window.__tptGameModule.ccall(
+                                   'YandexWeb_TestLocalSaveOpen', 'number', [], []
+                               ) === 1;
+                        """
+                    )
+                )
+
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": 844,
+                        "height": 390,
+                        "deviceScaleFactor": 3.0,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "landscapePrimary",
+                            "angle": 90,
+                        },
+                    },
+                )
+                driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptOrientationBlocked === false &&
+                               window.__tptMobileTextInputActive === true &&
+                               window.__tptMobileTextInputFocused === true &&
+                               window.__tptGameModule.ccall(
+                                   'YandexWeb_TestLocalSaveOpen', 'number', [], []
+                               ) === 1;
+                        """
+                    )
+                )
+
                 mobile_input = driver.find_element(By.ID, "mobile-text-input")
                 if language == "ru":
                     mobile_input.send_keys(save_name + "x")
