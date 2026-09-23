@@ -1028,6 +1028,159 @@ def smoke_case(language: str, mobile: bool):
                     )
                 )
 
+                # Use the actual bottom-left Open button, not a direct native
+                # test hook, to prove touch navigation reaches local saves.
+                open_button = driver.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    const r = canvas.getBoundingClientRect();
+                    const m = window.__tptGameModule;
+                    const nativeX = m.ccall('YandexWeb_TestGetOpenButtonX', 'number', [], []);
+                    const nativeY = m.ccall('YandexWeb_TestGetOpenButtonY', 'number', [], []);
+                    const windowX = m.ccall(
+                        'YandexWeb_TestLogicalToWindowX',
+                        'number',
+                        ['number', 'number'],
+                        [nativeX, nativeY]
+                    );
+                    const windowY = m.ccall(
+                        'YandexWeb_TestLogicalToWindowY',
+                        'number',
+                        ['number', 'number'],
+                        [nativeX, nativeY]
+                    );
+                    const windowWidth = m.ccall('YandexWeb_TestWindowWidth', 'number', [], []);
+                    const windowHeight = m.ccall('YandexWeb_TestWindowHeight', 'number', [], []);
+                    return {
+                        x: r.left + (windowX / windowWidth) * r.width,
+                        y: r.top + (windowY / windowHeight) * r.height,
+                        nativeX,
+                        nativeY,
+                    };
+                    """
+                )
+                assert open_button["nativeX"] >= 0 and open_button["nativeY"] >= 0, (
+                    label,
+                    open_button,
+                )
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {
+                        "type": "touchStart",
+                        "touchPoints": [{
+                            "x": open_button["x"],
+                            "y": open_button["y"],
+                            "radiusX": 4,
+                            "radiusY": 4,
+                            "force": 1,
+                        }],
+                    },
+                )
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {"type": "touchEnd", "touchPoints": []},
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptGameModule.ccall(
+                            'YandexWeb_TestFileBrowserOpen', 'number', [], []
+                        ) === 1;
+                        """
+                    )
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptGameModule.ccall(
+                            'YandexWeb_TestFileBrowserFileCount', 'number', [], []
+                        ) >= 1;
+                        """
+                    )
+                )
+                assert driver.execute_script(
+                    "return window.__tptMobileTextInputActive"
+                ) is False, (
+                    label,
+                    "local save browser unexpectedly opened the mobile keyboard",
+                )
+                driver.save_screenshot(
+                    os.path.join(ARTIFACT_DIR, f"{label}-local-browser.png")
+                )
+
+                first_save = wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        const m = window.__tptGameModule;
+                        const nativeX = m.ccall(
+                            'YandexWeb_TestFileBrowserFirstX', 'number', [], []
+                        );
+                        const nativeY = m.ccall(
+                            'YandexWeb_TestFileBrowserFirstY', 'number', [], []
+                        );
+                        if (nativeX < 0 || nativeY < 0)
+                            return null;
+                        const canvas = document.getElementById('canvas');
+                        const r = canvas.getBoundingClientRect();
+                        const windowX = m.ccall(
+                            'YandexWeb_TestLogicalToWindowX',
+                            'number',
+                            ['number', 'number'],
+                            [nativeX, nativeY]
+                        );
+                        const windowY = m.ccall(
+                            'YandexWeb_TestLogicalToWindowY',
+                            'number',
+                            ['number', 'number'],
+                            [nativeX, nativeY]
+                        );
+                        const windowWidth = m.ccall(
+                            'YandexWeb_TestWindowWidth', 'number', [], []
+                        );
+                        const windowHeight = m.ccall(
+                            'YandexWeb_TestWindowHeight', 'number', [], []
+                        );
+                        return {
+                            x: r.left + (windowX / windowWidth) * r.width,
+                            y: r.top + (windowY / windowHeight) * r.height,
+                            nativeX,
+                            nativeY,
+                        };
+                        """
+                    )
+                )
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {
+                        "type": "touchStart",
+                        "touchPoints": [{
+                            "x": first_save["x"],
+                            "y": first_save["y"],
+                            "radiusX": 4,
+                            "radiusY": 4,
+                            "force": 1,
+                        }],
+                    },
+                )
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {"type": "touchEnd", "touchPoints": []},
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptGameModule.ccall(
+                            'YandexWeb_TestFileBrowserOpen', 'number', [], []
+                        ) === 0;
+                        """
+                    )
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptMobileTextInputActive === false"
+                    )
+                )
+
             driver.execute_script(
                 "window.__tptGameModule.ccall('YandexWeb_TestStorageFlush', null, [], [])"
             )
