@@ -298,6 +298,63 @@ include_locale(client_cpp, '#include "Config.h"\n')
 include_locale(powder, '#include "Config.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
+if '#include <emscripten.h>' not in game_view_text:
+    game_view_text = game_view_text.replace(
+        '#include <SDL.h>\n',
+        '#include <SDL.h>\n#if defined(__EMSCRIPTEN__)\n#include <emscripten.h>\n#endif\n',
+        1
+    )
+
+# Export real GameView-space centres for browser UI smoke tests. Using the
+# native UI coordinates avoids confusing SDL/GameView scale with canvas backing pixels.
+ui_geometry_anchor = '\n}\n\nvoid GameView::OnMouseMove(int x, int y, int dx, int dy)\n'
+ui_geometry_patch = r'''
+#if defined(__EMSCRIPTEN__)
+	if (saveSimulationButton)
+	{
+		EM_ASM({
+			window.__tptSaveButton = {
+				x: $0,
+				y: $1,
+				viewWidth: $2,
+				viewHeight: $3
+			};
+		},
+		saveSimulationButton->Position.X + saveSimulationButton->Size.X / 2,
+		saveSimulationButton->Position.Y + saveSimulationButton->Size.Y / 2,
+		Size.X,
+		Size.Y);
+	}
+
+	for (auto *button : toolButtons)
+	{
+		if (button && button->tool && button->tool->Identifier == "DEFAULT_PT_DUST")
+		{
+			EM_ASM({
+				window.__tptDustButton = {
+					x: $0,
+					y: $1,
+					viewWidth: $2,
+					viewHeight: $3
+				};
+			},
+			button->Position.X + button->Size.X / 2,
+			button->Position.Y + button->Size.Y / 2,
+			Size.X,
+			Size.Y);
+			break;
+		}
+	}
+#endif
+}
+
+void GameView::OnMouseMove(int x, int y, int dx, int dy)
+'''
+if 'window.__tptDustButton' not in game_view_text:
+    if ui_geometry_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp UI geometry anchor missing")
+    game_view_text = game_view_text.replace(ui_geometry_anchor, '\n' + ui_geometry_patch, 1)
+
 game_replacements = [
     ('searchButton->SetToolTip("Open a local simulation.");',
      'searchButton->SetToolTip(YandexWebText("Open a local simulation.", "Открыть локальную симуляцию."));'),
