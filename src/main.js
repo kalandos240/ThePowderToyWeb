@@ -82,9 +82,11 @@ let platformPauseRequested = document.hidden;
 let orientationPauseRequested = false;
 let runtimePaused = false;
 let orientationBlocked = false;
+let nativeModalBlocked = false;
 let sdkMobilePlatform = null;
 window.__tptRuntimePaused = false;
 window.__tptOrientationBlocked = false;
+window.__tptNativeModalBlocked = false;
 window.__tptSdkMobilePlatform = null;
 
 function setStatus(message) {
@@ -133,6 +135,18 @@ async function applyPlatformDevice(currentSDK) {
 function isMobilePlatform() {
   return sdkMobilePlatform ?? isTouchEnvironment();
 }
+
+function updateGameplayBlockState() {
+  setGameplayBlocked(orientationBlocked || nativeModalBlocked);
+}
+
+window.__tptNativeModalBridge = {
+  setBlocked(blocked) {
+    nativeModalBlocked = Boolean(blocked);
+    window.__tptNativeModalBlocked = nativeModalBlocked;
+    updateGameplayBlockState();
+  }
+};
 
 let mobileTextInputActive = false;
 let mobileTextInputRect = null;
@@ -385,7 +399,7 @@ function updateOrientationGate() {
   }
 
   applyRuntimePauseState();
-  setGameplayBlocked(orientationBlocked);
+  updateGameplayBlockState();
 }
 
 function fitCanvas() {
