@@ -1659,6 +1659,7 @@ def smoke_case(language: str, mobile: bool):
             "ReferenceError",
             "SyntaxError",
             "net::ERR",
+            "Failed to load resource",
         )
         fatal_browser_logs = [
             entry
