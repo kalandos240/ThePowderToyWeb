@@ -1698,6 +1698,15 @@ if '#include <emscripten.h>' not in file_text:
         include_anchor + '#if defined(__EMSCRIPTEN__)\n#include <emscripten.h>\n#endif\n',
         1,
     )
+if '#include "gui/interface/Engine.h"' not in file_text:
+    engine_include_anchor = '#include "gui/interface/SaveButton.h"\n'
+    if engine_include_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity Engine include anchor missing")
+    file_text = file_text.replace(
+        engine_include_anchor,
+        engine_include_anchor + '#include "gui/interface/Engine.h"\n',
+        1,
+    )
 
 file_browser_diag = r'''
 #if defined(__EMSCRIPTEN__)
@@ -1756,6 +1765,19 @@ if 'YandexWeb_TestFileBrowserActivity = this;' not in file_text:
     if file_ctor_body not in file_text:
         raise SystemExit("FileBrowserActivity constructor body anchor missing")
     file_text = file_text.replace(file_ctor_body, file_ctor_patch, 1)
+
+focus_search_anchor = '\tFocusComponent(textField);\n'
+focus_search_patch = '''#if defined(__EMSCRIPTEN__)
+\tif (!ui::Engine::Ref().TouchUI)
+\t\tFocusComponent(textField);
+#else
+\tFocusComponent(textField);
+#endif
+'''
+if 'if (!ui::Engine::Ref().TouchUI)' not in file_text:
+    if focus_search_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity search focus anchor missing")
+    file_text = file_text.replace(focus_search_anchor, focus_search_patch, 1)
 
 notify_done_anchor = '''	files = ((LoadFilesTask*)task)->TakeSaveFiles();
 	createButtons = true;
