@@ -878,6 +878,131 @@ def smoke_case(language: str, mobile: bool):
                     landscape_cycle,
                 )
 
+            # Combine orientation blocking with page visibility. A user may
+            # rotate to portrait, background the browser, rotate back while
+            # hidden, then return. The native loop must remain paused until the
+            # page is visible again and must not get stuck afterwards.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 390,
+                    "height": 844,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "portraitPrimary",
+                        "angle": 0,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script(
+                """
+                window.__tptSyntheticHidden = true;
+                Object.defineProperty(document, 'hidden', {
+                    configurable: true,
+                    get() { return window.__tptSyntheticHidden; }
+                });
+                document.dispatchEvent(new Event('visibilitychange'));
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return document.hidden === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script(
+                """
+                window.__tptSyntheticHidden = false;
+                document.dispatchEvent(new Event('visibilitychange'));
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return document.hidden === false && "
+                    "window.__tptOrientationBlocked === false && "
+                    "window.__tptRuntimePaused === false && "
+                    "window.__yandexGameplayStarted === true"
+                )
+            )
+            visibility_orientation_state = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    hidden: document.hidden,
+                    blocked: window.__tptOrientationBlocked,
+                    paused: window.__tptRuntimePaused,
+                    gameplay: window.__yandexGameplayStarted,
+                    width: rect.width,
+                    height: rect.height,
+                };
+                """
+            )
+            assert visibility_orientation_state["hidden"] is False, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["blocked"] is False, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["paused"] is False, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["gameplay"] is True, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["width"] > 0, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["height"] > 0, (
+                label,
+                visibility_orientation_state,
+            )
+            driver.execute_script(
+                """
+                delete document.hidden;
+                delete window.__tptSyntheticHidden;
+                """
+            )
+
             # Touch must still work after several orientation transitions.
             post_cycle_before = driver.execute_script(
                 "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
