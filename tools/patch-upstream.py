@@ -111,6 +111,59 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
 	emscripten_resume_main_loop();
 }
 
+static ui::Point YandexWeb_TestLogicalToWindowPoint(int x, int y)
+{
+	int wx = x;
+	int wy = y;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	if (sdl_renderer)
+		SDL_RenderLogicalToWindow(sdl_renderer, float(x), float(y), &wx, &wy);
+#else
+	if (sdl_renderer)
+	{
+		SDL_Rect viewport{};
+		int logicalWidth = 0;
+		int logicalHeight = 0;
+		SDL_RenderGetViewport(sdl_renderer, &viewport);
+		SDL_RenderGetLogicalSize(sdl_renderer, &logicalWidth, &logicalHeight);
+		if (logicalWidth > 0 && logicalHeight > 0)
+		{
+			wx = viewport.x + int(float(x) * float(viewport.w) / float(logicalWidth));
+			wy = viewport.y + int(float(y) * float(viewport.h) / float(logicalHeight));
+		}
+	}
+#endif
+	return ui::Point(wx, wy);
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestLogicalToWindowX(int x, int y)
+{
+	return YandexWeb_TestLogicalToWindowPoint(x, y).X;
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestLogicalToWindowY(int x, int y)
+{
+	return YandexWeb_TestLogicalToWindowPoint(x, y).Y;
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestWindowWidth()
+{
+	int width = 0;
+	int height = 0;
+	if (sdl_window)
+		SDL_GetWindowSize(sdl_window, &width, &height);
+	return width;
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestWindowHeight()
+{
+	int width = 0;
+	int height = 0;
+	if (sdl_window)
+		SDL_GetWindowSize(sdl_window, &width, &height);
+	return height;
+}
+
 
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestStorageWrite()
 {
