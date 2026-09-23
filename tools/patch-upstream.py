@@ -1409,6 +1409,11 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestParticleCount()
 	return YandexWeb_TestGameModel->GetSimulation()->NUM_PARTS;
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestEngineFps()
+{
+	return ui::Engine::Ref().GetFps();
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 {
 	if (!YandexWeb_TestGameModel)
