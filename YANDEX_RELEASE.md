@@ -36,15 +36,25 @@ The build workflow currently checks:
 - Uncompressed package size <= 100 MB.
 - Desktop EN and RU startup.
 - Mobile EN and RU startup.
+- Yandex device classification through the documented deviceInfo API with touch detection fallback.
 - Real desktop mouse selection and drawing.
 - Real mobile touch selection and drawing.
 - Portrait -> landscape behavior and repeated orientation cycles.
 - Repeated fullscreen-like mobile viewport changes.
+- Desktop effective viewport checks corresponding to 80%, 100%, and 125% browser zoom, with no system scrolling or canvas overflow.
+- Combined mobile portrait/visibility lifecycle: portrait block -> hidden page -> landscape while hidden -> visible resume.
 - Yandex pause/resume events.
 - IndexedDB/IDBFS persistence across page reload.
+- Full mobile local-save flow: create a CPS save, reopen it from the native local browser, and restore simulation state.
+- Mobile RU IME composition handling, including duplicate post-composition input suppression and UTF-8 filename readback.
+- Fatal browser-console/network error gating with retained console-log artifacts.
+- Game Ready ordering: LoadingAPI.ready() exactly once after the loader is hidden and the canvas is interactive, before GameplayAPI.start().
+- Native modal gameplay markup: Save, Local Browser, Settings, and other Engine modal windows block gameplay markup until closed.
 - Browser smoke screenshots.
-- Desktop/mobile frame-time telemetry on an approximately 20,000-particle stress scene.
-- Current 20k-particle CI baseline: median 16.7 ms / ~59.88 FPS, p95 16.7 ms on both desktop and mobile emulation.
+- Yandex ZIP validation: one root index.html, safe relative paths, archive integrity, ASCII/no-whitespace filenames, and unpacked size <= 100 MB.
+- Desktop/mobile frame-time telemetry on DUST and water+Newtonian-gravity scenes at approximately 20k/12k and 45k/28k particles.
+- Catastrophic performance regression gate: engine FPS >= 30 and browser p95 frame time <= 50 ms on CI stress scenes.
+- Current heavy-scene GitHub-runner baseline is approximately 59-60 engine FPS with p95 browser frame time around 16.7-16.8 ms.
 
 ## Monetization
 
@@ -68,7 +78,7 @@ For this sandbox game, a console-configured sticky banner is the lowest-risk fir
 - Test at least one desktop browser and one real Android/iOS device.
 - On mobile, repeat portrait/landscape and fullscreen transitions several times.
 - Verify long press does not open a browser context menu.
-- Create a real local save, reload the page, and reopen it.
+- Create a real local save, reload the page, and reopen it on a physical device even though the same flow is covered in browser CI.
 - Verify RU and EN through the Yandex language mock.
 - Run a heavy simulation for several minutes and check responsiveness.
 - Confirm the sticky banner/ad configuration, or state in the developer comment that the game is intentionally non-monetized.
