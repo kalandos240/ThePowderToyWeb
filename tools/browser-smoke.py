@@ -82,6 +82,22 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
         "engine_fps": round(engine_fps, 2),
     }
 
+    # Keep this deliberately loose: GitHub runners are noisy and these are
+    # regression guards, not device certification targets. The current heavy
+    # scenes run at ~59-60 engine FPS with ~16.7 ms p95 on the CI runner.
+    assert engine_fps >= 30.0, (
+        label,
+        scene,
+        f"catastrophic engine FPS regression: {engine_fps:.2f}",
+        metric,
+    )
+    assert p95_ms <= 50.0, (
+        label,
+        scene,
+        f"catastrophic frame-time regression: p95={p95_ms:.2f} ms",
+        metric,
+    )
+
     report_path = os.path.join(ARTIFACT_DIR, "performance.json")
     report = []
     if os.path.exists(report_path):
