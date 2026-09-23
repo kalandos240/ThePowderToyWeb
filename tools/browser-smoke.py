@@ -848,22 +848,55 @@ def smoke_case(language: str, mobile: bool):
         )
         assert save_open == 1, (label, "native local-save workflow did not open")
 
-        # Desktop EN performs the full native local-save path: type a real
-        # filename into TPT's focused textbox, press Enter, verify the CPS file
-        # exists, then flush it to IndexedDB. Other cases still validate that
-        # the same native Save workflow opens and closes correctly.
-        if not mobile and language == "en":
+        # EN performs the full native local-save path. Desktop sends keyboard
+        # events to the canvas; mobile must use the DOM input bridge that
+        # summons the browser/OS keyboard and feeds Unicode back as SDL events.
+        if language == "en":
             driver.execute_script(
                 "window.__tptGameModule.ccall('YandexWeb_TestRemoveLocalSaveFile', null, [], [])"
             )
-            driver.execute_script(
-                """
-                const canvas = document.getElementById('canvas');
-                canvas.tabIndex = -1;
-                canvas.focus();
-                """
-            )
-            ActionChains(driver).send_keys("yandex-ci-save").send_keys(Keys.ENTER).perform()
+
+            if mobile:
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        const input = document.getElementById('mobile-text-input');
+                        const rect = window.__tptMobileTextInputRect;
+                        return Boolean(
+                            window.__tptMobileTextInputActive === true &&
+                            input && !input.hidden &&
+                            rect && rect.width > 0 && rect.height > 0
+                        );
+                        """
+                    )
+                )
+                bridge_state = driver.execute_script(
+                    """
+                    const input = document.getElementById('mobile-text-input');
+                    return {
+                        active: window.__tptMobileTextInputActive,
+                        focused: window.__tptMobileTextInputFocused,
+                        hidden: input.hidden,
+                        rect: window.__tptMobileTextInputRect,
+                    };
+                    """
+                )
+                assert bridge_state["active"] is True, (label, bridge_state)
+                assert bridge_state["hidden"] is False, (label, bridge_state)
+
+                mobile_input = driver.find_element(By.ID, "mobile-text-input")
+                mobile_input.send_keys("yandex-ci-save")
+                mobile_input.send_keys(Keys.ENTER)
+            else:
+                driver.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    canvas.tabIndex = -1;
+                    canvas.focus();
+                    """
+                )
+                ActionChains(driver).send_keys("yandex-ci-save").send_keys(Keys.ENTER).perform()
+
             wait.until(
                 lambda d: d.execute_script(
                     "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
@@ -878,6 +911,13 @@ def smoke_case(language: str, mobile: bool):
                 "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], [])"
             )
             assert local_save_size > 100, (label, "local CPS file too small", local_save_size)
+
+            if mobile:
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptMobileTextInputActive === false"
+                    )
+                )
 
             driver.execute_script(
                 "window.__tptGameModule.ccall('YandexWeb_TestStorageFlush', null, [], [])"

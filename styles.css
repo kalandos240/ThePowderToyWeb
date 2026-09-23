@@ -50,6 +50,29 @@ body {
   touch-action: none;
 }
 
+#mobile-text-input {
+  position: fixed;
+  z-index: 20;
+  min-width: 1px;
+  min-height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  opacity: 0.01;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px;
+  line-height: 16px;
+  touch-action: manipulation;
+}
+
+#mobile-text-input[hidden] {
+  display: none;
+}
+
 #loader,
 #orientation-gate,
 #fatal {

@@ -4,6 +4,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 meson = root / "upstream" / "meson.build"
 powder = root / "upstream" / "src" / "PowderToy.cpp"
+powder_sdl = root / "upstream" / "src" / "PowderToySDL.cpp"
 sdl_emscripten = root / "upstream" / "src" / "PowderToySDLEmscripten.cpp"
 game_view = root / "upstream" / "src" / "gui" / "game" / "GameView.cpp"
 local_browser = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserView.cpp"
@@ -96,6 +97,77 @@ if "browserTouchUI" not in text:
 
 powder.write_text(text, encoding="utf-8")
 
+# SDL2's Emscripten backend does not reliably summon a mobile browser
+# keyboard. Keep TPT's native Textbox/SDL event path, but notify the web shell
+# when text input is active and where the focused input rectangle is.
+powder_sdl_text = powder_sdl.read_text(encoding="utf-8")
+if "#include <emscripten.h>" not in powder_sdl_text:
+    powder_sdl_text = powder_sdl_text.replace(
+        '#include <iostream>\n',
+        '#include <iostream>\n#if defined(__EMSCRIPTEN__)\n#include <emscripten.h>\n#endif\n',
+        1,
+    )
+
+start_text_input_anchor = """void StartTextInput()
+{
+\tSDL_StartTextInput();
+}"""
+start_text_input_patch = """void StartTextInput()
+{
+\tSDL_StartTextInput();
+#if defined(__EMSCRIPTEN__)
+\tEM_ASM({
+\t\tif (window.__tptMobileTextBridge)
+\t\t\twindow.__tptMobileTextBridge.start();
+\t});
+#endif
+}"""
+if "window.__tptMobileTextBridge.start()" not in powder_sdl_text:
+    if start_text_input_anchor not in powder_sdl_text:
+        raise SystemExit("PowderToySDL.cpp StartTextInput anchor missing")
+    powder_sdl_text = powder_sdl_text.replace(
+        start_text_input_anchor, start_text_input_patch, 1
+    )
+
+stop_text_input_anchor = """void StopTextInput()
+{
+\tSDL_StopTextInput();
+}"""
+stop_text_input_patch = """void StopTextInput()
+{
+\tSDL_StopTextInput();
+#if defined(__EMSCRIPTEN__)
+\tEM_ASM({
+\t\tif (window.__tptMobileTextBridge)
+\t\t\twindow.__tptMobileTextBridge.stop();
+\t});
+#endif
+}"""
+if "window.__tptMobileTextBridge.stop()" not in powder_sdl_text:
+    if stop_text_input_anchor not in powder_sdl_text:
+        raise SystemExit("PowderToySDL.cpp StopTextInput anchor missing")
+    powder_sdl_text = powder_sdl_text.replace(
+        stop_text_input_anchor, stop_text_input_patch, 1
+    )
+
+text_rect_anchor = "\tSDL_SetTextInputRect(&rect);\n"
+text_rect_patch = """\tSDL_SetTextInputRect(&rect);
+#if defined(__EMSCRIPTEN__)
+\tEM_ASM({
+\t\tif (window.__tptMobileTextBridge)
+\t\t\twindow.__tptMobileTextBridge.setRect($0, $1, $2, $3);
+\t}, rect.x, rect.y, rect.w, rect.h);
+#endif
+"""
+if "window.__tptMobileTextBridge.setRect" not in powder_sdl_text:
+    if text_rect_anchor not in powder_sdl_text:
+        raise SystemExit("PowderToySDL.cpp text-input rect anchor missing")
+    powder_sdl_text = powder_sdl_text.replace(
+        text_rect_anchor, text_rect_patch, 1
+    )
+
+powder_sdl.write_text(powder_sdl_text, encoding="utf-8")
+
 sdl_text = sdl_emscripten.read_text(encoding="utf-8")
 pause_patch = '''
 
@@ -109,6 +181,34 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PauseMainLoop()
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
 {
 	emscripten_resume_main_loop();
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PushTextInput(const char *text)
+{
+	if (!text || !*text)
+		return;
+
+	SDL_Event event{};
+	event.type = SDL_TEXTINPUT;
+	SDL_strlcpy(event.text.text, text, sizeof(event.text.text));
+	SDL_PushEvent(&event);
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PushKey(int keycode)
+{
+	SDL_Event down{};
+	down.type = SDL_KEYDOWN;
+	down.key.state = SDL_PRESSED;
+	down.key.repeat = 0;
+	down.key.keysym.sym = (SDL_Keycode)keycode;
+	down.key.keysym.scancode = SDL_GetScancodeFromKey((SDL_Keycode)keycode);
+	down.key.keysym.mod = KMOD_NONE;
+	SDL_PushEvent(&down);
+
+	SDL_Event up = down;
+	up.type = SDL_KEYUP;
+	up.key.state = SDL_RELEASED;
+	SDL_PushEvent(&up);
 }
 
 static ui::Point YandexWeb_TestLogicalToWindowPoint(int x, int y)

@@ -10,6 +10,7 @@ import {
 
 const app = document.getElementById("app");
 const canvas = document.getElementById("canvas");
+const mobileTextInput = document.getElementById("mobile-text-input");
 const loader = document.getElementById("loader");
 const status = document.getElementById("status");
 const orientationGate = document.getElementById("orientation-gate");
@@ -30,6 +31,7 @@ const MESSAGES = {
     reload: "Reload",
     rotateTitle: "Rotate your device",
     rotateMessage: "The Powder Toy is designed for landscape mode.",
+    textInputLabel: "Game text input",
     unknown: "Unknown error",
     loadScript: (src) => `Failed to load ${src}`,
     missingFactory: "create_powder was not found in the Emscripten build."
@@ -43,6 +45,7 @@ const MESSAGES = {
     reload: "Перезапустить",
     rotateTitle: "Поверните устройство",
     rotateMessage: "Для The Powder Toy используйте горизонтальный режим.",
+    textInputLabel: "Ввод текста в игре",
     unknown: "Неизвестная ошибка",
     loadScript: (src) => `Не удалось загрузить ${src}`,
     missingFactory: "Функция create_powder не найдена в Emscripten-сборке."
@@ -64,6 +67,7 @@ function applyPlatformLanguage(currentSDK) {
   reloadButton.textContent = message("reload");
   orientationTitle.textContent = message("rotateTitle");
   orientationMessage.textContent = message("rotateMessage");
+  mobileTextInput.setAttribute("aria-label", message("textInputLabel"));
 }
 
 function message(key, ...args) {
@@ -92,6 +96,231 @@ function isTouchEnvironment() {
   );
 }
 
+let mobileTextInputActive = false;
+let mobileTextInputRect = null;
+let mobileCompositionActive = false;
+let mobileCompositionCommit = "";
+
+window.__tptMobileTextInputActive = false;
+window.__tptMobileTextInputFocused = false;
+window.__tptMobileTextInputRect = null;
+
+function positionMobileTextInput() {
+  if (!mobileTextInputRect || mobileTextInput.hidden) {
+    return;
+  }
+
+  const canvasRect = canvas.getBoundingClientRect();
+  const nativeWidth = Math.max(1, canvas.width || 1);
+  const nativeHeight = Math.max(1, canvas.height || 1);
+  const scaleX = canvasRect.width / nativeWidth;
+  const scaleY = canvasRect.height / nativeHeight;
+  const rawLeft = canvasRect.left + mobileTextInputRect.x * scaleX;
+  const rawTop = canvasRect.top + mobileTextInputRect.y * scaleY;
+  const maxLeft = Math.max(canvasRect.left, canvasRect.right - 1);
+  const maxTop = Math.max(canvasRect.top, canvasRect.bottom - 1);
+  const left = Math.min(maxLeft, Math.max(canvasRect.left, rawLeft));
+  const top = Math.min(maxTop, Math.max(canvasRect.top, rawTop));
+  const width = Math.max(
+    1,
+    Math.min(canvasRect.right - left, mobileTextInputRect.w * scaleX)
+  );
+  const height = Math.max(
+    1,
+    Math.min(canvasRect.bottom - top, mobileTextInputRect.h * scaleY)
+  );
+
+  mobileTextInput.style.left = `${left}px`;
+  mobileTextInput.style.top = `${top}px`;
+  mobileTextInput.style.width = `${width}px`;
+  mobileTextInput.style.height = `${height}px`;
+
+  window.__tptMobileTextInputRect = { left, top, width, height };
+}
+
+function focusMobileTextInput() {
+  if (
+    !mobileTextInputActive ||
+    !isTouchEnvironment() ||
+    orientationBlocked ||
+    document.hidden
+  ) {
+    return;
+  }
+
+  mobileTextInput.hidden = false;
+  positionMobileTextInput();
+
+  try {
+    mobileTextInput.focus({ preventScroll: true });
+  } catch {
+    mobileTextInput.focus();
+  }
+
+  window.__tptMobileTextInputFocused =
+    document.activeElement === mobileTextInput;
+}
+
+function pushMobileTextInput(text) {
+  if (!gameModule || typeof gameModule.ccall !== "function" || !text) {
+    return;
+  }
+
+  for (const character of Array.from(String(text))) {
+    gameModule.ccall(
+      "YandexWeb_PushTextInput",
+      null,
+      ["string"],
+      [character]
+    );
+  }
+}
+
+function pushMobileKey(keycode) {
+  if (!gameModule || typeof gameModule.ccall !== "function") {
+    return;
+  }
+
+  gameModule.ccall(
+    "YandexWeb_PushKey",
+    null,
+    ["number"],
+    [keycode]
+  );
+}
+
+function startMobileTextInput() {
+  mobileTextInputActive = true;
+  window.__tptMobileTextInputActive = true;
+
+  if (!isTouchEnvironment()) {
+    return;
+  }
+
+  mobileTextInput.value = "";
+  mobileTextInput.hidden = false;
+  positionMobileTextInput();
+  focusMobileTextInput();
+}
+
+function stopMobileTextInput() {
+  mobileTextInputActive = false;
+  mobileCompositionActive = false;
+  mobileCompositionCommit = "";
+  window.__tptMobileTextInputActive = false;
+  window.__tptMobileTextInputFocused = false;
+
+  if (document.activeElement === mobileTextInput) {
+    mobileTextInput.blur();
+  }
+  mobileTextInput.value = "";
+  mobileTextInput.hidden = true;
+}
+
+function setMobileTextInputRect(x, y, width, height) {
+  mobileTextInputRect = {
+    x: Number(x) || 0,
+    y: Number(y) || 0,
+    w: Math.max(1, Number(width) || 1),
+    h: Math.max(1, Number(height) || 1)
+  };
+
+  if (mobileTextInputActive && isTouchEnvironment()) {
+    mobileTextInput.hidden = false;
+    positionMobileTextInput();
+  }
+}
+
+window.__tptMobileTextBridge = {
+  start: startMobileTextInput,
+  stop: stopMobileTextInput,
+  setRect: setMobileTextInputRect
+};
+
+mobileTextInput.addEventListener("keydown", (event) => {
+  event.stopPropagation();
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    pushMobileKey(13);
+  } else if (event.key === "Backspace") {
+    event.preventDefault();
+    pushMobileKey(8);
+  } else if (event.key === "Delete") {
+    event.preventDefault();
+    pushMobileKey(127);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    pushMobileKey(27);
+  }
+});
+
+mobileTextInput.addEventListener("keyup", (event) => {
+  event.stopPropagation();
+});
+
+mobileTextInput.addEventListener("keypress", (event) => {
+  event.stopPropagation();
+});
+
+mobileTextInput.addEventListener("compositionstart", (event) => {
+  event.stopPropagation();
+  mobileCompositionActive = true;
+  mobileCompositionCommit = "";
+});
+
+mobileTextInput.addEventListener("compositionend", (event) => {
+  event.stopPropagation();
+  mobileCompositionActive = false;
+  mobileCompositionCommit = event.data || "";
+  if (mobileCompositionCommit) {
+    pushMobileTextInput(mobileCompositionCommit);
+  }
+  mobileTextInput.value = "";
+});
+
+mobileTextInput.addEventListener("input", (event) => {
+  event.stopPropagation();
+
+  if (event.isComposing || mobileCompositionActive) {
+    return;
+  }
+
+  const inserted =
+    typeof event.data === "string" && event.data.length
+      ? event.data
+      : mobileTextInput.value;
+
+  if (mobileCompositionCommit && inserted === mobileCompositionCommit) {
+    mobileCompositionCommit = "";
+    mobileTextInput.value = "";
+    return;
+  }
+
+  mobileCompositionCommit = "";
+  if (inserted) {
+    pushMobileTextInput(inserted);
+  }
+  mobileTextInput.value = "";
+});
+
+mobileTextInput.addEventListener("focus", () => {
+  window.__tptMobileTextInputFocused = true;
+});
+
+mobileTextInput.addEventListener("blur", () => {
+  window.__tptMobileTextInputFocused = false;
+});
+
+mobileTextInput.addEventListener("pointerdown", (event) => {
+  event.stopPropagation();
+});
+
+mobileTextInput.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+});
+
 function updateOrientationGate() {
   const nextBlocked = Boolean(
     presentable &&
@@ -103,6 +332,11 @@ function updateOrientationGate() {
   orientationGate.hidden = !orientationBlocked;
   orientationPauseRequested = orientationBlocked;
   window.__tptOrientationBlocked = orientationBlocked;
+
+  if (orientationBlocked && document.activeElement === mobileTextInput) {
+    mobileTextInput.blur();
+    window.__tptMobileTextInputFocused = false;
+  }
 
   applyRuntimePauseState();
   setGameplayBlocked(orientationBlocked);
@@ -234,6 +468,7 @@ function scheduleViewportUpdate() {
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
       fitCanvas();
+      positionMobileTextInput();
       updateOrientationGate();
     })
   );
