@@ -1915,7 +1915,7 @@ first_button_patch = '''\t\t\tsaveButton->SetActionCallback({
 #endif
 
 \t\t\tprogressBar->SetStatus("Rendering thumbnails");'''
-if 'YandexWeb_TestFileBrowserFirstXValue =' not in file_text:
+if 'Position.X + itemList->Position.X + saveButton->Position.X' not in file_text:
     if first_button_anchor not in file_text:
         raise SystemExit("FileBrowserActivity first SaveButton anchor missing")
     file_text = file_text.replace(first_button_anchor, first_button_patch, 1)
