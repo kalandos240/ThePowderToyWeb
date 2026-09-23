@@ -131,6 +131,16 @@ export function installPlatformPauseBridge({ onPause, onResume } = {}) {
     void gameplayStop();
   });
 
+  // A page restored from the browser back/forward cache may receive pageshow
+  // without a fresh boot. Resume the native loop and gameplay markup here so
+  // returning through browser history cannot leave the simulation frozen.
+  window.addEventListener("pageshow", () => {
+    resumeRuntime();
+    if (readySent) {
+      void gameplayStart();
+    }
+  });
+
   void initYandexSDK().then((currentSDK) => {
     if (!currentSDK?.on) {
       return;
