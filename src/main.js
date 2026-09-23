@@ -19,6 +19,8 @@ const fatal = document.getElementById("fatal");
 const fatalTitle = document.querySelector("#fatal h1");
 const fatalMessage = document.getElementById("fatal-message");
 const reloadButton = document.getElementById("reload");
+const smokeMode = new URLSearchParams(location.search).get("smoke") === "1";
+window.__tptSmokeMode = smokeMode;
 
 const MESSAGES = {
   en: {
@@ -318,7 +320,9 @@ async function boot() {
   }
 
   gameModule = gameResult.value;
-  window.__tptGameModule = gameModule;
+  if (smokeMode) {
+    window.__tptGameModule = gameModule;
+  }
   applyRuntimePauseState();
 
   if (!presentable) {
