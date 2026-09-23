@@ -829,6 +829,54 @@ def smoke_case(language: str, mobile: bool):
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
+        if mobile:
+            # Simulate a platform-controlled inset/banner changing the app content
+            # area without relying on window.resize. ResizeObserver must refit.
+            dynamic_inset = driver.execute_async_script(
+                """
+                const done = arguments[arguments.length - 1];
+                const app = document.getElementById('app');
+                const canvas = document.getElementById('canvas');
+                app.style.paddingRight = '28px';
+                app.style.paddingBottom = '24px';
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    const style = getComputedStyle(app);
+                    const horizontalPadding =
+                        parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+                    const verticalPadding =
+                        parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+                    const availableWidth = app.clientWidth - horizontalPadding;
+                    const availableHeight = app.clientHeight - verticalPadding;
+                    const logicalWidth = canvas.width;
+                    const logicalHeight = canvas.height;
+                    const scale = Math.min(
+                        availableWidth / logicalWidth,
+                        availableHeight / logicalHeight
+                    );
+                    const r = canvas.getBoundingClientRect();
+                    done({
+                        width: r.width,
+                        height: r.height,
+                        expectedWidth: Math.max(1, Math.floor(logicalWidth * scale)),
+                        expectedHeight: Math.max(1, Math.floor(logicalHeight * scale)),
+                    });
+                }));
+                """
+            )
+            assert abs(dynamic_inset["width"] - dynamic_inset["expectedWidth"]) <= 2, (
+                label,
+                dynamic_inset,
+            )
+            assert abs(dynamic_inset["height"] - dynamic_inset["expectedHeight"]) <= 2, (
+                label,
+                dynamic_inset,
+            )
+            driver.execute_script(
+                "const app=document.getElementById('app');"
+                "app.style.paddingRight=''; app.style.paddingBottom='';"
+            )
+            time.sleep(0.2)
+
         # Yandex platform pause/resume must stop and restart the native loop.
         driver.execute_script("window.ysdk.emit('game_api_pause')")
         wait.until(lambda d: d.execute_script("return window.__tptRuntimePaused === true"))
