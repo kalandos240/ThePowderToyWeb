@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - experiment/diagnostic-guard
     paths:
       - "index.html"
       - "styles.css"
