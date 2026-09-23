@@ -1203,6 +1203,20 @@ def smoke_case(language: str, mobile: bool):
                     "YandexWeb_TestFillWaterGravity",
                     12000,
                 ),
+                record_performance_metric(
+                    driver,
+                    label,
+                    "dust-45k",
+                    "YandexWeb_TestFillDust",
+                    45000,
+                ),
+                record_performance_metric(
+                    driver,
+                    label,
+                    "water-gravity-28k",
+                    "YandexWeb_TestFillWaterGravity",
+                    28000,
+                ),
             ]
 
         if mobile:
