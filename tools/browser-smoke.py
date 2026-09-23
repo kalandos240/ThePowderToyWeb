@@ -280,23 +280,33 @@ def smoke_case(language: str, mobile: bool):
 
             wait.until(
                 lambda d: d.execute_script(
-                    "return Boolean(window.__tptDustButton && "
-                    "window.__tptDustButton.viewWidth > 0 && "
-                    "window.__tptDustButton.viewHeight > 0)"
+                    """
+                    const m = window.__tptGameModule;
+                    if (!m) return false;
+                    const w = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
+                    const h = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
+                    const x = m.ccall('YandexWeb_TestGetDustButtonX', 'number', [], []);
+                    const y = m.ccall('YandexWeb_TestGetDustButtonY', 'number', [], []);
+                    return w > 0 && h > 0 && x >= 0 && y >= 0;
+                    """
                 )
             )
             dust_button = driver.execute_script(
                 """
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
-                const p = window.__tptDustButton;
+                const m = window.__tptGameModule;
+                const viewWidth = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
+                const viewHeight = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
+                const nativeX = m.ccall('YandexWeb_TestGetDustButtonX', 'number', [], []);
+                const nativeY = m.ccall('YandexWeb_TestGetDustButtonY', 'number', [], []);
                 return {
-                    x: r.left + (p.x / p.viewWidth) * r.width,
-                    y: r.top + (p.y / p.viewHeight) * r.height,
-                    nativeX: p.x,
-                    nativeY: p.y,
-                    viewWidth: p.viewWidth,
-                    viewHeight: p.viewHeight,
+                    x: r.left + (nativeX / viewWidth) * r.width,
+                    y: r.top + (nativeY / viewHeight) * r.height,
+                    nativeX,
+                    nativeY,
+                    viewWidth,
+                    viewHeight,
                 };
                 """
             )
@@ -385,23 +395,33 @@ def smoke_case(language: str, mobile: bool):
 
             wait.until(
                 lambda d: d.execute_script(
-                    "return Boolean(window.__tptDustButton && "
-                    "window.__tptDustButton.viewWidth > 0 && "
-                    "window.__tptDustButton.viewHeight > 0)"
+                    """
+                    const m = window.__tptGameModule;
+                    if (!m) return false;
+                    const w = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
+                    const h = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
+                    const x = m.ccall('YandexWeb_TestGetDustButtonX', 'number', [], []);
+                    const y = m.ccall('YandexWeb_TestGetDustButtonY', 'number', [], []);
+                    return w > 0 && h > 0 && x >= 0 && y >= 0;
+                    """
                 )
             )
             dust_button = driver.execute_script(
                 """
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
-                const p = window.__tptDustButton;
+                const m = window.__tptGameModule;
+                const viewWidth = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
+                const viewHeight = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
+                const nativeX = m.ccall('YandexWeb_TestGetDustButtonX', 'number', [], []);
+                const nativeY = m.ccall('YandexWeb_TestGetDustButtonY', 'number', [], []);
                 return {
-                    x: r.left + (p.x / p.viewWidth) * r.width,
-                    y: r.top + (p.y / p.viewHeight) * r.height,
-                    nativeX: p.x,
-                    nativeY: p.y,
-                    viewWidth: p.viewWidth,
-                    viewHeight: p.viewHeight,
+                    x: r.left + (nativeX / viewWidth) * r.width,
+                    y: r.top + (nativeY / viewHeight) * r.height,
+                    nativeX,
+                    nativeY,
+                    viewWidth,
+                    viewHeight,
                 };
                 """
             )
@@ -763,23 +783,33 @@ def smoke_case(language: str, mobile: bool):
         # desktop mouse and mobile touch input.
         wait.until(
             lambda d: d.execute_script(
-                "return Boolean(window.__tptSaveButton && "
-                "window.__tptSaveButton.viewWidth > 0 && "
-                "window.__tptSaveButton.viewHeight > 0)"
+                """
+                const m = window.__tptGameModule;
+                if (!m) return false;
+                const w = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
+                const h = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
+                const x = m.ccall('YandexWeb_TestGetSaveButtonX', 'number', [], []);
+                const y = m.ccall('YandexWeb_TestGetSaveButtonY', 'number', [], []);
+                return w > 0 && h > 0 && x >= 0 && y >= 0;
+                """
             )
         )
         save_button = driver.execute_script(
             """
             const canvas = document.getElementById('canvas');
             const r = canvas.getBoundingClientRect();
-            const p = window.__tptSaveButton;
+            const m = window.__tptGameModule;
+            const viewWidth = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
+            const viewHeight = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
+            const nativeX = m.ccall('YandexWeb_TestGetSaveButtonX', 'number', [], []);
+            const nativeY = m.ccall('YandexWeb_TestGetSaveButtonY', 'number', [], []);
             return {
-                x: r.left + (p.x / p.viewWidth) * r.width,
-                y: r.top + (p.y / p.viewHeight) * r.height,
-                nativeX: p.x,
-                nativeY: p.y,
-                viewWidth: p.viewWidth,
-                viewHeight: p.viewHeight,
+                x: r.left + (nativeX / viewWidth) * r.width,
+                y: r.top + (nativeY / viewHeight) * r.height,
+                nativeX,
+                nativeY,
+                viewWidth,
+                viewHeight,
             };
             """
         )
