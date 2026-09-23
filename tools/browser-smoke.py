@@ -179,6 +179,31 @@ def smoke_case(language: str, mobile: bool):
         assert state["canvasHeight"] <= state["viewportHeight"] + 1, (label, state)
         assert state["ready"] is True, (label, state)
 
+        if mobile:
+            orientation_copy = driver.execute_script(
+                """
+                return {
+                    title: document.getElementById('orientation-title').textContent,
+                    message: document.getElementById('orientation-message').textContent,
+                };
+                """
+            )
+            expected_orientation = {
+                "en": {
+                    "title": "Rotate your device",
+                    "message": "The Powder Toy is designed for landscape mode.",
+                },
+                "ru": {
+                    "title": "Поверните устройство",
+                    "message": "Для The Powder Toy используйте горизонтальный режим.",
+                },
+            }[language]
+            assert orientation_copy == expected_orientation, (
+                label,
+                orientation_copy,
+                expected_orientation,
+            )
+
         if not mobile and language == "en":
             locale_aliases = driver.execute_async_script(
                 """
@@ -453,6 +478,56 @@ def smoke_case(language: str, mobile: bool):
                 label,
                 f"landscape touch did not draw particles: before={before_particles}, after={after_particles}",
             )
+
+            # Yandex moderation explicitly checks long press and gestures. A
+            # long press must not produce an unhandled browser context menu or
+            # selectable page text.
+            driver.execute_script(
+                """
+                window.__tptUnhandledContextMenus = 0;
+                document.addEventListener('contextmenu', (event) => {
+                    queueMicrotask(() => {
+                        if (!event.defaultPrevented) {
+                            window.__tptUnhandledContextMenus += 1;
+                        }
+                    });
+                });
+                """
+            )
+            long_press_x = touch_rect["left"] + touch_rect["width"] * 0.62
+            long_press_y = touch_rect["top"] + touch_rect["height"] * 0.30
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{
+                        "x": long_press_x,
+                        "y": long_press_y,
+                        "radiusX": 5,
+                        "radiusY": 5,
+                        "force": 1,
+                    }],
+                },
+            )
+            time.sleep(0.8)
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            time.sleep(0.1)
+            long_press_state = driver.execute_script(
+                """
+                return {
+                    unhandledContextMenus: window.__tptUnhandledContextMenus || 0,
+                    selection: String(window.getSelection ? window.getSelection() : ''),
+                };
+                """
+            )
+            assert long_press_state["unhandledContextMenus"] == 0, (
+                label,
+                long_press_state,
+            )
+            assert long_press_state["selection"] == "", (label, long_press_state)
 
             # Repeat portrait/landscape transitions to catch intermittent stale-viewport bugs.
             for cycle in range(2, 5):
@@ -863,6 +938,22 @@ def smoke_case(language: str, mobile: bool):
                 "return window.__tptGameModule.ccall('YandexWeb_TestStorageRead', 'number', [], [])"
             )
             assert persisted == 1, (label, "IDBFS persistence failed")
+
+        external_resources = driver.execute_script(
+            """
+            const currentOrigin = location.origin;
+            return performance.getEntriesByType('resource')
+                .map((entry) => entry.name)
+                .filter((name) => {
+                    try {
+                        return new URL(name, location.href).origin !== currentOrigin;
+                    } catch (_) {
+                        return true;
+                    }
+                });
+            """
+        )
+        assert external_resources == [], (label, external_resources)
 
         performance = None
         if language == "en":
