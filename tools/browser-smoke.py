@@ -128,7 +128,8 @@ def smoke_case(language: str, mobile: bool):
     driver = make_driver(mobile)
     try:
         driver.set_page_load_timeout(45)
-        driver.get(f"{BASE_URL}/?lang={language}")
+        device_type = "mobile" if mobile else "desktop"
+        driver.get(f"{BASE_URL}/?lang={language}&device={device_type}")
 
         wait = WebDriverWait(driver, 45)
         wait.until(
@@ -154,6 +155,15 @@ def smoke_case(language: str, mobile: bool):
             )
         )
 
+        sdk_mobile_platform = driver.execute_script(
+            "return window.__tptSdkMobilePlatform"
+        )
+        assert sdk_mobile_platform is mobile, (
+            label,
+            "Yandex deviceInfo classification mismatch",
+            sdk_mobile_platform,
+        )
+
         interaction_guards = driver.execute_script(
             """
             const canvas = document.getElementById('canvas');
@@ -170,6 +180,7 @@ def smoke_case(language: str, mobile: bool):
                 contextPrevented:
                     contextEvent.defaultPrevented === true && dispatchResult === false,
                 bodyUserSelect: bodyStyle.userSelect,
+                bodyOverscrollBehavior: bodyStyle.overscrollBehavior,
                 canvasTouchAction: canvasStyle.touchAction,
                 scrollWidth: document.documentElement.scrollWidth,
                 scrollHeight: document.documentElement.scrollHeight,
@@ -186,6 +197,11 @@ def smoke_case(language: str, mobile: bool):
         assert interaction_guards["bodyUserSelect"] == "none", (
             label,
             "browser text selection is enabled",
+            interaction_guards,
+        )
+        assert interaction_guards["bodyOverscrollBehavior"] == "none", (
+            label,
+            "browser overscroll/swipe-to-refresh is enabled",
             interaction_guards,
         )
         assert interaction_guards["canvasTouchAction"] == "none", (
