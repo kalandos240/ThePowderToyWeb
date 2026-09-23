@@ -221,62 +221,74 @@ def smoke_case(language: str, mobile: bool):
         )
 
         if not mobile:
-            # Yandex moderation checks desktop page scrolling around the
-            # 80%-125% browser-zoom range. CSS zoom is used here as a stable
-            # headless layout stress proxy for those scale changes.
+            # Browser zoom changes the effective CSS viewport rather than
+            # applying CSS zoom to the root document. Emulate the 80%-125%
+            # moderation range by resizing to the corresponding CSS-pixel
+            # viewport, then verify the page and canvas still fit without
+            # system scrollbars.
+            base_width = 1365
+            base_height = 768
             for zoom in (0.8, 1.0, 1.25):
+                effective_width = round(base_width / zoom)
+                effective_height = round(base_height / zoom)
+                driver.set_window_size(effective_width, effective_height)
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        const canvas = document.getElementById('canvas');
+                        const rect = canvas.getBoundingClientRect();
+                        return (
+                            rect.width > 0 &&
+                            rect.height > 0 &&
+                            rect.right <= window.innerWidth + 1 &&
+                            rect.bottom <= window.innerHeight + 1
+                        );
+                        """
+                    )
+                )
                 zoom_state = driver.execute_script(
                     """
-                    document.documentElement.style.zoom = String(arguments[0]);
-                    window.dispatchEvent(new Event('resize'));
-                    return new Promise((resolve) => {
-                        requestAnimationFrame(() => requestAnimationFrame(() => {
-                            const canvas = document.getElementById('canvas');
-                            const rect = canvas.getBoundingClientRect();
-                            resolve({
-                                scrollWidth: document.documentElement.scrollWidth,
-                                scrollHeight: document.documentElement.scrollHeight,
-                                viewportWidth: window.innerWidth,
-                                viewportHeight: window.innerHeight,
-                                canvasLeft: rect.left,
-                                canvasTop: rect.top,
-                                canvasRight: rect.right,
-                                canvasBottom: rect.bottom,
-                            });
-                        }));
-                    });
-                    """,
-                    zoom,
+                    const canvas = document.getElementById('canvas');
+                    const rect = canvas.getBoundingClientRect();
+                    return {
+                        scrollWidth: document.documentElement.scrollWidth,
+                        scrollHeight: document.documentElement.scrollHeight,
+                        viewportWidth: window.innerWidth,
+                        viewportHeight: window.innerHeight,
+                        canvasLeft: rect.left,
+                        canvasTop: rect.top,
+                        canvasRight: rect.right,
+                        canvasBottom: rect.bottom,
+                    };
+                    """
                 )
                 assert zoom_state["scrollWidth"] <= zoom_state["viewportWidth"] + 1, (
                     label,
-                    f"horizontal scroll at layout scale {zoom}",
+                    f"horizontal scroll at browser zoom {zoom}",
                     zoom_state,
                 )
                 assert zoom_state["scrollHeight"] <= zoom_state["viewportHeight"] + 1, (
                     label,
-                    f"vertical scroll at layout scale {zoom}",
+                    f"vertical scroll at browser zoom {zoom}",
                     zoom_state,
                 )
                 assert zoom_state["canvasLeft"] >= -1 and zoom_state["canvasTop"] >= -1, (
                     label,
-                    f"canvas starts outside viewport at layout scale {zoom}",
+                    f"canvas starts outside viewport at browser zoom {zoom}",
                     zoom_state,
                 )
                 assert zoom_state["canvasRight"] <= zoom_state["viewportWidth"] + 1, (
                     label,
-                    f"canvas exceeds viewport width at layout scale {zoom}",
+                    f"canvas exceeds viewport width at browser zoom {zoom}",
                     zoom_state,
                 )
                 assert zoom_state["canvasBottom"] <= zoom_state["viewportHeight"] + 1, (
                     label,
-                    f"canvas exceeds viewport height at layout scale {zoom}",
+                    f"canvas exceeds viewport height at browser zoom {zoom}",
                     zoom_state,
                 )
 
-            driver.execute_script(
-                "document.documentElement.style.zoom = ''; window.dispatchEvent(new Event('resize'));"
-            )
+            driver.set_window_size(base_width, base_height)
             time.sleep(0.1)
 
         external_resources = driver.execute_script(
