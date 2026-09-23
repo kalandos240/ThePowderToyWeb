@@ -12,6 +12,7 @@ options_view = root / "upstream" / "src" / "gui" / "options" / "OptionsView.cpp"
 simulation_data = root / "upstream" / "src" / "simulation" / "SimulationData.cpp"
 local_browser_controller = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserController.cpp"
 engine_cpp = root / "upstream" / "src" / "gui" / "interface" / "Engine.cpp"
+window_cpp = root / "upstream" / "src" / "gui" / "interface" / "Window.cpp"
 save_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "SaveButton.cpp"
 label_cpp = root / "upstream" / "src" / "gui" / "interface" / "Label.cpp"
 locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
@@ -1481,6 +1482,243 @@ for old, new in credits_replacements:
     if old in credits_text:
         credits_text = credits_text.replace(old, new)
 credits_cpp.write_text(credits_text, encoding="utf-8")
+
+
+# Yandex mobile: make small buttons easier to tap without changing desktop geometry.
+window_text = window_cpp.read_text(encoding="utf-8")
+mouse_down_anchor = r'''void Window::DoMouseDown(int x_, int y_, unsigned button)
+{
+	//on mouse click
+	int x = x_ - Position.X;
+	int y = y_ - Position.Y;
+	bool clickState = false;
+	for (int i = Components.size() - 1; i > -1 && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+		{
+			if (x >= Components[i]->Position.X && y >= Components[i]->Position.Y && x < Components[i]->Position.X + Components[i]->Size.X && y < Components[i]->Position.Y + Components[i]->Size.Y)
+			{
+				FocusComponent(Components[i]);
+				if (!DEBUG || !debugMode)
+				{
+					Components[i]->MouseDownInside = true;
+				}
+				clickState = true;
+				break;
+			}
+		}
+	}
+
+	if (!clickState)
+		FocusComponent(nullptr);
+
+	if (debugMode)
+		return;
+
+	//on mouse down
+	for (int i = Components.size() - 1; i > -1 && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+			Components[i]->OnMouseDown(x, y, button);
+	}
+
+	if (!stop)
+		OnMouseDown(x_, y_, button);
+
+	if (!clickState && (x_ < Position.X || y_ < Position.Y || x_ > Position.X+Size.X || y_ > Position.Y+Size.Y))
+		OnTryExit(MouseOutside);
+
+	if (destruct)
+		finalise();
+}'''
+
+mouse_down_patch = r'''void Window::DoMouseDown(int x_, int y_, unsigned button)
+{
+	//on mouse click
+	int x = x_ - Position.X;
+	int y = y_ - Position.Y;
+	bool clickState = false;
+	int selectedIndex = -1;
+
+	// Preserve exact desktop-style hit testing first.
+	for (int i = Components.size() - 1; i > -1 && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+		{
+			if (x >= Components[i]->Position.X && y >= Components[i]->Position.Y && x < Components[i]->Position.X + Components[i]->Size.X && y < Components[i]->Position.Y + Components[i]->Size.Y)
+			{
+				selectedIndex = i;
+				break;
+			}
+		}
+	}
+
+	// Touch screens get a forgiving halo around buttons only. If multiple
+	// halos overlap, choose the nearest button centre.
+	if (selectedIndex < 0 && Engine::Ref().TouchUI)
+	{
+		constexpr int touchMarginX = 10;
+		constexpr int touchMarginY = 10;
+		int bestDistance = 0x7FFFFFFF;
+		for (int i = Components.size() - 1; i > -1 && !halt; --i)
+		{
+			auto *component = Components[i];
+			if (!component->Enabled || !component->Visible || !dynamic_cast<Button *>(component))
+				continue;
+
+			if (x >= component->Position.X - touchMarginX &&
+			    y >= component->Position.Y - touchMarginY &&
+			    x < component->Position.X + component->Size.X + touchMarginX &&
+			    y < component->Position.Y + component->Size.Y + touchMarginY)
+			{
+				int centreX = component->Position.X + component->Size.X / 2;
+				int centreY = component->Position.Y + component->Size.Y / 2;
+				int dx = x - centreX;
+				int dy = y - centreY;
+				int distance = dx * dx + dy * dy;
+				if (distance < bestDistance)
+				{
+					bestDistance = distance;
+					selectedIndex = i;
+				}
+			}
+		}
+	}
+
+	if (selectedIndex >= 0)
+	{
+		FocusComponent(Components[selectedIndex]);
+		if (!DEBUG || !debugMode)
+			Components[selectedIndex]->MouseDownInside = true;
+		clickState = true;
+	}
+	else
+	{
+		FocusComponent(nullptr);
+	}
+
+	if (debugMode)
+		return;
+
+	//on mouse down
+	for (int i = Components.size() - 1; i > -1 && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+			Components[i]->OnMouseDown(x, y, button);
+	}
+
+	if (!stop)
+		OnMouseDown(x_, y_, button);
+
+	if (!clickState && (x_ < Position.X || y_ < Position.Y || x_ > Position.X+Size.X || y_ > Position.Y+Size.Y))
+		OnTryExit(MouseOutside);
+
+	if (destruct)
+		finalise();
+}'''
+
+if mouse_down_anchor not in window_text:
+    raise SystemExit("Window.cpp DoMouseDown anchor missing")
+window_text = window_text.replace(mouse_down_anchor, mouse_down_patch, 1)
+
+mouse_up_anchor = r'''void Window::DoMouseUp(int x_, int y_, unsigned button)
+{
+	int x = x_ - Position.X;
+	int y = y_ - Position.Y;
+	if (debugMode)
+		return;
+	//on mouse unclick
+	for (int i = Components.size() - 1; i >= 0  && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+		{
+			if (Components[i]->MouseDownInside && x >= Components[i]->Position.X && y >= Components[i]->Position.Y && x < Components[i]->Position.X + Components[i]->Size.X && y < Components[i]->Position.Y + Components[i]->Size.Y)
+			{
+				Components[i]->OnMouseClick(x - Components[i]->Position.X, y - Components[i]->Position.Y, button);
+				break;
+			}
+		}
+	}
+	for (auto *component : Components)
+	{
+		component->MouseDownInside = false;
+	}
+
+	//on mouse up
+	for (int i = Components.size() - 1; i >= 0 && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+			Components[i]->OnMouseUp(x, y, button);
+	}
+
+	if (!stop)
+		OnMouseUp(x_, y_, button);
+	if (destruct)
+		finalise();
+}'''
+
+mouse_up_patch = r'''void Window::DoMouseUp(int x_, int y_, unsigned button)
+{
+	int x = x_ - Position.X;
+	int y = y_ - Position.Y;
+	if (debugMode)
+		return;
+	//on mouse unclick
+	for (int i = Components.size() - 1; i >= 0  && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible && Components[i]->MouseDownInside)
+		{
+			auto *component = Components[i];
+			bool inside =
+				x >= component->Position.X &&
+				y >= component->Position.Y &&
+				x < component->Position.X + component->Size.X &&
+				y < component->Position.Y + component->Size.Y;
+
+			if (!inside && Engine::Ref().TouchUI && dynamic_cast<Button *>(component))
+			{
+				constexpr int touchMarginX = 10;
+				constexpr int touchMarginY = 10;
+				inside =
+					x >= component->Position.X - touchMarginX &&
+					y >= component->Position.Y - touchMarginY &&
+					x < component->Position.X + component->Size.X + touchMarginX &&
+					y < component->Position.Y + component->Size.Y + touchMarginY;
+			}
+
+			if (inside)
+			{
+				component->OnMouseClick(
+					x - component->Position.X,
+					y - component->Position.Y,
+					button
+				);
+				break;
+			}
+		}
+	}
+	for (auto *component : Components)
+	{
+		component->MouseDownInside = false;
+	}
+
+	//on mouse up
+	for (int i = Components.size() - 1; i >= 0 && !halt; --i)
+	{
+		if (Components[i]->Enabled && Components[i]->Visible)
+			Components[i]->OnMouseUp(x, y, button);
+	}
+
+	if (!stop)
+		OnMouseUp(x_, y_, button);
+	if (destruct)
+		finalise();
+}'''
+
+if mouse_up_anchor not in window_text:
+    raise SystemExit("Window.cpp DoMouseUp anchor missing")
+window_text = window_text.replace(mouse_up_anchor, mouse_up_patch, 1)
+window_cpp.write_text(window_text, encoding="utf-8")
 
 
 # Yandex single-thread Emscripten fallback.
