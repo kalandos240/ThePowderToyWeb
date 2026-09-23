@@ -315,6 +315,68 @@ game_replacements = [
 for old, new in game_replacements:
     if old in game_view_text:
         game_view_text = game_view_text.replace(old, new)
+
+hud_replacements = [
+    ('sampleInfo << "Molten " << c->ElementResolve(ctype, 0);',
+     'sampleInfo << YandexWebText("Molten ", "Расплавленный ") << c->ElementResolve(ctype, 0);'),
+    ('sampleInfo << c->ElementResolve(type, 0) << " with molten " << c->ElementResolve(sample.particle.tmp4, -1);',
+     'sampleInfo << c->ElementResolve(type, 0) << YandexWebText(" with molten ", " с расплавом ") << c->ElementResolve(sample.particle.tmp4, -1);'),
+    ('sampleInfo << c->ElementResolve(type, 0) << " with " << c->ElementResolve(ctype, sample.particle.tmp4);',
+     'sampleInfo << c->ElementResolve(type, 0) << YandexWebText(" with ", " с ") << c->ElementResolve(ctype, sample.particle.tmp4);'),
+    ('sampleInfo << " (unknown mode)";',
+     'sampleInfo << YandexWebText(" (unknown mode)", " (неизвестный режим)");'),
+    ('sampleInfo << ", Temp: ";',
+     'sampleInfo << YandexWebText(", Temp: ", ", Темп.: ");'),
+    ('sampleInfo << ", Life: " << sample.particle.life;',
+     'sampleInfo << YandexWebText(", Life: ", ", Жизнь: ") << sample.particle.life;'),
+    ('sampleInfo << ", Pressure: " << sample.AirPressure;',
+     'sampleInfo << YandexWebText(", Pressure: ", ", Давление: ") << sample.AirPressure;'),
+    ('sampleInfo << "Empty, Pressure: " << sample.AirPressure;',
+     'sampleInfo << YandexWebText("Empty, Pressure: ", "Пусто, давление: ") << sample.AirPressure;'),
+    ('sampleInfo << "Empty";',
+     'sampleInfo << YandexWebText("Empty", "Пусто");'),
+    ('fpsInfo << " [REPLACE MODE]";',
+     'fpsInfo << YandexWebText(" [REPLACE MODE]", " [РЕЖИМ ЗАМЕНЫ]");'),
+    ('fpsInfo << " [SPECIFIC DELETE]";',
+     'fpsInfo << YandexWebText(" [SPECIFIC DELETE]", " [ТОЧЕЧНОЕ УДАЛЕНИЕ]");'),
+    ('fpsInfo << " [GRID: " << rendererSettings->gridSize << "]";',
+     'fpsInfo << YandexWebText(" [GRID: ", " [СЕТКА: ") << rendererSettings->gridSize << "]";'),
+    ('fpsInfo << " [FIND]";',
+     'fpsInfo << YandexWebText(" [FIND]", " [ПОИСК]");'),
+    ('fpsInfo << "\\nSimulation";',
+     'fpsInfo << YandexWebText("\\nSimulation", "\\nСимуляция");'),
+    ('fpsInfo << "\\n  FPS cap: ";',
+     'fpsInfo << YandexWebText("\\n  FPS cap: ", "\\n  Лимит FPS: ");'),
+    ('fpsInfo << "\\nRendering";',
+     'fpsInfo << YandexWebText("\\nRendering", "\\nРендеринг");'),
+    ('fpsInfo << "\\n  Draw cap: ";',
+     'fpsInfo << YandexWebText("\\n  Draw cap: ", "\\n  Лимит отрисовки: ");'),
+    ('fpsInfo << ", effective: ";',
+     'fpsInfo << YandexWebText(", effective: ", ", фактически: ");'),
+    ('fpsInfo << "\\n  Refresh rate: ";',
+     'fpsInfo << YandexWebText("\\n  Refresh rate: ", "\\n  Частота экрана: ");'),
+    ('fpsInfo << " (default)";',
+     'fpsInfo << YandexWebText(" (default)", " (по умолчанию)");'),
+]
+for old, new in hud_replacements:
+    if old in game_view_text:
+        game_view_text = game_view_text.replace(old, new)
+
+filt_modes_old = 'String filtModes[] = {"set colour", "AND", "OR", "AND-NOT", "red shift", "blue shift", "no effect", "XOR", "NOT", "old QRTZ scattering", "variable red shift", "variable blue shift"};'
+filt_modes_new = '''String filtModes[] = {
+					YandexWebText("set colour", "задать цвет"),
+					"AND", "OR", "AND-NOT",
+					YandexWebText("red shift", "красное смещение"),
+					YandexWebText("blue shift", "синее смещение"),
+					YandexWebText("no effect", "без эффекта"),
+					"XOR", "NOT",
+					YandexWebText("old QRTZ scattering", "старое рассеяние QRTZ"),
+					YandexWebText("variable red shift", "переменное красное смещение"),
+					YandexWebText("variable blue shift", "переменное синее смещение")
+				};'''
+if filt_modes_old in game_view_text:
+    game_view_text = game_view_text.replace(filt_modes_old, filt_modes_new, 1)
+
 game_view.write_text(game_view_text, encoding="utf-8")
 
 browser_text = local_browser.read_text(encoding="utf-8")
