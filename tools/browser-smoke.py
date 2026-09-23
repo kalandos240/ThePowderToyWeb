@@ -278,7 +278,9 @@ def smoke_case(language: str, mobile: bool):
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
                 const logicalX = canvas.width - 41;
-                const logicalY = canvas.height - 30;
+                // Intentionally tap above the visible button; TouchUI should
+                // resolve this to the nearest button within the expanded hit halo.
+                const logicalY = canvas.height - 45;
                 return {
                     x: r.left + (logicalX / canvas.width) * r.width,
                     y: r.top + (logicalY / canvas.height) * r.height,
@@ -403,7 +405,7 @@ def smoke_case(language: str, mobile: bool):
             )
             assert active_after_tap == 1, (
                 label,
-                f"touching visible DUST button did not select DUST: point={dust_button}",
+                f"expanded touch target did not select DUST: point={dust_button}",
             )
 
             # Prove touch still maps into the simulation after portrait -> landscape.
