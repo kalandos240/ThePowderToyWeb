@@ -967,6 +967,17 @@ extra_options_replacements = [
     ('"Save errors and other messages to a file"', 'YandexWebText("Save errors and other messages to a file", "Сохранять ошибки и сообщения в файл")'),
     ('"Developers may ask for this when trying to fix problems"', 'YandexWebText("Developers may ask for this when trying to fix problems", "Полезно для диагностики ошибок")'),
     ('" - Find out who contributed to TPT"', 'YandexWebText(" - Find out who contributed to TPT", " - Участники разработки TPT")'),
+    ('"Kelvin"', 'YandexWebText("Kelvin", "Кельвин")'),
+    ('"Celsius"', 'YandexWebText("Celsius", "Цельсий")'),
+    ('"Fahrenheit"', 'YandexWebText("Fahrenheit", "Фаренгейт")'),
+    ('"Resizable \\bg- allow resizing and maximizing window"', 'YandexWebText("Resizable \\bg- allow resizing and maximizing window", "Изменяемый размер \\bg- можно менять размер окна")'),
+    ('"Fullscreen \\bg- fill the entire screen"', 'YandexWebText("Fullscreen \\bg- fill the entire screen", "Полный экран \\bg- занять весь экран")'),
+    ('"Set optimal screen resolution"', 'YandexWebText("Set optimal screen resolution", "Подобрать разрешение экрана")'),
+    ('"Force integer scaling \\bg- less blurry"', 'YandexWebText("Force integer scaling \\bg- less blurry", "Целочисленный масштаб \\bg- более чёткое изображение")'),
+    ('"Fast quit"', 'YandexWebText("Fast quit", "Быстрый выход")'),
+    ('"Always exit completely when hitting close"', 'YandexWebText("Always exit completely when hitting close", "Полностью завершать игру при закрытии")'),
+    ('"Global quit shortcut"', 'YandexWebText("Global quit shortcut", "Глобальная клавиша выхода")'),
+    ('"Ctrl+q works everywhere"', 'YandexWebText("Ctrl+q works everywhere", "Ctrl+Q работает во всех окнах")'),
 ]
 for old, new in extra_options_replacements:
     if old in options_text:
@@ -1028,6 +1039,17 @@ options_text = options_text.replace(
     'void OptionsView::UpdateStartupRequestStatus()\n{',
     'void OptionsView::UpdateStartupRequestStatus()\n{\n\tif constexpr (NOHTTP)\n\t\treturn;'
 )
+threaded_rendering_anchor = '''\tthreadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+\t\tc->SetThreadedRendering(threadedRendering->GetChecked());
+\t});'''
+threaded_rendering_patch = '''#if !defined(__EMSCRIPTEN__)
+\tthreadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+\t\tc->SetThreadedRendering(threadedRendering->GetChecked());
+\t});
+#endif'''
+if threaded_rendering_anchor in options_text:
+    options_text = options_text.replace(threaded_rendering_anchor, threaded_rendering_patch, 1)
+
 options_text = options_text.replace(
     '\tshowAvatars->SetChecked(sender->GetShowAvatars());',
     '\tif (showAvatars)\n\t\tshowAvatars->SetChecked(sender->GetShowAvatars());'
@@ -1035,6 +1057,10 @@ options_text = options_text.replace(
 options_text = options_text.replace(
     '\tautoStartupRequest->SetChecked(sender->GetAutoStartupRequest());',
     '\tif (autoStartupRequest)\n\t\tautoStartupRequest->SetChecked(sender->GetAutoStartupRequest());'
+)
+options_text = options_text.replace(
+    '\tthreadedRendering->SetChecked(sender->GetThreadedRendering());',
+    '\tif (threadedRendering)\n\t\tthreadedRendering->SetChecked(sender->GetThreadedRendering());'
 )
 
 options_view.write_text(options_text, encoding="utf-8")
