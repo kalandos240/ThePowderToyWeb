@@ -128,7 +128,8 @@ def smoke_case(language: str, mobile: bool):
     driver = make_driver(mobile)
     try:
         driver.set_page_load_timeout(45)
-        driver.get(f"{BASE_URL}/?lang={language}")
+        device_type = "mobile" if mobile else "desktop"
+        driver.get(f"{BASE_URL}/?lang={language}&device={device_type}")
 
         wait = WebDriverWait(driver, 45)
         wait.until(
@@ -152,6 +153,15 @@ def smoke_case(language: str, mobile: bool):
                 );
                 """
             )
+        )
+
+        sdk_mobile_platform = driver.execute_script(
+            "return window.__tptSdkMobilePlatform"
+        )
+        assert sdk_mobile_platform is mobile, (
+            label,
+            "Yandex deviceInfo classification mismatch",
+            sdk_mobile_platform,
         )
 
         interaction_guards = driver.execute_script(
