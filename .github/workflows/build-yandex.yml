@@ -202,6 +202,9 @@ jobs:
           cat > dist/sdk.js <<'EOF'
           window.__yandexLoadingReady = false;
           window.__yandexGameplayStarted = false;
+          window.__yandexReadyCount = 0;
+          window.__yandexSdkEvents = [];
+          window.__yandexReadySnapshot = null;
           window.YaGames = {
             init: async () => ({
               environment: {
@@ -226,14 +229,25 @@ jobs:
                 LoadingAPI: {
                   ready() {
                     window.__yandexLoadingReady = true;
+                    window.__yandexReadyCount += 1;
+                    window.__yandexSdkEvents.push("ready");
+                    const loader = document.getElementById("loader");
+                    const canvas = document.getElementById("canvas");
+                    window.__yandexReadySnapshot = {
+                      loaderHidden: Boolean(loader?.hidden),
+                      canvasDisplay: canvas ? getComputedStyle(canvas).display : "",
+                      ariaBusy: document.getElementById("app")?.getAttribute("aria-busy") || ""
+                    };
                   }
                 },
                 GameplayAPI: {
                   start() {
                     window.__yandexGameplayStarted = true;
+                    window.__yandexSdkEvents.push("gameplay-start");
                   },
                   stop() {
                     window.__yandexGameplayStarted = false;
+                    window.__yandexSdkEvents.push("gameplay-stop");
                   }
                 }
               },
