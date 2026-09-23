@@ -313,12 +313,11 @@ ui_geometry_patch = r'''
 	if (saveSimulationButton)
 	{
 		EM_ASM({
-			window.__tptSaveButton = {
-				x: $0,
-				y: $1,
-				viewWidth: $2,
-				viewHeight: $3
-			};
+			window.__tptSaveButton = window.__tptSaveButton || {};
+			window.__tptSaveButton.x = $0;
+			window.__tptSaveButton.y = $1;
+			window.__tptSaveButton.viewWidth = $2;
+			window.__tptSaveButton.viewHeight = $3;
 		},
 		saveSimulationButton->Position.X + saveSimulationButton->Size.X / 2,
 		saveSimulationButton->Position.Y + saveSimulationButton->Size.Y / 2,
@@ -331,12 +330,11 @@ ui_geometry_patch = r'''
 		if (button && button->tool && button->tool->Identifier == "DEFAULT_PT_DUST")
 		{
 			EM_ASM({
-				window.__tptDustButton = {
-					x: $0,
-					y: $1,
-					viewWidth: $2,
-					viewHeight: $3
-				};
+				window.__tptDustButton = window.__tptDustButton || {};
+				window.__tptDustButton.x = $0;
+				window.__tptDustButton.y = $1;
+				window.__tptDustButton.viewWidth = $2;
+				window.__tptDustButton.viewHeight = $3;
 			},
 			button->Position.X + button->Size.X / 2,
 			button->Position.Y + button->Size.Y / 2,
