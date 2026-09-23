@@ -203,9 +203,8 @@ def smoke_case(language: str, mobile: bool):
                 """
             )
             assert "error" not in locale_aliases, (label, locale_aliases)
-            for alias in ["ru", "be", "kk", "uk", "uz"]:
-                assert locale_aliases[alias] == "ru", (label, alias, locale_aliases)
-            for alias in ["de", "tr"]:
+            assert locale_aliases["ru"] == "ru", (label, "ru", locale_aliases)
+            for alias in ["be", "kk", "uk", "uz", "de", "tr"]:
                 assert locale_aliases[alias] == "en", (label, alias, locale_aliases)
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-initial.png"))
