@@ -1386,6 +1386,24 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
 	return sim->NUM_PARTS;
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillWaterGravity(int target)
+{
+	if (!YandexWeb_TestGameModel)
+		return -1;
+	auto *sim = YandexWeb_TestGameModel->GetSimulation();
+	sim->clear_sim();
+	YandexWeb_TestGameModel->SetNewtonianGravity(true);
+	target = std::max(0, std::min(target, 30000));
+	for (int y = 40; y < YRES - 40 && sim->NUM_PARTS < target; y += 2)
+	{
+		for (int x = 40; x < XRES - 40 && sim->NUM_PARTS < target; x += 2)
+		{
+			sim->create_part(-1, x, y, PT_WATR);
+		}
+	}
+	return sim->NUM_PARTS;
+}
+
 '''
 if diag_block not in model_text:
     if diag_anchor not in model_text:
