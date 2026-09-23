@@ -1902,6 +1902,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
 	if (!YandexWeb_TestGameModel)
 		return -1;
 	auto *sim = YandexWeb_TestGameModel->GetSimulation();
+	sim->clear_sim();
+	YandexWeb_TestGameModel->SetNewtonianGravity(false);
 	target = std::max(0, std::min(target, 50000));
 	for (int y = 20; y < YRES - 20 && sim->NUM_PARTS < target; y += 2)
 	{
