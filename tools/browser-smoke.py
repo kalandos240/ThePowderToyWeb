@@ -1045,8 +1045,64 @@ def smoke_case(language: str, mobile: bool):
                 driver.save_screenshot(
                     os.path.join(ARTIFACT_DIR, f"{label}-local-browser.png")
                 )
-                driver.execute_script(
-                    "window.__tptGameModule.ccall('YandexWeb_TestCloseFileBrowser', null, [], [])"
+
+                first_save = wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        const m = window.__tptGameModule;
+                        const nativeX = m.ccall(
+                            'YandexWeb_TestFileBrowserFirstX', 'number', [], []
+                        );
+                        const nativeY = m.ccall(
+                            'YandexWeb_TestFileBrowserFirstY', 'number', [], []
+                        );
+                        if (nativeX < 0 || nativeY < 0)
+                            return null;
+                        const canvas = document.getElementById('canvas');
+                        const r = canvas.getBoundingClientRect();
+                        const windowX = m.ccall(
+                            'YandexWeb_TestLogicalToWindowX',
+                            'number',
+                            ['number', 'number'],
+                            [nativeX, nativeY]
+                        );
+                        const windowY = m.ccall(
+                            'YandexWeb_TestLogicalToWindowY',
+                            'number',
+                            ['number', 'number'],
+                            [nativeX, nativeY]
+                        );
+                        const windowWidth = m.ccall(
+                            'YandexWeb_TestWindowWidth', 'number', [], []
+                        );
+                        const windowHeight = m.ccall(
+                            'YandexWeb_TestWindowHeight', 'number', [], []
+                        );
+                        return {
+                            x: r.left + (windowX / windowWidth) * r.width,
+                            y: r.top + (windowY / windowHeight) * r.height,
+                            nativeX,
+                            nativeY,
+                        };
+                        """
+                    )
+                )
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {
+                        "type": "touchStart",
+                        "touchPoints": [{
+                            "x": first_save["x"],
+                            "y": first_save["y"],
+                            "radiusX": 4,
+                            "radiusY": 4,
+                            "force": 1,
+                        }],
+                    },
+                )
+                driver.execute_cdp_cmd(
+                    "Input.dispatchTouchEvent",
+                    {"type": "touchEnd", "touchPoints": []},
                 )
                 wait.until(
                     lambda d: d.execute_script(
@@ -1055,6 +1111,11 @@ def smoke_case(language: str, mobile: bool):
                             'YandexWeb_TestFileBrowserOpen', 'number', [], []
                         ) === 0;
                         """
+                    )
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptMobileTextInputActive === false"
                     )
                 )
 
