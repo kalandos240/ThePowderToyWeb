@@ -848,12 +848,22 @@ def smoke_case(language: str, mobile: bool):
         )
         assert save_open == 1, (label, "native local-save workflow did not open")
 
-        # EN performs the full native local-save path. Desktop sends keyboard
-        # events to the canvas; mobile must use the DOM input bridge that
-        # summons the browser/OS keyboard and feeds Unicode back as SDL events.
-        if language == "en":
+        # EN performs the full native local-save path on desktop and mobile.
+        # RU mobile additionally proves that the DOM/SDL bridge accepts
+        # Cyrillic text, Backspace editing, and a UTF-8 filename end-to-end.
+        full_save_test = language == "en" or (mobile and language == "ru")
+        if full_save_test:
+            save_name = "yandex-ci-save" if language == "en" else "яндекс-тест"
             driver.execute_script(
-                "window.__tptGameModule.ccall('YandexWeb_TestRemoveLocalSaveFile', null, [], [])"
+                """
+                window.__tptGameModule.ccall(
+                    'YandexWeb_TestRemoveLocalSaveFile',
+                    null,
+                    ['string'],
+                    [arguments[0]]
+                )
+                """,
+                save_name,
             )
 
             if mobile:
@@ -885,7 +895,11 @@ def smoke_case(language: str, mobile: bool):
                 assert bridge_state["hidden"] is False, (label, bridge_state)
 
                 mobile_input = driver.find_element(By.ID, "mobile-text-input")
-                mobile_input.send_keys("yandex-ci-save")
+                if language == "ru":
+                    mobile_input.send_keys(save_name + "x")
+                    mobile_input.send_keys(Keys.BACKSPACE)
+                else:
+                    mobile_input.send_keys(save_name)
                 mobile_input.send_keys(Keys.ENTER)
             else:
                 driver.execute_script(
@@ -895,7 +909,7 @@ def smoke_case(language: str, mobile: bool):
                     canvas.focus();
                     """
                 )
-                ActionChains(driver).send_keys("yandex-ci-save").send_keys(Keys.ENTER).perform()
+                ActionChains(driver).send_keys(save_name).send_keys(Keys.ENTER).perform()
 
             wait.until(
                 lambda d: d.execute_script(
@@ -904,11 +918,27 @@ def smoke_case(language: str, mobile: bool):
             )
             wait.until(
                 lambda d: d.execute_script(
-                    "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], []) > 0"
+                    """
+                    return window.__tptGameModule.ccall(
+                        'YandexWeb_TestLocalSaveFileSize',
+                        'number',
+                        ['string'],
+                        [arguments[0]]
+                    ) > 0
+                    """,
+                    save_name,
                 )
             )
             local_save_size = driver.execute_script(
-                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], [])"
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestLocalSaveFileSize',
+                    'number',
+                    ['string'],
+                    [arguments[0]]
+                )
+                """,
+                save_name,
             )
             assert local_save_size > 100, (label, "local CPS file too small", local_save_size)
 
