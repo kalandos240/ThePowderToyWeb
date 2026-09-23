@@ -124,6 +124,22 @@ jobs:
           echo "Uncompressed package size: $SIZE_BYTES bytes"
           test "$SIZE_BYTES" -le 100000000
 
+          python3 - <<'PY'
+          from pathlib import Path
+
+          bad = []
+          for path in Path("dist").rglob("*"):
+              rel = path.relative_to("dist").as_posix()
+              if any(ch.isspace() or ord(ch) > 0x7F for ch in rel):
+                  bad.append(rel)
+
+          if bad:
+              raise SystemExit(
+                  "Yandex archive contains invalid path names: " + ", ".join(bad)
+              )
+          print("Yandex archive path names: ASCII/no-whitespace OK")
+          PY
+
           (
             cd dist
             zip -9 -r ../ThePowderToy-Yandex.zip .
@@ -141,6 +157,15 @@ jobs:
               environment: {
                 i18n: {
                   lang: new URLSearchParams(location.search).get("lang") || "en"
+                }
+              },
+              deviceInfo: {
+                type: new URLSearchParams(location.search).get("device") || "desktop",
+                isMobile() {
+                  return this.type === "mobile";
+                },
+                isTablet() {
+                  return this.type === "tablet";
                 }
               },
               features: {
