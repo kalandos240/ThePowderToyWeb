@@ -327,6 +327,7 @@ function updateOrientationGate() {
     isTouchEnvironment() &&
     window.innerHeight > window.innerWidth
   );
+  const wasBlocked = orientationBlocked;
 
   orientationBlocked = nextBlocked;
   orientationGate.hidden = !orientationBlocked;
@@ -336,6 +337,13 @@ function updateOrientationGate() {
   if (orientationBlocked && document.activeElement === mobileTextInput) {
     mobileTextInput.blur();
     window.__tptMobileTextInputFocused = false;
+  } else if (
+    wasBlocked &&
+    !orientationBlocked &&
+    mobileTextInputActive &&
+    isTouchEnvironment()
+  ) {
+    focusMobileTextInput();
   }
 
   applyRuntimePauseState();
@@ -476,6 +484,7 @@ function scheduleViewportUpdate() {
 
 window.addEventListener("resize", scheduleViewportUpdate, { passive: true });
 window.addEventListener("orientationchange", scheduleViewportUpdate, { passive: true });
+window.addEventListener("pageshow", scheduleViewportUpdate);
 document.addEventListener("fullscreenchange", scheduleViewportUpdate);
 
 let appResizeObserver = null;
