@@ -512,6 +512,8 @@ static int YandexWeb_TestSaveButtonX = -1;
 static int YandexWeb_TestSaveButtonY = -1;
 static int YandexWeb_TestSettingsButtonX = -1;
 static int YandexWeb_TestSettingsButtonY = -1;
+static int YandexWeb_TestOpenButtonX = -1;
+static int YandexWeb_TestOpenButtonY = -1;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiWidth() { return YandexWeb_TestUiWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexWeb_TestUiHeight; }
@@ -521,6 +523,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonX() { return Yand
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonY() { return YandexWeb_TestSaveButtonY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonX() { return YandexWeb_TestSettingsButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonY() { return YandexWeb_TestSettingsButtonY; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetOpenButtonX() { return YandexWeb_TestOpenButtonX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetOpenButtonY() { return YandexWeb_TestOpenButtonY; }
 #endif
 
 '''
@@ -555,6 +559,14 @@ ui_geometry_patch = r'''
 			simulationOptionButton->Position.X + simulationOptionButton->Size.X / 2;
 		YandexWeb_TestSettingsButtonY =
 			simulationOptionButton->Position.Y + simulationOptionButton->Size.Y / 2;
+	}
+
+	if (searchButton)
+	{
+		YandexWeb_TestOpenButtonX =
+			searchButton->Position.X + searchButton->Size.X / 2;
+		YandexWeb_TestOpenButtonY =
+			searchButton->Position.Y + searchButton->Size.Y / 2;
 	}
 
 	YandexWeb_TestDustButtonX = -1;
@@ -1782,6 +1794,154 @@ for old, new in render_replacements:
 render_view_cpp.write_text(render_text, encoding="utf-8")
 
 file_text = file_browser_cpp.read_text(encoding="utf-8")
+if '#include <emscripten.h>' not in file_text:
+    include_anchor = '#include <algorithm>\n'
+    if include_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity emscripten include anchor missing")
+    file_text = file_text.replace(
+        include_anchor,
+        include_anchor + '#if defined(__EMSCRIPTEN__)\n#include <emscripten.h>\n#endif\n',
+        1,
+    )
+if '#include "gui/interface/Engine.h"' not in file_text:
+    engine_include_anchor = '#include "gui/interface/SaveButton.h"\n'
+    if engine_include_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity Engine include anchor missing")
+    file_text = file_text.replace(
+        engine_include_anchor,
+        engine_include_anchor + '#include "gui/interface/Engine.h"\n',
+        1,
+    )
+
+file_browser_diag = r'''
+#if defined(__EMSCRIPTEN__)
+static FileBrowserActivity *YandexWeb_TestFileBrowserActivity = nullptr;
+static int YandexWeb_TestFileBrowserCount = -1;
+static int YandexWeb_TestFileBrowserFirstXValue = -1;
+static int YandexWeb_TestFileBrowserFirstYValue = -1;
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserOpen()
+{
+	return YandexWeb_TestFileBrowserActivity ? 1 : 0;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserFileCount()
+{
+	return YandexWeb_TestFileBrowserCount;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserFirstX()
+{
+	return YandexWeb_TestFileBrowserFirstXValue;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFileBrowserFirstY()
+{
+	return YandexWeb_TestFileBrowserFirstYValue;
+}
+#endif
+
+'''
+file_ctor_anchor = 'FileBrowserActivity::FileBrowserActivity(ByteString directory, OnSelected onSelected_):'
+if 'YandexWeb_TestFileBrowserOpen' not in file_text:
+    if file_ctor_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity constructor anchor missing")
+    file_text = file_text.replace(file_ctor_anchor, file_browser_diag + file_ctor_anchor, 1)
+
+file_ctor_body = '''	totalFiles(0)
+{
+'''
+file_ctor_patch = '''	totalFiles(0)
+{
+#if defined(__EMSCRIPTEN__)
+	YandexWeb_TestFileBrowserActivity = this;
+	YandexWeb_TestFileBrowserCount = -1;
+	YandexWeb_TestFileBrowserFirstXValue = -1;
+	YandexWeb_TestFileBrowserFirstYValue = -1;
+#endif
+'''
+if 'YandexWeb_TestFileBrowserActivity = this;' not in file_text:
+    if file_ctor_body not in file_text:
+        raise SystemExit("FileBrowserActivity constructor body anchor missing")
+    file_text = file_text.replace(file_ctor_body, file_ctor_patch, 1)
+
+focus_search_anchor = '\tFocusComponent(textField);\n'
+focus_search_patch = '''#if defined(__EMSCRIPTEN__)
+\tif (!ui::Engine::Ref().TouchUI)
+\t\tFocusComponent(textField);
+#else
+\tFocusComponent(textField);
+#endif
+'''
+if 'if (!ui::Engine::Ref().TouchUI)' not in file_text:
+    if focus_search_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity search focus anchor missing")
+    file_text = file_text.replace(focus_search_anchor, focus_search_patch, 1)
+
+notify_done_anchor = '''	files = ((LoadFilesTask*)task)->TakeSaveFiles();
+	createButtons = true;
+	totalFiles = files.size();'''
+notify_done_patch = '''	files = ((LoadFilesTask*)task)->TakeSaveFiles();
+	createButtons = true;
+	totalFiles = files.size();
+#if defined(__EMSCRIPTEN__)
+	YandexWeb_TestFileBrowserCount = int(totalFiles);
+#endif'''
+if 'YandexWeb_TestFileBrowserCount = int(totalFiles);' not in file_text:
+    if notify_done_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity NotifyDone anchor missing")
+    file_text = file_text.replace(notify_done_anchor, notify_done_patch, 1)
+
+first_button_anchor = '''\t\t\tsaveButton->SetActionCallback({
+\t\t\t\t[this, i] { SelectSave(i); },
+\t\t\t\t[this, i] { RenameSave(i); },
+\t\t\t\t[this, i] { DeleteSave(i); }
+\t\t\t});
+
+\t\t\tprogressBar->SetStatus("Rendering thumbnails");'''
+first_button_patch = '''\t\t\tsaveButton->SetActionCallback({
+\t\t\t\t[this, i] { SelectSave(i); },
+\t\t\t\t[this, i] { RenameSave(i); },
+\t\t\t\t[this, i] { DeleteSave(i); }
+\t\t\t});
+#if defined(__EMSCRIPTEN__)
+\t\t\tif (i == 0)
+\t\t\t{
+\t\t\t\tYandexWeb_TestFileBrowserFirstXValue =
+\t\t\t\t\tPosition.X + itemList->Position.X + saveButton->Position.X + saveButton->Size.X / 2;
+\t\t\t\tYandexWeb_TestFileBrowserFirstYValue =
+\t\t\t\t\tPosition.Y + itemList->Position.Y + saveButton->Position.Y + saveButton->Size.Y / 2;
+\t\t\t}
+#endif
+
+\t\t\tprogressBar->SetStatus("Rendering thumbnails");'''
+if 'YandexWeb_TestFileBrowserFirstXValue =' not in file_text:
+    if first_button_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity first SaveButton anchor missing")
+    file_text = file_text.replace(first_button_anchor, first_button_patch, 1)
+
+dtor_anchor = '''FileBrowserActivity::~FileBrowserActivity()
+{
+	cleanup();
+}'''
+dtor_patch = '''FileBrowserActivity::~FileBrowserActivity()
+{
+#if defined(__EMSCRIPTEN__)
+	if (YandexWeb_TestFileBrowserActivity == this)
+	{
+		YandexWeb_TestFileBrowserActivity = nullptr;
+		YandexWeb_TestFileBrowserCount = -1;
+		YandexWeb_TestFileBrowserFirstXValue = -1;
+		YandexWeb_TestFileBrowserFirstYValue = -1;
+	}
+#endif
+	cleanup();
+}'''
+if 'YandexWeb_TestFileBrowserActivity == this' not in file_text:
+    if dtor_anchor not in file_text:
+        raise SystemExit("FileBrowserActivity destructor anchor missing")
+    file_text = file_text.replace(dtor_anchor, dtor_patch, 1)
+
 file_replacements = [
     ('ui::Point(Size.X-8, 18), "Save Browser")',
      'ui::Point(Size.X-8, 18), YandexWebText("Save Browser", "Сохранения"))'),
