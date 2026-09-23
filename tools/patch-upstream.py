@@ -1603,6 +1603,11 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestActiveToolIsDust()
 	return tool && tool->Identifier == "DEFAULT_PT_DUST";
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestOpenLocalSave()
+{
+	GameController::Ref().OpenLocalSaveWindow(true);
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
 {
 	if (!YandexWeb_TestGameModel)
