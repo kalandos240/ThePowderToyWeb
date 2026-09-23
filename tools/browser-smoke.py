@@ -980,6 +980,7 @@ def smoke_case(language: str, mobile: bool):
                 const done = arguments[arguments.length - 1];
                 const app = document.getElementById('app');
                 const canvas = document.getElementById('canvas');
+                const before = canvas.getBoundingClientRect();
                 app.style.paddingRight = '28px';
                 app.style.paddingBottom = '24px';
                 requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -1000,6 +1001,8 @@ def smoke_case(language: str, mobile: bool):
                     done({
                         width: r.width,
                         height: r.height,
+                        beforeWidth: before.width,
+                        beforeHeight: before.height,
                         expectedWidth: Math.max(1, Math.floor(logicalWidth * scale)),
                         expectedHeight: Math.max(1, Math.floor(logicalHeight * scale)),
                     });
@@ -1018,7 +1021,17 @@ def smoke_case(language: str, mobile: bool):
                 "const app=document.getElementById('app');"
                 "app.style.paddingRight=''; app.style.paddingBottom='';"
             )
-            time.sleep(0.2)
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const r = document.getElementById('canvas').getBoundingClientRect();
+                    return Math.abs(r.width - arguments[0]) <= 2 &&
+                           Math.abs(r.height - arguments[1]) <= 2;
+                    """,
+                    dynamic_inset["beforeWidth"],
+                    dynamic_inset["beforeHeight"],
+                )
+            )
 
         # Returning through browser history/BFCache must not leave the native
         # Emscripten loop frozen after pagehide -> pageshow.
