@@ -1181,6 +1181,71 @@ browser_controller_text = browser_controller_text.replace(
 local_browser_controller.write_text(browser_controller_text, encoding="utf-8")
 
 engine_text = engine_cpp.read_text(encoding="utf-8")
+
+modal_bridge_helper = r'''
+#if defined(__EMSCRIPTEN__)
+static void YandexWeb_SetNativeModalBlocked(bool blocked)
+{
+	EM_ASM({
+		if (window.__tptNativeModalBridge)
+			window.__tptNativeModalBridge.setBlocked(!!$0);
+	}, blocked ? 1 : 0);
+}
+#endif
+
+'''
+engine_ctor_anchor = 'Engine::Engine():\n'
+if 'YandexWeb_SetNativeModalBlocked' not in engine_text:
+    if engine_ctor_anchor not in engine_text:
+        raise SystemExit("Engine.cpp constructor anchor missing for modal bridge")
+    engine_text = engine_text.replace(
+        engine_ctor_anchor,
+        modal_bridge_helper + engine_ctor_anchor,
+        1
+    )
+
+show_window_anchor = '''	state_ = window;
+	ApplyFpsLimit();
+}'''
+show_window_patch = '''	state_ = window;
+#if defined(__EMSCRIPTEN__)
+	YandexWeb_SetNativeModalBlocked(!windows.empty());
+#endif
+	ApplyFpsLimit();
+}'''
+if 'YandexWeb_SetNativeModalBlocked(!windows.empty());' not in engine_text:
+    if show_window_anchor not in engine_text:
+        raise SystemExit("Engine.cpp ShowWindow modal anchor missing")
+    engine_text = engine_text.replace(show_window_anchor, show_window_patch, 1)
+
+close_window_pop_anchor = '''		ignoreEvents = true;
+		ApplyFpsLimit();
+		return 0;'''
+close_window_pop_patch = '''		ignoreEvents = true;
+#if defined(__EMSCRIPTEN__)
+		YandexWeb_SetNativeModalBlocked(!windows.empty());
+#endif
+		ApplyFpsLimit();
+		return 0;'''
+if engine_text.count('YandexWeb_SetNativeModalBlocked(!windows.empty());') < 2:
+    if close_window_pop_anchor not in engine_text:
+        raise SystemExit("Engine.cpp CloseWindow pop modal anchor missing")
+    engine_text = engine_text.replace(close_window_pop_anchor, close_window_pop_patch, 1)
+
+close_window_root_anchor = '''		state_ = nullptr;
+		ApplyFpsLimit();
+		return 1;'''
+close_window_root_patch = '''		state_ = nullptr;
+#if defined(__EMSCRIPTEN__)
+		YandexWeb_SetNativeModalBlocked(false);
+#endif
+		ApplyFpsLimit();
+		return 1;'''
+if 'YandexWeb_SetNativeModalBlocked(false);' not in engine_text:
+    if close_window_root_anchor not in engine_text:
+        raise SystemExit("Engine.cpp CloseWindow root modal anchor missing")
+    engine_text = engine_text.replace(close_window_root_anchor, close_window_root_patch, 1)
+
 engine_text = engine_text.replace(
     'new ConfirmPrompt("You are about to quit", "Are you sure you want to exit the game?", { [] {',
     'new ConfirmPrompt(YandexWebText("You are about to quit", "Выход из игры"), YandexWebText("Are you sure you want to exit the game?", "Вы уверены, что хотите выйти из игры?"), { [] {'
