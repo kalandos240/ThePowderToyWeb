@@ -793,14 +793,101 @@ def smoke_case(language: str, mobile: bool):
             "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], [])"
         )
         assert save_open == 1, (label, f"real Save button did not open LocalSaveActivity: {save_button}")
-        driver.execute_script(
-            "window.__tptGameModule.ccall('YandexWeb_TestCloseLocalSave', null, [], [])"
-        )
-        wait.until(
-            lambda d: d.execute_script(
-                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+
+        if not mobile and language == "en":
+            save_name = "ui-smoke"
+            time.sleep(0.25)
+            driver.execute_cdp_cmd("Input.insertText", {"text": save_name})
+            time.sleep(0.15)
+            driver.save_screenshot(
+                os.path.join(ARTIFACT_DIR, f"{label}-save-name-entered.png")
             )
-        )
+
+            modal_geometry = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                const logicalX = ((canvas.width - 220) / 2) + 182;
+                const logicalY = ((canvas.height - 200) / 2) + 192;
+                return {
+                    width: r.width,
+                    height: r.height,
+                    logicalWidth: canvas.width,
+                    logicalHeight: canvas.height,
+                    xRatio: logicalX / canvas.width,
+                    yRatio: logicalY / canvas.height,
+                };
+                """
+            )
+            canvas_element = driver.find_element(By.ID, "canvas")
+            modal_save_offset_x = int(
+                modal_geometry["width"] * (modal_geometry["xRatio"] - 0.50)
+            )
+            modal_save_offset_y = int(
+                modal_geometry["height"] * (modal_geometry["yRatio"] - 0.50)
+            )
+            (
+                ActionChains(driver)
+                .move_to_element_with_offset(
+                    canvas_element,
+                    modal_save_offset_x,
+                    modal_save_offset_y,
+                )
+                .click()
+                .perform()
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+                )
+            )
+            file_exists = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestLocalSaveFileExists', 'number', ['string'], [arguments[0]])",
+                save_name,
+            )
+            assert file_exists == 1, (label, "UI save did not create Saves/ui-smoke.cps")
+
+            # Flush the same IDBFS mount, reload the page, and prove the real
+            # .cps created through the UI survives.
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestStorageWrite', null, [], [])"
+            )
+            wait.until(
+                lambda d: d.execute_script("return window.__tptStorageFlushed === true")
+            )
+            driver.refresh()
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    return Boolean(
+                        canvas &&
+                        canvas.style.display === 'block' &&
+                        window.__tptGameModule &&
+                        window.__yandexLoadingReady === true
+                    );
+                    """
+                )
+            )
+            persisted_ui_save = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestLocalSaveFileExists', 'number', ['string'], [arguments[0]])",
+                save_name,
+            )
+            assert persisted_ui_save == 1, (
+                label,
+                "real UI-created .cps did not survive reload",
+            )
+        else:
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestCloseLocalSave', null, [], [])"
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+                )
+            )
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
