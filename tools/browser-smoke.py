@@ -997,47 +997,44 @@ def smoke_case(language: str, mobile: bool):
         if mobile:
             # Simulate a platform-controlled safe-area/banner inset changing
             # without window.resize. ResizeObserver must refit the canvas.
-            dynamic_inset = driver.execute_async_script(
+            dynamic_inset = driver.execute_script(
                 """
-                const done = arguments[arguments.length - 1];
                 const app = document.getElementById('app');
                 const canvas = document.getElementById('canvas');
                 const before = canvas.getBoundingClientRect();
                 app.style.paddingRight = '28px';
                 app.style.paddingBottom = '24px';
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    const style = getComputedStyle(app);
-                    const horizontalPadding =
-                        parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-                    const verticalPadding =
-                        parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-                    const availableWidth = app.clientWidth - horizontalPadding;
-                    const availableHeight = app.clientHeight - verticalPadding;
-                    const logicalWidth = canvas.width;
-                    const logicalHeight = canvas.height;
-                    const scale = Math.min(
-                        availableWidth / logicalWidth,
-                        availableHeight / logicalHeight
-                    );
-                    const r = canvas.getBoundingClientRect();
-                    done({
-                        width: r.width,
-                        height: r.height,
-                        beforeWidth: before.width,
-                        beforeHeight: before.height,
-                        expectedWidth: Math.max(1, Math.floor(logicalWidth * scale)),
-                        expectedHeight: Math.max(1, Math.floor(logicalHeight * scale)),
-                    });
-                }));
+                const style = getComputedStyle(app);
+                const horizontalPadding =
+                    parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+                const verticalPadding =
+                    parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+                const availableWidth = app.clientWidth - horizontalPadding;
+                const availableHeight = app.clientHeight - verticalPadding;
+                const logicalWidth = canvas.width;
+                const logicalHeight = canvas.height;
+                const scale = Math.min(
+                    availableWidth / logicalWidth,
+                    availableHeight / logicalHeight
+                );
+                return {
+                    beforeWidth: before.width,
+                    beforeHeight: before.height,
+                    expectedWidth: Math.max(1, Math.floor(logicalWidth * scale)),
+                    expectedHeight: Math.max(1, Math.floor(logicalHeight * scale)),
+                };
                 """
             )
-            assert abs(dynamic_inset["width"] - dynamic_inset["expectedWidth"]) <= 2, (
-                label,
-                dynamic_inset,
-            )
-            assert abs(dynamic_inset["height"] - dynamic_inset["expectedHeight"]) <= 2, (
-                label,
-                dynamic_inset,
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const r = document.getElementById('canvas').getBoundingClientRect();
+                    return Math.abs(r.width - arguments[0]) <= 2 &&
+                           Math.abs(r.height - arguments[1]) <= 2;
+                    """,
+                    dynamic_inset["expectedWidth"],
+                    dynamic_inset["expectedHeight"],
+                )
             )
             driver.execute_script(
                 "const app=document.getElementById('app');"
