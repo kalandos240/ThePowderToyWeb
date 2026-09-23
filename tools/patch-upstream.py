@@ -33,6 +33,9 @@ error_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMess
 text_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "TextPrompt.cpp"
 information_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "InformationMessage.cpp"
 credits_cpp = root / "upstream" / "src" / "gui" / "credits" / "Credits.cpp"
+gol_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "GOLTool.cpp"
+task_window_cpp = root / "upstream" / "src" / "tasks" / "TaskWindow.cpp"
+client_cpp = root / "upstream" / "src" / "client" / "Client.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 
@@ -287,6 +290,9 @@ include_locale(error_message_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(text_prompt_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(information_message_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(credits_cpp, '#include "gui/interface/Separator.h"\n')
+include_locale(gol_tool_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(task_window_cpp, '#include "graphics/Graphics.h"\n')
+include_locale(client_cpp, '#include "Config.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
 game_replacements = [
@@ -380,6 +386,68 @@ if filt_anchor in game_view_text:
     game_view_text = game_view_text.replace(filt_anchor, filt_patch, 1)
 
 game_view.write_text(game_view_text, encoding="utf-8")
+
+# Remaining reachable local-only gameplay dialogs.
+game_view_text = game_view.read_text(encoding="utf-8")
+game_dialog_replacements = [
+    (
+        'new ErrorMessage("Error loading save", "Dropped file is not a TPT save file (.cps or .stm format)");',
+        'new ErrorMessage(YandexWebText("Error loading save", "Ошибка загрузки"), YandexWebText("Dropped file is not a TPT save file (.cps or .stm format)", "Перетащенный файл не является сохранением TPT (.cps или .stm)"));'
+    ),
+    (
+        'new ErrorMessage("Error loading stamp", "Dropped stamp could not be loaded: " + saveFile->GetError());',
+        'new ErrorMessage(YandexWebText("Error loading stamp", "Ошибка загрузки штампа"), YandexWebText("Dropped stamp could not be loaded: ", "Не удалось загрузить перетащенный штамп: ") + saveFile->GetError());'
+    ),
+    (
+        'new ConfirmPrompt("Remove custom GOL type", "Are you sure you want to remove " + identifier.Substr(20).FromUtf8() + "?",',
+        'new ConfirmPrompt(YandexWebText("Remove custom GOL type", "Удалить пользовательский тип «Жизни»"), YandexWebText("Are you sure you want to remove ", "Удалить тип ") + identifier.Substr(20).FromUtf8() + "?",'
+    ),
+]
+for old, new in game_dialog_replacements:
+    if old in game_view_text:
+        game_view_text = game_view_text.replace(old, new)
+game_view.write_text(game_view_text, encoding="utf-8")
+
+gol_text = gol_tool_cpp.read_text(encoding="utf-8")
+gol_replacements = [
+    ('"Edit custom GOL type"', 'YandexWebText("Edit custom GOL type", "Пользовательский тип «Жизни»")'),
+    ('"[name]"', 'YandexWebText("[name]", "[имя]")'),
+    ('"[rule]"', 'YandexWebText("[rule]", "[правило]")'),
+    ('new ErrorMessage("Could not add GOL type", "Invalid name provided");',
+     'new ErrorMessage(YandexWebText("Could not add GOL type", "Не удалось добавить тип"), YandexWebText("Invalid name provided", "Недопустимое имя"));'),
+    ('new ErrorMessage("Could not add GOL type", "Invalid rule provided");',
+     'new ErrorMessage(YandexWebText("Could not add GOL type", "Не удалось добавить тип"), YandexWebText("Invalid rule provided", "Недопустимое правило"));'),
+    ('new ErrorMessage("Could not add GOL type", "This Custom GoL rule already exists");',
+     'new ErrorMessage(YandexWebText("Could not add GOL type", "Не удалось добавить тип"), YandexWebText("This Custom GoL rule already exists", "Такое пользовательское правило уже существует"));'),
+    ('new ErrorMessage("Could not add GOL type", "Name already taken");',
+     'new ErrorMessage(YandexWebText("Could not add GOL type", "Не удалось добавить тип"), YandexWebText("Name already taken", "Это имя уже занято"));'),
+]
+for old, new in gol_replacements:
+    if old in gol_text:
+        gol_text = gol_text.replace(old, new)
+gol_tool_cpp.write_text(gol_text, encoding="utf-8")
+
+task_window_text = task_window_cpp.read_text(encoding="utf-8")
+task_window_text = task_window_text.replace(
+    'new ErrorMessage("Error", task->GetError());',
+    'new ErrorMessage(YandexWebText("Error", "Ошибка"), task->GetError());'
+)
+task_window_text = task_window_text.replace(
+    'progressStatus = "Please wait...";',
+    'progressStatus = YandexWebText("Please wait...", "Подождите...");'
+)
+task_window_cpp.write_text(task_window_text, encoding="utf-8")
+
+client_text = client_cpp.read_text(encoding="utf-8")
+client_text = client_text.replace(
+    'new ErrorMessage("Error renaming stamp", "A stamp with this name already exists.");',
+    'new ErrorMessage(YandexWebText("Error renaming stamp", "Ошибка переименования штампа"), YandexWebText("A stamp with this name already exists.", "Штамп с таким именем уже существует."));'
+)
+client_text = client_text.replace(
+    'new ErrorMessage("Error renaming stamp", "Could not rename the stamp.");',
+    'new ErrorMessage(YandexWebText("Error renaming stamp", "Ошибка переименования штампа"), YandexWebText("Could not rename the stamp.", "Не удалось переименовать штамп."));'
+)
+client_cpp.write_text(client_text, encoding="utf-8")
 
 browser_text = local_browser.read_text(encoding="utf-8")
 browser_replacements = [
