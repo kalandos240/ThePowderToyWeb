@@ -187,6 +187,40 @@ EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestStorageRead()
 		}
 	});
 }
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestStorageFlush()
+{
+	EM_ASM({
+		window.__tptStorageFlushed = false;
+		window.__tptStorageFlushError = '';
+		FS.syncfs(false, err => {
+			window.__tptStorageFlushError = err ? String(err) : '';
+			window.__tptStorageFlushed = !err;
+		});
+	});
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestLocalSaveFileSize()
+{
+	return EM_ASM_INT({
+		try {
+			return FS.stat('/powder/Saves/yandex-ci-save.cps').size | 0;
+		} catch (e) {
+			return -1;
+		}
+	});
+}
+
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestRemoveLocalSaveFile()
+{
+	EM_ASM({
+		try {
+			FS.unlink('/powder/Saves/yandex-ci-save.cps');
+		} catch (e) {
+			// Missing file is the expected clean-start state.
+		}
+	});
+}
 '''
 
 if "YandexWeb_PauseMainLoop" not in sdl_text:
