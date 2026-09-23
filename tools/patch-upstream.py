@@ -348,6 +348,18 @@ for old, new in hud_replacements:
     if old in game_view_text:
         game_view_text = game_view_text.replace(old, new)
 
+hud_state_replacements = [
+    ('fpsInfo << " [REPLACE MODE]";', 'fpsInfo << YandexWebText(" [REPLACE MODE]", " [РЕЖИМ ЗАМЕНЫ]");'),
+    ('fpsInfo << " [SPECIFIC DELETE]";', 'fpsInfo << YandexWebText(" [SPECIFIC DELETE]", " [ТОЧЕЧНОЕ УДАЛЕНИЕ]");'),
+    ('fpsInfo << " [GRID: " <<', 'fpsInfo << YandexWebText(" [GRID: ", " [СЕТКА: ") <<'),
+    ('fpsInfo << " [FIND]";', 'fpsInfo << YandexWebText(" [FIND]", " [ПОИСК]");'),
+    ('description += " (Use ctrl+shift+click to toggle the favorite status of an element)";',
+     'description += YandexWebText(" (Use ctrl+shift+click to toggle the favorite status of an element)", " (Ctrl+Shift+клик — добавить или убрать элемент из избранного)");'),
+]
+for old, new in hud_state_replacements:
+    if old in game_view_text:
+        game_view_text = game_view_text.replace(old, new)
+
 filt_anchor = 'String filtModes[] = {"set colour", "AND", "OR", "AND-NOT", "red shift", "blue shift", "no effect", "XOR", "NOT", "old QRTZ scattering", "variable red shift", "variable blue shift"};'
 filt_patch = '''String filtModes[] = {
 						YandexWebText("set colour", "задать цвет"),
