@@ -19,6 +19,7 @@ This file is for the developer/release process only. It is not included in the g
 - `game_api_pause/game_api_resume` pause and resume the native Emscripten main loop.
 - Mobile portrait mode is blocked with a localized rotate-device prompt; simulation/gameplay are paused while blocked.
 - Desktop and mobile viewport changes, orientation changes, visualViewport changes, and fullscreen changes refit the canvas.
+- Safe-area content-box sizing subtracts CSS padding before scaling the canvas; repeated mobile viewport/fullscreen tests verify that the canvas never overflows the usable app area.
 - Browser scrolling, text selection, long-press selection, and the canvas context menu are disabled by the web shell.
 - Local progress uses Emscripten IDBFS/IndexedDB and is flushed during the game loop and before platform pause.
 - The Yandex build is pthread-free and does not require SharedArrayBuffer/cross-origin isolation.
@@ -43,6 +44,7 @@ The build workflow currently checks:
 - IndexedDB/IDBFS persistence across page reload.
 - Browser smoke screenshots.
 - Desktop/mobile frame-time telemetry on an approximately 20,000-particle stress scene.
+- Current 20k-particle CI baseline: median 16.7 ms / ~59.88 FPS, p95 16.7 ms on both desktop and mobile emulation.
 
 ## Monetization
 
