@@ -82,8 +82,10 @@ let platformPauseRequested = document.hidden;
 let orientationPauseRequested = false;
 let runtimePaused = false;
 let orientationBlocked = false;
+let sdkMobilePlatform = null;
 window.__tptRuntimePaused = false;
 window.__tptOrientationBlocked = false;
+window.__tptSdkMobilePlatform = null;
 
 function setStatus(message) {
   status.textContent = message;
@@ -94,6 +96,33 @@ function isTouchEnvironment() {
     navigator.maxTouchPoints > 0 ||
     window.matchMedia?.("(pointer: coarse)")?.matches
   );
+}
+
+function applyPlatformDevice(currentSDK) {
+  const deviceInfo = currentSDK?.deviceInfo;
+  let mobilePlatform = null;
+
+  try {
+    if (typeof deviceInfo?.type === "string") {
+      const type = deviceInfo.type.toLowerCase();
+      mobilePlatform = type === "mobile" || type === "tablet";
+    } else if (deviceInfo) {
+      const mobile =
+        typeof deviceInfo.isMobile === "function" && deviceInfo.isMobile();
+      const tablet =
+        typeof deviceInfo.isTablet === "function" && deviceInfo.isTablet();
+      mobilePlatform = Boolean(mobile || tablet);
+    }
+  } catch (error) {
+    console.warn("[TPT] Could not read Yandex deviceInfo.", error);
+  }
+
+  sdkMobilePlatform = mobilePlatform;
+  window.__tptSdkMobilePlatform = sdkMobilePlatform;
+}
+
+function isMobilePlatform() {
+  return sdkMobilePlatform ?? isTouchEnvironment();
 }
 
 let mobileTextInputActive = false;
@@ -324,7 +353,7 @@ mobileTextInput.addEventListener("contextmenu", (event) => {
 function updateOrientationGate() {
   const nextBlocked = Boolean(
     presentable &&
-    isTouchEnvironment() &&
+    isMobilePlatform() &&
     window.innerHeight > window.innerWidth
   );
   const wasBlocked = orientationBlocked;
@@ -537,6 +566,7 @@ async function boot() {
     initYandexSDK(),
     loadScript("./game/powder.js")
   ]);
+  applyPlatformDevice(currentSDK);
   applyPlatformLanguage(currentSDK);
 
   setStatus(message("engine"));
