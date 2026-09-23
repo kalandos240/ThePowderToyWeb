@@ -300,26 +300,28 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestStorageFlush()
 	});
 }
 
-EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestLocalSaveFileSize()
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestLocalSaveFileSize(const char *filename)
 {
 	return EM_ASM_INT({
 		try {
-			return FS.stat('/powder/Saves/yandex-ci-save.cps').size | 0;
+			const filename = UTF8ToString($0);
+			return FS.stat('/powder/Saves/' + filename + '.cps').size | 0;
 		} catch (e) {
 			return -1;
 		}
-	});
+	}, filename);
 }
 
-EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestRemoveLocalSaveFile()
+EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestRemoveLocalSaveFile(const char *filename)
 {
 	EM_ASM({
 		try {
-			FS.unlink('/powder/Saves/yandex-ci-save.cps');
+			const filename = UTF8ToString($0);
+			FS.unlink('/powder/Saves/' + filename + '.cps');
 		} catch (e) {
 			// Missing file is the expected clean-start state.
 		}
-	});
+	}, filename);
 }
 '''
 
