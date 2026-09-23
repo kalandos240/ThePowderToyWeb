@@ -167,6 +167,5 @@ export function getYandexLanguage(currentSDK = sdk) {
     "en";
 
   const normalized = String(language).toLowerCase().split("-")[0];
-  const russianLocaleGroup = new Set(["ru", "be", "kk", "uk", "uz"]);
-  return russianLocaleGroup.has(normalized) ? "ru" : "en";
+  return normalized === "ru" ? "ru" : "en";
 }
