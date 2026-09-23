@@ -42,15 +42,16 @@ def measure_animation_frames(driver, sample_count=90):
     )
 
 
-def record_performance_metric(driver, label):
-    target_particles = 20000
+def record_performance_metric(driver, label, scene, hook, target_particles):
     actual_particles = driver.execute_script(
         "return window.__tptGameModule.ccall("
-        "'YandexWeb_TestFillDust', 'number', ['number'], [arguments[0]])",
+        "arguments[0], 'number', ['number'], [arguments[1]])",
+        hook,
         target_particles,
     )
     assert actual_particles >= target_particles, (
         label,
+        scene,
         f"stress scene did not reach target particles: {actual_particles}",
     )
 
@@ -64,6 +65,7 @@ def record_performance_metric(driver, label):
 
     metric = {
         "label": label,
+        "scene": scene,
         "particles": int(actual_particles),
         "samples": len(samples),
         "average_frame_ms": round(average_ms, 3),
@@ -866,7 +868,22 @@ def smoke_case(language: str, mobile: bool):
 
         performance = None
         if language == "en":
-            performance = record_performance_metric(driver, label)
+            performance = [
+                record_performance_metric(
+                    driver,
+                    label,
+                    "dust-20k",
+                    "YandexWeb_TestFillDust",
+                    20000,
+                ),
+                record_performance_metric(
+                    driver,
+                    label,
+                    "water-gravity-12k",
+                    "YandexWeb_TestFillWaterGravity",
+                    12000,
+                ),
+            ]
 
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
