@@ -1079,6 +1079,23 @@ def smoke_case(language: str, mobile: bool):
                     )
                 )
 
+                saved_particle_count = driver.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+                )
+                assert saved_particle_count > 0, (
+                    label,
+                    "saved simulation unexpectedly contains no particles",
+                    saved_particle_count,
+                )
+                driver.execute_script(
+                    "window.__tptGameModule.ccall('YandexWeb_TestClearSimulation', null, [], [])"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], []) === 0"
+                    )
+                )
+
                 # Use the actual bottom-left Open button, not a direct native
                 # test hook, to prove touch navigation reaches local saves.
                 open_button = driver.execute_script(
@@ -1258,6 +1275,22 @@ def smoke_case(language: str, mobile: bool):
                     lambda d: d.execute_script(
                         "return window.__tptMobileTextInputActive === false"
                     )
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], []) > 0"
+                    )
+                )
+                reopened_particle_count = driver.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
+                )
+                assert reopened_particle_count > 0, (
+                    label,
+                    "local save selection closed the browser but did not restore the simulation",
+                    {
+                        "saved": saved_particle_count,
+                        "reopened": reopened_particle_count,
+                    },
                 )
 
             driver.execute_script(
