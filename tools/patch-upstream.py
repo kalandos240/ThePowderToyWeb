@@ -1039,16 +1039,17 @@ options_text = options_text.replace(
     'void OptionsView::UpdateStartupRequestStatus()\n{',
     'void OptionsView::UpdateStartupRequestStatus()\n{\n\tif constexpr (NOHTTP)\n\t\treturn;'
 )
-threaded_rendering_anchor = '''\tthreadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+threaded_rendering_anchor = '''\tthreadedRendering = addCheckbox(0, YandexWebText("Separate rendering thread", "Отдельный поток рендера"), YandexWebText("May increase framerate when fancy effects are in use", "Может повысить FPS с графическими эффектами"), [this] {
 \t\tc->SetThreadedRendering(threadedRendering->GetChecked());
 \t});'''
 threaded_rendering_patch = '''#if !defined(__EMSCRIPTEN__)
-\tthreadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+\tthreadedRendering = addCheckbox(0, YandexWebText("Separate rendering thread", "Отдельный поток рендера"), YandexWebText("May increase framerate when fancy effects are in use", "Может повысить FPS с графическими эффектами"), [this] {
 \t\tc->SetThreadedRendering(threadedRendering->GetChecked());
 \t});
 #endif'''
-if threaded_rendering_anchor in options_text:
-    options_text = options_text.replace(threaded_rendering_anchor, threaded_rendering_patch, 1)
+if threaded_rendering_anchor not in options_text:
+    raise SystemExit("OptionsView localized threaded-rendering anchor missing")
+options_text = options_text.replace(threaded_rendering_anchor, threaded_rendering_patch, 1)
 
 options_text = options_text.replace(
     '\tshowAvatars->SetChecked(sender->GetShowAvatars());',
