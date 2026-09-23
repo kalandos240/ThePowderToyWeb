@@ -220,6 +220,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload browser console logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThePowderToy-Browser-Console
+          path: test-artifacts/*-browser-console.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload browser performance report
         if: always()
         uses: actions/upload-artifact@v4
