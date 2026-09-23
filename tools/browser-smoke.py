@@ -971,6 +971,21 @@ def smoke_case(language: str, mobile: bool):
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
+        # Returning through browser history/BFCache must not leave the native
+        # Emscripten loop frozen after pagehide -> pageshow.
+        driver.execute_script(
+            "window.dispatchEvent(new PageTransitionEvent('pagehide', {persisted: true}))"
+        )
+        wait.until(
+            lambda d: d.execute_script("return window.__tptRuntimePaused === true")
+        )
+        driver.execute_script(
+            "window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}))"
+        )
+        wait.until(
+            lambda d: d.execute_script("return window.__tptRuntimePaused === false")
+        )
+
         # Yandex platform pause/resume must stop and restart the native loop.
         driver.execute_script("window.ysdk.emit('game_api_pause')")
         wait.until(lambda d: d.execute_script("return window.__tptRuntimePaused === true"))
