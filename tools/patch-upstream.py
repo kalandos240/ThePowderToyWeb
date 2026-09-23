@@ -9,6 +9,7 @@ game_view = root / "upstream" / "src" / "gui" / "game" / "GameView.cpp"
 local_browser = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserView.cpp"
 local_save = root / "upstream" / "src" / "gui" / "save" / "LocalSaveActivity.cpp"
 options_view = root / "upstream" / "src" / "gui" / "options" / "OptionsView.cpp"
+options_view_h = root / "upstream" / "src" / "gui" / "options" / "OptionsView.h"
 simulation_data = root / "upstream" / "src" / "simulation" / "SimulationData.cpp"
 local_browser_controller = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserController.cpp"
 engine_cpp = root / "upstream" / "src" / "gui" / "interface" / "Engine.cpp"
@@ -537,6 +538,27 @@ for old, new in save_replacements:
 local_save.write_text(save_text, encoding="utf-8")
 
 options_text = options_view.read_text(encoding="utf-8")
+if '#include <emscripten.h>' not in options_text:
+    options_text = options_text.replace('#include <SDL.h>\n', '#include <SDL.h>\n#include <emscripten.h>\n', 1)
+
+options_diag = r'''static OptionsView *YandexWeb_TestOptionsView = nullptr;
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestOptionsOpen()
+{
+	return YandexWeb_TestOptionsView ? 1 : 0;
+}
+
+'''
+options_ctor_anchor = 'OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))\n{'
+options_ctor_patch = '''OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1), ui::Point(320, 340))
+{
+	YandexWeb_TestOptionsView = this;'''
+if options_diag not in options_text:
+    if options_ctor_anchor not in options_text:
+        raise SystemExit("OptionsView constructor anchor missing")
+    options_text = options_text.replace(options_ctor_anchor, options_ctor_patch, 1)
+    options_text = options_diag + options_text
+
 options_replacements = [
     ('"Settings"', 'YandexWebText("Settings", "Настройки")'),
     ('"Preview"', 'YandexWebText("Preview", "Предпросмотр")'),
