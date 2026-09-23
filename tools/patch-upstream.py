@@ -620,11 +620,11 @@ game_replacements = [
     ('"Decoration Presets."',
      'YandexWebText("Decoration presets", "Наборы цветов")'),
     ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to create a stamp (right click = cancel)";',
-     'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area for a stamp (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для штампа (правый клик — отмена)");'),
+     'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area for a stamp (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для штампа (правый клик - отмена)");'),
     ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to copy (right click = cancel)";',
-     'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area to copy (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для копирования (правый клик — отмена)");'),
+     'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area to copy (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для копирования (правый клик - отмена)");'),
     ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to copy then cut (right click = cancel)";',
-     'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area to cut (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для вырезания (правый клик — отмена)");'),
+     'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area to cut (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для вырезания (правый клик - отмена)");'),
     ('tooltip << "Go to save ID:" << str.Substr(3, si.first - 3);',
      'tooltip << YandexWebText("Online save links are unavailable in this build", "Онлайн-сохранения недоступны в этой версии");'),
     ('tooltip << "Open forum thread " << str.Substr(3, si.first - 3) << " in browser";',
@@ -674,7 +674,7 @@ hud_state_replacements = [
     ('fpsInfo << " [GRID: " <<', 'fpsInfo << YandexWebText(" [GRID: ", " [СЕТКА: ") <<'),
     ('fpsInfo << " [FIND]";', 'fpsInfo << YandexWebText(" [FIND]", " [ПОИСК]");'),
     ('description += " (Use ctrl+shift+click to toggle the favorite status of an element)";',
-     'description += YandexWebText(" (Use ctrl+shift+click to toggle the favorite status of an element)", " (Ctrl+Shift+клик — добавить или убрать элемент из избранного)");'),
+     'description += YandexWebText(" (Use ctrl+shift+click to toggle the favorite status of an element)", " (Ctrl+Shift+клик - добавить или убрать элемент из избранного)");'),
 ]
 for old, new in hud_state_replacements:
     if old in game_view_text:
@@ -1387,10 +1387,10 @@ intro_source = intro_source[:intro_start] + r'''inline ByteString IntroText()
 		      "Рисуйте мышью на ПК или касанием на мобильном устройстве.\\n"
 		      "Колесо мыши или клавиши \\bo[\\bg и \\bo]\\bg меняют размер инструмента. \\boTab\\bg меняет форму кисти.\\n"
 		      "\\boСредняя кнопка мыши\\bg или \\boAlt+клик\\bg выбирает элемент с поля.\\n"
-		      "\\boCtrl+C/V/X\\bg — копировать, вставить и вырезать.\\n"
-		      "\\boShift+перетаскивание\\bg рисует прямую линию, \\boCtrl+перетаскивание\\bg — заполненный прямоугольник.\\n"
-		      "\\boПробел\\bg ставит физику на паузу. \\boF\\bg — один кадр, \\boF5\\bg — перезапуск симуляции.\\n"
-		      "\\boCtrl+Z\\bg — отмена, \\boCtrl+Y\\bg или \\boCtrl+Shift+Z\\bg — повтор.\\n"
+		      "\\boCtrl+C/V/X\\bg - копировать, вставить и вырезать.\\n"
+		      "\\boShift+перетаскивание\\bg рисует прямую линию, \\boCtrl+перетаскивание\\bg - заполненный прямоугольник.\\n"
+		      "\\boПробел\\bg ставит физику на паузу. \\boF\\bg - один кадр, \\boF5\\bg - перезапуск симуляции.\\n"
+		      "\\boCtrl+Z\\bg - отмена, \\boCtrl+Y\\bg или \\boCtrl+Shift+Z\\bg - повтор.\\n"
 		      "Сохранения хранятся локально в браузере.\\n"
 		      "\\n";
 	}
@@ -1511,7 +1511,7 @@ element_patch = """	elements = GetElements();
 			setRu("DEFAULT_PT_SPNG", "Губка. Поглощает воду и не является подвижным твёрдым телом.");
 			setRu("DEFAULT_PT_SALT", "Соль. Растворяется в воде.");
 			setRu("DEFAULT_PT_CLST", "Глиняная пыль. При смешивании с водой образует пасту.");
-			setRu("DEFAULT_PT_CO2", "Углекислый газ. Тяжёлый газ, опускается вниз, насыщает воду CO₂ и при охлаждении превращается в сухой лёд.");
+			setRu("DEFAULT_PT_CO2", "Углекислый газ. Тяжёлый газ, опускается вниз, насыщает воду CO2 и при охлаждении превращается в сухой лёд.");
 			setRu("DEFAULT_PT_O2", "Кислород. Газ, легко поддерживающий горение.");
 			setRu("DEFAULT_PT_H2", "Водород. Горит с кислородом, образуя воду; при высокой температуре и давлении участвует в синтезе.");
 			setRu("DEFAULT_PT_NBLE", "Благородный газ. При искре ионизируется в плазму и быстро рассеивается.");
@@ -1568,13 +1568,13 @@ element_patch = """	elements = GetElements();
 			setRu("DEFAULT_PT_BREC", "Сломанная электроника. Возникает после EMP-взрывов; при искрах под давлением может превратиться в EXOT.");
 			setRu("DEFAULT_PT_BRMT", "Разрушенный металл. Возникает при ржавлении железа или разрушении металлов давлением.");
 			setRu("DEFAULT_PT_C5", "Холодная взрывчатка. Детонирует от контакта с очень холодными веществами.");
-			setRu("DEFAULT_PT_CBNW", "Газированная вода. Медленно выделяет CO₂.");
+			setRu("DEFAULT_PT_CBNW", "Газированная вода. Медленно выделяет CO2.");
 			setRu("DEFAULT_PT_CFLM", "Сверххолодное пламя.");
 			setRu("DEFAULT_PT_CNCT", "Бетон. Может укладываться на себя или ROCK и разрушается под давлением.");
 			setRu("DEFAULT_PT_COAL", "Уголь. Очень медленно горит и краснеет при нагреве.");
 			setRu("DEFAULT_PT_CRMC", "Керамика. Становится прочнее под давлением.");
 			setRu("DEFAULT_PT_DMG", "Создаёт разрушительное давление и ломает элементы, в которые попадает.");
-			setRu("DEFAULT_PT_DRIC", "Сухой лёд. Образуется при охлаждении CO₂.");
+			setRu("DEFAULT_PT_DRIC", "Сухой лёд. Образуется при охлаждении CO2.");
 			setRu("DEFAULT_PT_DYST", "Мёртвые дрожжи.");
 			setRu("DEFAULT_PT_E116", "Неудачный эксперимент с общей скоростью частиц.");
 			setRu("DEFAULT_PT_EMP", "Электромагнитный импульс. Повреждает активированную электронику.");
@@ -1592,8 +1592,8 @@ element_patch = """	elements = GetElements();
 			setRu("DEFAULT_PT_ISZS", "Твёрдая форма ISOZ. Медленно распадается на фотоны.");
 			setRu("DEFAULT_PT_LIFE", "Игра Жизнь. Классическое правило B3/S23 и другие клеточные автоматы.");
 			setRu("DEFAULT_PT_LITH", "Литий. Реактивный элемент, взрывается при контакте с водой.");
-			setRu("DEFAULT_PT_LOLZ", "LOLZ — декоративный элемент.");
-			setRu("DEFAULT_PT_LOVE", "LOVE — декоративный элемент.");
+			setRu("DEFAULT_PT_LOLZ", "LOLZ - декоративный элемент.");
+			setRu("DEFAULT_PT_LOVE", "LOVE - декоративный элемент.");
 			setRu("DEFAULT_PT_LRBD", "Жидкий рубидий.");
 			setRu("DEFAULT_PT_MORT", "Паровоз.");
 			setRu("DEFAULT_PT_MWAX", "Жидкий воск. Затвердевает в WAX примерно при 45 °C.");
@@ -1660,15 +1660,15 @@ intro_replacement = r'''inline ByteString IntroText()
 		      "Рисуйте частицами, удерживая кнопку мыши или касаясь экрана.\n"
 		      "Колесо мыши или клавиши \bo[\bg и \bo]\bg меняют размер инструмента. \boTab\bg меняет форму кисти.\n"
 		      "\boСредняя кнопка\bg или \boAlt+клик\bg выбирают материал с поля.\n"
-		      "\boCtrl+C/V/X\bg — копировать, вставить и вырезать.\n"
+		      "\boCtrl+C/V/X\bg - копировать, вставить и вырезать.\n"
 		      "При вставке \boR\bg поворачивает, а \boShift+R\bg / \boShift+Ctrl+R\bg отражают область.\n"
-		      "\boShift+перетаскивание\bg рисует линии, \boCtrl+перетаскивание\bg — заполненные прямоугольники.\n"
+		      "\boShift+перетаскивание\bg рисует линии, \boCtrl+перетаскивание\bg - заполненные прямоугольники.\n"
 		      "\n"
-		      "\boПробел\bg ставит физику на паузу. \boF\bg — один кадр, \boF5\bg — перезапуск симуляции.\n"
-		      "\boCtrl+Z\bg — отмена, \boCtrl+Y\bg или \boCtrl+Shift+Z\bg — повтор.\n"
+		      "\boПробел\bg ставит физику на паузу. \boF\bg - один кадр, \boF5\bg - перезапуск симуляции.\n"
+		      "\boCtrl+Z\bg - отмена, \boCtrl+Y\bg или \boCtrl+Shift+Z\bg - повтор.\n"
 		      "\boS\bg создаёт штамп, \boL\bg загружает последний, \boK\bg открывает библиотеку штампов.\n"
 		      "\n"
-		      "\bo0-9\bg выбирают режим отображения. \boH\bg включает HUD. \boZ\bg — увеличение.\n"
+		      "\bo0-9\bg выбирают режим отображения. \boH\bg включает HUD. \boZ\bg - увеличение.\n"
 		      "\boCtrl+F\bg подсвечивает выбранный элемент.\n"
 		      "\n"
 		      "\bgСохранения этой версии хранятся локально в браузере. Серверные функции отключены.\n";
@@ -1778,9 +1778,9 @@ render_replacements = [
     ('"Displays temperatures of the elements, dark blue is coldest, pink is hottest"', 'YandexWebText("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: синий холодный, розовый горячий")'),
     ('"Displays the life value of elements in greyscale gradients"', 'YandexWebText("Displays the life value of elements in greyscale gradients", "Показывает время жизни элементов оттенками серого")'),
     ('"Displays velocity and positive pressure: up/down adds blue, right/left adds red, still pressure adds green"',
-     'YandexWebText("Displays velocity and positive pressure: up/down adds blue, right/left adds red, still pressure adds green", "Скорость и положительное давление: вертикаль — синий, горизонталь — красный, неподвижное давление — зелёный")'),
+     'YandexWebText("Displays velocity and positive pressure: up/down adds blue, right/left adds red, still pressure adds green", "Скорость и положительное давление: вертикаль - синий, горизонталь - красный, неподвижное давление - зелёный")'),
     ('"Displays vorticity, red is clockwise and blue is anticlockwise"',
-     'YandexWebText("Displays vorticity, red is clockwise and blue is anticlockwise", "Завихрение: красный — по часовой стрелке, синий — против")'),
+     'YandexWebText("Displays vorticity, red is clockwise and blue is anticlockwise", "Завихрение: красный - по часовой стрелке, синий - против")'),
     ('"Enables moving solids, stickmen guns, and premium(tm) graphics"',
      'YandexWebText("Enables moving solids, stickmen guns, and premium(tm) graphics", "Включает движущиеся твёрдые тела, оружие человечков и расширенные эффекты")'),
     ('"Changes colors of elements slightly to show heat diffusing through them"',
@@ -2135,12 +2135,12 @@ credits_replacements = [
         '\t\t\t"We\'d like to thank everyone who contributed to our \\bt{a:https://github.com/The-Powder-Toy/The-Powder-Toy|GitHub repo}\\x0E:", false);',
         'addHeader(YandexWebText('
         '"The Powder Toy is an open source project, developed by members of the community.\\nWe would like to thank everyone who contributed to the project:", '
-        '"The Powder Toy — проект с открытым исходным кодом, созданный сообществом.\\nСпасибо всем, кто участвовал в разработке:"'
+        '"The Powder Toy - проект с открытым исходным кодом, созданный сообществом.\\nСпасибо всем, кто участвовал в разработке:"'
         '), false);'
     ),
     (
         'addHeader("Staff - volunteers that run the community and keep the site running");',
-        'addHeader(YandexWebText("Staff - community volunteers", "Команда — волонтёры сообщества"));'
+        'addHeader(YandexWebText("Staff - community volunteers", "Команда - волонтёры сообщества"));'
     ),
     (
         'addHeader("Former Staff", false);',
