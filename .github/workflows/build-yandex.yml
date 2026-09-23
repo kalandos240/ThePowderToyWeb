@@ -140,10 +140,46 @@ jobs:
           print("Yandex archive path names: ASCII/no-whitespace OK")
           PY
 
+          ROOT_INDEX_COUNT="$(find dist -maxdepth 1 -type f -name 'index.html' | wc -l)"
+          ALL_INDEX_COUNT="$(find dist -type f -name 'index.html' | wc -l)"
+          echo "Root index.html count: $ROOT_INDEX_COUNT"
+          echo "Total index.html count: $ALL_INDEX_COUNT"
+          test "$ROOT_INDEX_COUNT" -eq 1
+          test "$ALL_INDEX_COUNT" -eq 1
+
           (
             cd dist
             zip -9 -r ../ThePowderToy-Yandex.zip .
           )
+
+          unzip -t ThePowderToy-Yandex.zip >/tmp/tpt-zip-test.log
+          cat /tmp/tpt-zip-test.log
+
+          python3 - <<'PY'
+          from pathlib import PurePosixPath
+          import subprocess
+
+          entries = subprocess.check_output(
+              ["unzip", "-Z1", "ThePowderToy-Yandex.zip"],
+              text=True,
+          ).splitlines()
+
+          if "index.html" not in entries:
+              raise SystemExit("Yandex ZIP has no root index.html")
+
+          unsafe = []
+          for entry in entries:
+              path = PurePosixPath(entry)
+              if path.is_absolute() or ".." in path.parts:
+                  unsafe.append(entry)
+
+          if unsafe:
+              raise SystemExit(
+                  "Yandex ZIP contains unsafe paths: " + ", ".join(unsafe)
+              )
+
+          print("Yandex ZIP structure: root index and safe paths OK")
+          PY
 
       - name: "Browser smoke test: desktop/mobile, EN/RU"
         run: |
