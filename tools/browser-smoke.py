@@ -1019,7 +1019,14 @@ def smoke_case(language: str, mobile: bool):
             assert persisted == 1, (label, "IDBFS persistence failed")
 
             persisted_local_save_size = driver.execute_script(
-                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], [])"
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestLocalSaveFileSize',
+                    'number',
+                    ['string'],
+                    ['yandex-ci-save']
+                )
+                """
             )
             assert persisted_local_save_size > 100, (
                 label,
