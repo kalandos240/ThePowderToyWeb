@@ -5,6 +5,7 @@ import statistics
 import time
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -1158,47 +1159,75 @@ def smoke_case(language: str, mobile: bool):
                     os.path.join(ARTIFACT_DIR, f"{label}-local-browser.png")
                 )
 
-                first_save = wait.until(
-                    lambda d: d.execute_script(
+                try:
+                    first_save = wait.until(
+                        lambda d: d.execute_script(
+                            """
+                            const m = window.__tptGameModule;
+                            const nativeX = m.ccall(
+                                'YandexWeb_TestFileBrowserFirstX', 'number', [], []
+                            );
+                            const nativeY = m.ccall(
+                                'YandexWeb_TestFileBrowserFirstY', 'number', [], []
+                            );
+                            if (nativeX < 0 || nativeY < 0)
+                                return null;
+                            const canvas = document.getElementById('canvas');
+                            const r = canvas.getBoundingClientRect();
+                            const windowX = m.ccall(
+                                'YandexWeb_TestLogicalToWindowX',
+                                'number',
+                                ['number', 'number'],
+                                [nativeX, nativeY]
+                            );
+                            const windowY = m.ccall(
+                                'YandexWeb_TestLogicalToWindowY',
+                                'number',
+                                ['number', 'number'],
+                                [nativeX, nativeY]
+                            );
+                            const windowWidth = m.ccall(
+                                'YandexWeb_TestWindowWidth', 'number', [], []
+                            );
+                            const windowHeight = m.ccall(
+                                'YandexWeb_TestWindowHeight', 'number', [], []
+                            );
+                            return {
+                                x: r.left + (windowX / windowWidth) * r.width,
+                                y: r.top + (windowY / windowHeight) * r.height,
+                                nativeX,
+                                nativeY,
+                            };
+                            """
+                        )
+                    )
+                except TimeoutException as error:
+                    local_browser_diag = driver.execute_script(
                         """
                         const m = window.__tptGameModule;
-                        const nativeX = m.ccall(
-                            'YandexWeb_TestFileBrowserFirstX', 'number', [], []
-                        );
-                        const nativeY = m.ccall(
-                            'YandexWeb_TestFileBrowserFirstY', 'number', [], []
-                        );
-                        if (nativeX < 0 || nativeY < 0)
-                            return null;
-                        const canvas = document.getElementById('canvas');
-                        const r = canvas.getBoundingClientRect();
-                        const windowX = m.ccall(
-                            'YandexWeb_TestLogicalToWindowX',
-                            'number',
-                            ['number', 'number'],
-                            [nativeX, nativeY]
-                        );
-                        const windowY = m.ccall(
-                            'YandexWeb_TestLogicalToWindowY',
-                            'number',
-                            ['number', 'number'],
-                            [nativeX, nativeY]
-                        );
-                        const windowWidth = m.ccall(
-                            'YandexWeb_TestWindowWidth', 'number', [], []
-                        );
-                        const windowHeight = m.ccall(
-                            'YandexWeb_TestWindowHeight', 'number', [], []
-                        );
                         return {
-                            x: r.left + (windowX / windowWidth) * r.width,
-                            y: r.top + (windowY / windowHeight) * r.height,
-                            nativeX,
-                            nativeY,
+                            open: m.ccall(
+                                'YandexWeb_TestFileBrowserOpen', 'number', [], []
+                            ),
+                            count: m.ccall(
+                                'YandexWeb_TestFileBrowserFileCount', 'number', [], []
+                            ),
+                            firstX: m.ccall(
+                                'YandexWeb_TestFileBrowserFirstX', 'number', [], []
+                            ),
+                            firstY: m.ccall(
+                                'YandexWeb_TestFileBrowserFirstY', 'number', [], []
+                            ),
                         };
                         """
                     )
-                )
+                    raise AssertionError(
+                        (
+                            label,
+                            "local browser did not expose first save geometry",
+                            local_browser_diag,
+                        )
+                    ) from error
                 driver.execute_cdp_cmd(
                     "Input.dispatchTouchEvent",
                     {
