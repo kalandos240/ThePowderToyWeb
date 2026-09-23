@@ -7,6 +7,7 @@ import time
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -846,14 +847,57 @@ def smoke_case(language: str, mobile: bool):
             "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], [])"
         )
         assert save_open == 1, (label, "native local-save workflow did not open")
-        driver.execute_script(
-            "window.__tptGameModule.ccall('YandexWeb_TestCloseLocalSave', null, [], [])"
-        )
-        wait.until(
-            lambda d: d.execute_script(
-                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+
+        # Desktop EN performs the full native local-save path: type a real
+        # filename into TPT's focused textbox, press Enter, verify the CPS file
+        # exists, then flush it to IndexedDB. Other cases still validate that
+        # the same native Save workflow opens and closes correctly.
+        if not mobile and language == "en":
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestRemoveLocalSaveFile', null, [], [])"
             )
-        )
+            driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                canvas.tabIndex = -1;
+                canvas.focus();
+                """
+            )
+            ActionChains(driver).send_keys("yandex-ci-save").send_keys(Keys.ENTER).perform()
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+                )
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], []) > 0"
+                )
+            )
+            local_save_size = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], [])"
+            )
+            assert local_save_size > 100, (label, "local CPS file too small", local_save_size)
+
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestStorageFlush', null, [], [])"
+            )
+            wait.until(
+                lambda d: d.execute_script("return window.__tptStorageFlushed === true")
+            )
+            storage_error = driver.execute_script(
+                "return window.__tptStorageFlushError || ''"
+            )
+            assert storage_error == "", (label, storage_error)
+        else:
+            driver.execute_script(
+                "window.__tptGameModule.ccall('YandexWeb_TestCloseLocalSave', null, [], [])"
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+                )
+            )
 
         driver.save_screenshot(os.path.join(ARTIFACT_DIR, f"{label}-resized.png"))
 
@@ -903,6 +947,15 @@ def smoke_case(language: str, mobile: bool):
                 "return window.__tptGameModule.ccall('YandexWeb_TestStorageRead', 'number', [], [])"
             )
             assert persisted == 1, (label, "IDBFS persistence failed")
+
+            persisted_local_save_size = driver.execute_script(
+                "return window.__tptGameModule.ccall('YandexWeb_TestLocalSaveFileSize', 'number', [], [])"
+            )
+            assert persisted_local_save_size > 100, (
+                label,
+                "native local CPS save missing after browser reload",
+                persisted_local_save_size,
+            )
 
         performance = None
         if language == "en":
