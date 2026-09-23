@@ -478,8 +478,9 @@ window.addEventListener("resize", scheduleViewportUpdate, { passive: true });
 window.addEventListener("orientationchange", scheduleViewportUpdate, { passive: true });
 document.addEventListener("fullscreenchange", scheduleViewportUpdate);
 
+let appResizeObserver = null;
 if (typeof ResizeObserver !== "undefined") {
-  const appResizeObserver = new ResizeObserver(scheduleViewportUpdate);
+  appResizeObserver = new ResizeObserver(scheduleViewportUpdate);
   appResizeObserver.observe(app);
 }
 
