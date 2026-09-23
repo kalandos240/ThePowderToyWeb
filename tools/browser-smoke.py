@@ -181,6 +181,47 @@ def smoke_case(language: str, mobile: bool):
             sdk_mobile_platform,
         )
 
+        ready_state = driver.execute_script(
+            """
+            const events = window.__yandexSdkEvents || [];
+            return {
+                ready: window.__yandexLoadingReady === true,
+                readyCount: window.__yandexReadyCount || 0,
+                snapshot: window.__yandexReadySnapshot,
+                events,
+                readyIndex: events.indexOf('ready'),
+                gameplayStartIndex: events.indexOf('gameplay-start'),
+            };
+            """
+        )
+        assert ready_state["ready"] is True, (label, ready_state)
+        assert ready_state["readyCount"] == 1, (
+            label,
+            "LoadingAPI.ready must be called exactly once",
+            ready_state,
+        )
+        assert ready_state["snapshot"]["loaderHidden"] is True, (
+            label,
+            "LoadingAPI.ready fired before loader was hidden",
+            ready_state,
+        )
+        assert ready_state["snapshot"]["canvasDisplay"] == "block", (
+            label,
+            "LoadingAPI.ready fired before canvas became visible",
+            ready_state,
+        )
+        assert ready_state["snapshot"]["ariaBusy"] == "false", (
+            label,
+            "LoadingAPI.ready fired while app was still busy",
+            ready_state,
+        )
+        assert ready_state["readyIndex"] >= 0, (label, ready_state)
+        assert ready_state["gameplayStartIndex"] > ready_state["readyIndex"], (
+            label,
+            "GameplayAPI.start fired before LoadingAPI.ready",
+            ready_state,
+        )
+
         interaction_guards = driver.execute_script(
             """
             const canvas = document.getElementById('canvas');
