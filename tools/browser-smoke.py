@@ -664,9 +664,22 @@ def smoke_case(language: str, mobile: bool):
                     const r = canvas.getBoundingClientRect();
                     const logicalWidth = canvas.width || 612;
                     const logicalHeight = canvas.height || 384;
+                    const style = getComputedStyle(app);
+                    const contentWidth = Math.max(
+                        0,
+                        app.clientWidth
+                            - parseFloat(style.paddingLeft)
+                            - parseFloat(style.paddingRight)
+                    );
+                    const contentHeight = Math.max(
+                        0,
+                        app.clientHeight
+                            - parseFloat(style.paddingTop)
+                            - parseFloat(style.paddingBottom)
+                    );
                     const expectedScale = Math.min(
-                        app.clientWidth / logicalWidth,
-                        app.clientHeight / logicalHeight
+                        contentWidth / logicalWidth,
+                        contentHeight / logicalHeight
                     );
                     return {
                         width: r.width,
