@@ -810,8 +810,12 @@ def smoke_case(language: str, mobile: bool):
         if not mobile and language == "en":
             save_name = "ui-smoke"
             time.sleep(0.25)
-            driver.execute_cdp_cmd("Input.insertText", {"text": save_name})
-            time.sleep(0.15)
+            (
+                ActionChains(driver)
+                .send_keys(save_name)
+                .pause(0.2)
+                .perform()
+            )
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-save-name-entered.png")
             )
