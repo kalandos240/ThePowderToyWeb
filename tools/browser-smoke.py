@@ -1946,6 +1946,51 @@ def smoke_case(language: str, mobile: bool):
                 os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
             )
 
+            driver.execute_script(
+                """
+                window.__tptGameModule.ccall(
+                    'YandexWeb_PushKey',
+                    null,
+                    ['number'],
+                    [27]
+                );
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    return window.__tptGameModule.ccall(
+                        'YandexWeb_TestOptionsOpen', 'number', [], []
+                    ) === 0 &&
+                    window.__tptNativeModalBlocked === false &&
+                    window.__yandexGameplayStarted === true;
+                    """
+                )
+            )
+            settings_closed_state = driver.execute_script(
+                """
+                return {
+                    open: window.__tptGameModule.ccall(
+                        'YandexWeb_TestOptionsOpen', 'number', [], []
+                    ),
+                    blocked: window.__tptNativeModalBlocked,
+                    gameplay: window.__yandexGameplayStarted,
+                };
+                """
+            )
+            assert settings_closed_state["open"] == 0, (
+                label,
+                settings_closed_state,
+            )
+            assert settings_closed_state["blocked"] is False, (
+                label,
+                settings_closed_state,
+            )
+            assert settings_closed_state["gameplay"] is True, (
+                label,
+                settings_closed_state,
+            )
+
         browser_logs = driver.get_log("browser")
         browser_log_path = os.path.join(
             ARTIFACT_DIR, f"{label}-browser-console.json"
