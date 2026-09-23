@@ -126,7 +126,7 @@ def smoke_case(language: str, mobile: bool):
     driver = make_driver(mobile)
     try:
         driver.set_page_load_timeout(45)
-        driver.get(f"{BASE_URL}/?lang={language}")
+        driver.get(f"{BASE_URL}/?lang={language}&smoke=1")
 
         wait = WebDriverWait(driver, 45)
         wait.until(
