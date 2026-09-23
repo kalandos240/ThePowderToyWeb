@@ -18,8 +18,17 @@ while ptr < len(data):
     codepoints.append(codepoint)
     ptr += 4 + width * 3
 
-required = [0x0401, 0x0451, *range(0x0410, 0x0450)]
-missing = [cp for cp in required if cp not in set(codepoints)]
+required_cyrillic = [0x0401, 0x0451, *range(0x0410, 0x0450)]
+required_ui_punctuation = [ord(ch) for ch in "-.,:;!?()[]/+%=°«»"]
+required = required_cyrillic + required_ui_punctuation
+font_set = set(codepoints)
+missing = [cp for cp in required if cp not in font_set]
+
+# Validate every non-ASCII character used by our generated RU/localized UI patch.
+# This catches visible replacement-glyph regressions, not just missing Cyrillic.
+patch_text = (root / "tools" / "patch-upstream.py").read_text(encoding="utf-8")
+used_non_ascii = sorted({ord(ch) for ch in patch_text if ord(ch) >= 0x80})
+missing_used = [cp for cp in used_non_ascii if cp not in font_set]
 
 ranges = []
 if codepoints:
@@ -38,7 +47,14 @@ print("TPT font ranges:", ", ".join(
     for a, b in ranges
 ))
 if missing:
-    print("Russian glyphs missing:", ", ".join(f"U+{cp:04X}" for cp in missing))
+    print("Required UI glyphs missing:", ", ".join(f"U+{cp:04X}" for cp in missing))
     raise SystemExit(2)
 
-print("Russian Cyrillic coverage: OK")
+if missing_used:
+    print(
+        "Patch/localization uses unsupported glyphs:",
+        ", ".join(f"U+{cp:04X}" for cp in missing_used),
+    )
+    raise SystemExit(3)
+
+print("Russian Cyrillic and localized UI glyph coverage: OK")
