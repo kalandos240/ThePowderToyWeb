@@ -74,7 +74,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: upstream/build
-          key: tpt-yandex-v100.1.400-${{ runner.os }}-${{ env.TPT_EMCC_CACHE_VERSION }}-${{ hashFiles('tools/patch-upstream.py', '.github/build.sh') }}
+          key: tpt-yandex-v100.1.400-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ env.TPT_EMCC_CACHE_VERSION }}-${{ hashFiles('tools/patch-upstream.py', 'upstream/.github/build.sh') }}
 
       - name: Build upstream Emscripten target without external HTTP features
         if: steps.emscripten-build-cache.outputs.cache-hit != 'true'
