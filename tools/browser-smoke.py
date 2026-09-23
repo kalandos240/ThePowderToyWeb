@@ -296,17 +296,31 @@ def smoke_case(language: str, mobile: bool):
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
                 const m = window.__tptGameModule;
-                const viewWidth = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
-                const viewHeight = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
                 const nativeX = m.ccall('YandexWeb_TestGetDustButtonX', 'number', [], []);
                 const nativeY = m.ccall('YandexWeb_TestGetDustButtonY', 'number', [], []);
+                const windowX = m.ccall(
+                    'YandexWeb_TestLogicalToWindowX',
+                    'number',
+                    ['number', 'number'],
+                    [nativeX, nativeY]
+                );
+                const windowY = m.ccall(
+                    'YandexWeb_TestLogicalToWindowY',
+                    'number',
+                    ['number', 'number'],
+                    [nativeX, nativeY]
+                );
+                const windowWidth = m.ccall('YandexWeb_TestWindowWidth', 'number', [], []);
+                const windowHeight = m.ccall('YandexWeb_TestWindowHeight', 'number', [], []);
                 return {
-                    x: r.left + (nativeX / viewWidth) * r.width,
-                    y: r.top + (nativeY / viewHeight) * r.height,
+                    x: r.left + (windowX / windowWidth) * r.width,
+                    y: r.top + (windowY / windowHeight) * r.height,
                     nativeX,
                     nativeY,
-                    viewWidth,
-                    viewHeight,
+                    windowX,
+                    windowY,
+                    windowWidth,
+                    windowHeight,
                 };
                 """
             )
@@ -411,17 +425,31 @@ def smoke_case(language: str, mobile: bool):
                 const canvas = document.getElementById('canvas');
                 const r = canvas.getBoundingClientRect();
                 const m = window.__tptGameModule;
-                const viewWidth = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
-                const viewHeight = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
                 const nativeX = m.ccall('YandexWeb_TestGetDustButtonX', 'number', [], []);
                 const nativeY = m.ccall('YandexWeb_TestGetDustButtonY', 'number', [], []);
+                const windowX = m.ccall(
+                    'YandexWeb_TestLogicalToWindowX',
+                    'number',
+                    ['number', 'number'],
+                    [nativeX, nativeY]
+                );
+                const windowY = m.ccall(
+                    'YandexWeb_TestLogicalToWindowY',
+                    'number',
+                    ['number', 'number'],
+                    [nativeX, nativeY]
+                );
+                const windowWidth = m.ccall('YandexWeb_TestWindowWidth', 'number', [], []);
+                const windowHeight = m.ccall('YandexWeb_TestWindowHeight', 'number', [], []);
                 return {
-                    x: r.left + (nativeX / viewWidth) * r.width,
-                    y: r.top + (nativeY / viewHeight) * r.height,
+                    x: r.left + (windowX / windowWidth) * r.width,
+                    y: r.top + (windowY / windowHeight) * r.height,
                     nativeX,
                     nativeY,
-                    viewWidth,
-                    viewHeight,
+                    windowX,
+                    windowY,
+                    windowWidth,
+                    windowHeight,
                 };
                 """
             )
@@ -799,17 +827,31 @@ def smoke_case(language: str, mobile: bool):
             const canvas = document.getElementById('canvas');
             const r = canvas.getBoundingClientRect();
             const m = window.__tptGameModule;
-            const viewWidth = m.ccall('YandexWeb_TestGetUiWidth', 'number', [], []);
-            const viewHeight = m.ccall('YandexWeb_TestGetUiHeight', 'number', [], []);
             const nativeX = m.ccall('YandexWeb_TestGetSaveButtonX', 'number', [], []);
             const nativeY = m.ccall('YandexWeb_TestGetSaveButtonY', 'number', [], []);
+            const windowX = m.ccall(
+                'YandexWeb_TestLogicalToWindowX',
+                'number',
+                ['number', 'number'],
+                [nativeX, nativeY]
+            );
+            const windowY = m.ccall(
+                'YandexWeb_TestLogicalToWindowY',
+                'number',
+                ['number', 'number'],
+                [nativeX, nativeY]
+            );
+            const windowWidth = m.ccall('YandexWeb_TestWindowWidth', 'number', [], []);
+            const windowHeight = m.ccall('YandexWeb_TestWindowHeight', 'number', [], []);
             return {
-                x: r.left + (nativeX / viewWidth) * r.width,
-                y: r.top + (nativeY / viewHeight) * r.height,
+                x: r.left + (windowX / windowWidth) * r.width,
+                y: r.top + (windowY / windowHeight) * r.height,
                 nativeX,
                 nativeY,
-                viewWidth,
-                viewHeight,
+                windowX,
+                windowY,
+                windowWidth,
+                windowHeight,
             };
             """
         )
