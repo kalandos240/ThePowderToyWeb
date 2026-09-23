@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - experiment/hud-localization
     paths:
       - "index.html"
       - "styles.css"
