@@ -18,7 +18,9 @@ while ptr < len(data):
     codepoints.append(codepoint)
     ptr += 4 + width * 3
 
-required = [0x0401, 0x0451, *range(0x0410, 0x0450)]
+required_cyrillic = [0x0401, 0x0451, *range(0x0410, 0x0450)]
+required_ui_punctuation = [ord(ch) for ch in "-.,:;!?()[]/+%=°«»"]
+required = required_cyrillic + required_ui_punctuation
 missing = [cp for cp in required if cp not in set(codepoints)]
 
 ranges = []
