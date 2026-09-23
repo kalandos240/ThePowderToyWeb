@@ -601,6 +601,24 @@ game_replacements = [
      'YandexWebText("Overwrite the open local simulation.", "Перезаписать открытую локальную симуляцию.")'),
     ('"Save the simulation locally in this browser."',
      'YandexWebText("Save the simulation locally in this browser.", "Сохранить симуляцию локально в этом браузере.")'),
+    ('searchButton->SetToolTip("Open a simulation from your hard drive.");',
+     'searchButton->SetToolTip(YandexWebText("Open a local simulation.", "Открыть локальную симуляцию."));'),
+    ('searchButton->SetToolTip("Find & open a simulation. Hold Ctrl to load offline saves.");',
+     'searchButton->SetToolTip(YandexWebText("Open a local simulation.", "Открыть локальную симуляцию."));'),
+    ('"Decoration Presets."',
+     'YandexWebText("Decoration presets", "Наборы цветов")'),
+    ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to create a stamp (right click = cancel)";',
+     'buttonTip = "\\x0F\\xEF\\xEF\\020" + YandexWebText("Drag to select an area for a stamp (right click = cancel)", "Выделите область для штампа (правый клик — отмена)");'),
+    ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to copy (right click = cancel)";',
+     'buttonTip = "\\x0F\\xEF\\xEF\\020" + YandexWebText("Drag to select an area to copy (right click = cancel)", "Выделите область для копирования (правый клик — отмена)");'),
+    ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to copy then cut (right click = cancel)";',
+     'buttonTip = "\\x0F\\xEF\\xEF\\020" + YandexWebText("Drag to select an area to cut (right click = cancel)", "Выделите область для вырезания (правый клик — отмена)");'),
+    ('tooltip << "Go to save ID:" << str.Substr(3, si.first - 3);',
+     'tooltip << YandexWebText("Online save links are unavailable in this build", "Онлайн-сохранения недоступны в этой версии");'),
+    ('tooltip << "Open forum thread " << str.Substr(3, si.first - 3) << " in browser";',
+     'tooltip << YandexWebText("Forum links are unavailable in this build", "Ссылки на форум недоступны в этой версии");'),
+    ('tooltip << "Search for " << str.Substr(3, si.first - 3);',
+     'tooltip << YandexWebText("Online search is unavailable in this build", "Онлайн-поиск недоступен в этой версии");'),
 ]
 for old, new in game_replacements:
     if old in game_view_text:
@@ -949,6 +967,17 @@ extra_options_replacements = [
     ('"Save errors and other messages to a file"', 'YandexWebText("Save errors and other messages to a file", "Сохранять ошибки и сообщения в файл")'),
     ('"Developers may ask for this when trying to fix problems"', 'YandexWebText("Developers may ask for this when trying to fix problems", "Полезно для диагностики ошибок")'),
     ('" - Find out who contributed to TPT"', 'YandexWebText(" - Find out who contributed to TPT", " - Участники разработки TPT")'),
+    ('"Kelvin"', 'YandexWebText("Kelvin", "Кельвин")'),
+    ('"Celsius"', 'YandexWebText("Celsius", "Цельсий")'),
+    ('"Fahrenheit"', 'YandexWebText("Fahrenheit", "Фаренгейт")'),
+    ('"Resizable \\bg- allow resizing and maximizing window"', 'YandexWebText("Resizable \\bg- allow resizing and maximizing window", "Изменяемый размер \\bg- можно менять размер окна")'),
+    ('"Fullscreen \\bg- fill the entire screen"', 'YandexWebText("Fullscreen \\bg- fill the entire screen", "Полный экран \\bg- занять весь экран")'),
+    ('"Set optimal screen resolution"', 'YandexWebText("Set optimal screen resolution", "Подобрать разрешение экрана")'),
+    ('"Force integer scaling \\bg- less blurry"', 'YandexWebText("Force integer scaling \\bg- less blurry", "Целочисленный масштаб \\bg- более чёткое изображение")'),
+    ('"Fast quit"', 'YandexWebText("Fast quit", "Быстрый выход")'),
+    ('"Always exit completely when hitting close"', 'YandexWebText("Always exit completely when hitting close", "Полностью завершать игру при закрытии")'),
+    ('"Global quit shortcut"', 'YandexWebText("Global quit shortcut", "Глобальная клавиша выхода")'),
+    ('"Ctrl+q works everywhere"', 'YandexWebText("Ctrl+q works everywhere", "Ctrl+Q работает во всех окнах")'),
 ]
 for old, new in extra_options_replacements:
     if old in options_text:
@@ -1010,6 +1039,17 @@ options_text = options_text.replace(
     'void OptionsView::UpdateStartupRequestStatus()\n{',
     'void OptionsView::UpdateStartupRequestStatus()\n{\n\tif constexpr (NOHTTP)\n\t\treturn;'
 )
+threaded_rendering_anchor = '''\tthreadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+\t\tc->SetThreadedRendering(threadedRendering->GetChecked());
+\t});'''
+threaded_rendering_patch = '''#if !defined(__EMSCRIPTEN__)
+\tthreadedRendering = addCheckbox(0, "Separate rendering thread", "May increase framerate when fancy effects are in use", [this] {
+\t\tc->SetThreadedRendering(threadedRendering->GetChecked());
+\t});
+#endif'''
+if threaded_rendering_anchor in options_text:
+    options_text = options_text.replace(threaded_rendering_anchor, threaded_rendering_patch, 1)
+
 options_text = options_text.replace(
     '\tshowAvatars->SetChecked(sender->GetShowAvatars());',
     '\tif (showAvatars)\n\t\tshowAvatars->SetChecked(sender->GetShowAvatars());'
@@ -1017,6 +1057,10 @@ options_text = options_text.replace(
 options_text = options_text.replace(
     '\tautoStartupRequest->SetChecked(sender->GetAutoStartupRequest());',
     '\tif (autoStartupRequest)\n\t\tautoStartupRequest->SetChecked(sender->GetAutoStartupRequest());'
+)
+options_text = options_text.replace(
+    '\tthreadedRendering->SetChecked(sender->GetThreadedRendering());',
+    '\tif (threadedRendering)\n\t\tthreadedRendering->SetChecked(sender->GetThreadedRendering());'
 )
 
 options_view.write_text(options_text, encoding="utf-8")
@@ -1183,6 +1227,48 @@ controller_replacements = [
 for old, new in controller_replacements:
     if old in controller_text:
         controller_text = controller_text.replace(old, new)
+
+# Imported saves may contain special signs that point to the upstream website.
+# Keep local button signs functional, but make online save/thread/search signs inert.
+sign_action_replacements = [
+    ('''\t\t\t\t\tcase sign::Type::Save:
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tint saveID = str.Substr(3, si.first - 3).ToNumber<int>(true);
+\t\t\t\t\t\t\tif (saveID)
+\t\t\t\t\t\t\t\tOpenSavePreview(saveID, 0, savePreviewNormal);
+\t\t\t\t\t\t}
+\t\t\t\t\t\tbreak;''',
+     '''\t\t\t\t\tcase sign::Type::Save:
+#if !defined(__EMSCRIPTEN__)
+\t\t\t\t\t\t{
+\t\t\t\t\t\t\tint saveID = str.Substr(3, si.first - 3).ToNumber<int>(true);
+\t\t\t\t\t\t\tif (saveID)
+\t\t\t\t\t\t\t\tOpenSavePreview(saveID, 0, savePreviewNormal);
+\t\t\t\t\t\t}
+#endif
+\t\t\t\t\t\tbreak;'''),
+    ('''\t\t\t\t\tcase sign::Type::Thread:
+\t\t\t\t\t\tPlatform::OpenURI(ByteString::Build(SERVER, "/Discussions/Thread/View.html?Thread=", str.Substr(3, si.first - 3).ToUtf8()));
+\t\t\t\t\t\tbreak;''',
+     '''\t\t\t\t\tcase sign::Type::Thread:
+#if !defined(__EMSCRIPTEN__)
+\t\t\t\t\t\tPlatform::OpenURI(ByteString::Build(SERVER, "/Discussions/Thread/View.html?Thread=", str.Substr(3, si.first - 3).ToUtf8()));
+#endif
+\t\t\t\t\t\tbreak;'''),
+    ('''\t\t\t\t\tcase sign::Type::Search:
+\t\t\t\t\t\tOpenSearch(str.Substr(3, si.first - 3));
+\t\t\t\t\t\tbreak;''',
+     '''\t\t\t\t\tcase sign::Type::Search:
+#if !defined(__EMSCRIPTEN__)
+\t\t\t\t\t\tOpenSearch(str.Substr(3, si.first - 3));
+#endif
+\t\t\t\t\t\tbreak;'''),
+]
+for old, new in sign_action_replacements:
+    if old not in controller_text:
+        raise SystemExit("GameController online sign action anchor missing")
+    controller_text = controller_text.replace(old, new, 1)
+
 game_controller_cpp.write_text(controller_text, encoding="utf-8")
 
 
@@ -1669,7 +1755,17 @@ render_replacements = [
     ('"Gravity lensing, Newtonian Gravity bends light with this on"', 'YandexWebText("Gravity lensing, Newtonian Gravity bends light with this on", "Гравитационное линзирование света")'),
     ('"Element paths persist on the screen for a while"', 'YandexWebText("Element paths persist on the screen for a while", "Следы частиц некоторое время остаются на экране")'),
     ('"Displays temperatures of the elements, dark blue is coldest, pink is hottest"', 'YandexWebText("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: синий холодный, розовый горячий")'),
-    ('"Displays the life value of elements in greyscale gradients"', 'YandexWebText("Displays the life value of elements in greyscale gradients", "Показывает life элементов оттенками серого")'),
+    ('"Displays the life value of elements in greyscale gradients"', 'YandexWebText("Displays the life value of elements in greyscale gradients", "Показывает время жизни элементов оттенками серого")'),
+    ('"Displays velocity and positive pressure: up/down adds blue, right/left adds red, still pressure adds green"',
+     'YandexWebText("Displays velocity and positive pressure: up/down adds blue, right/left adds red, still pressure adds green", "Скорость и положительное давление: вертикаль — синий, горизонталь — красный, неподвижное давление — зелёный")'),
+    ('"Displays vorticity, red is clockwise and blue is anticlockwise"',
+     'YandexWebText("Displays vorticity, red is clockwise and blue is anticlockwise", "Завихрение: красный — по часовой стрелке, синий — против")'),
+    ('"Enables moving solids, stickmen guns, and premium(tm) graphics"',
+     'YandexWebText("Enables moving solids, stickmen guns, and premium(tm) graphics", "Включает движущиеся твёрдые тела, оружие человечков и расширенные эффекты")'),
+    ('"Changes colors of elements slightly to show heat diffusing through them"',
+     'YandexWebText("Changes colors of elements slightly to show heat diffusing through them", "Немного меняет цвета элементов, показывая распространение тепла")'),
+    ('"No special effects at all for anything, overrides all other options and deco"',
+     'YandexWebText("No special effects at all for anything, overrides all other options and deco", "Отключает специальные эффекты и декорации")'),
 ]
 for old, new in render_replacements:
     if old in render_text:
