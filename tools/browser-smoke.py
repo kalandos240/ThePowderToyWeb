@@ -895,6 +895,47 @@ def smoke_case(language: str, mobile: bool):
                 ),
             ]
 
+        if mobile:
+            # Open Settings through the real small bottom-right control so we can
+            # visually and functionally validate mobile settings usability.
+            settings_button = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                const logicalX = canvas.width - 40.5;
+                const logicalY = canvas.height - 8.5;
+                return {
+                    x: r.left + (logicalX / canvas.width) * r.width,
+                    y: r.top + (logicalY / canvas.height) * r.height,
+                };
+                """
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {
+                    "type": "touchStart",
+                    "touchPoints": [{
+                        "x": settings_button["x"],
+                        "y": settings_button["y"],
+                        "radiusX": 4,
+                        "radiusY": 4,
+                        "force": 1,
+                    }],
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchTouchEvent",
+                {"type": "touchEnd", "touchPoints": []},
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall('YandexWeb_TestOptionsOpen', 'number', [], []) === 1"
+                )
+            )
+            driver.save_screenshot(
+                os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
+            )
+
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
             f"paused={paused}; resumed={resumed}; performance={performance}"
