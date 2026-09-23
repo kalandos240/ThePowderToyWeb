@@ -118,6 +118,7 @@ def make_driver(mobile: bool):
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1365,768")
+    options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
     if mobile:
         options.add_experimental_option(
             "mobileEmulation",
@@ -178,6 +179,47 @@ def smoke_case(language: str, mobile: bool):
             label,
             "Yandex deviceInfo classification mismatch",
             sdk_mobile_platform,
+        )
+
+        ready_state = driver.execute_script(
+            """
+            const events = window.__yandexSdkEvents || [];
+            return {
+                ready: window.__yandexLoadingReady === true,
+                readyCount: window.__yandexReadyCount || 0,
+                snapshot: window.__yandexReadySnapshot,
+                events,
+                readyIndex: events.indexOf('ready'),
+                gameplayStartIndex: events.indexOf('gameplay-start'),
+            };
+            """
+        )
+        assert ready_state["ready"] is True, (label, ready_state)
+        assert ready_state["readyCount"] == 1, (
+            label,
+            "LoadingAPI.ready must be called exactly once",
+            ready_state,
+        )
+        assert ready_state["snapshot"]["loaderHidden"] is True, (
+            label,
+            "LoadingAPI.ready fired before loader was hidden",
+            ready_state,
+        )
+        assert ready_state["snapshot"]["canvasDisplay"] == "block", (
+            label,
+            "LoadingAPI.ready fired before canvas became visible",
+            ready_state,
+        )
+        assert ready_state["snapshot"]["ariaBusy"] == "false", (
+            label,
+            "LoadingAPI.ready fired while app was still busy",
+            ready_state,
+        )
+        assert ready_state["readyIndex"] >= 0, (label, ready_state)
+        assert ready_state["gameplayStartIndex"] > ready_state["readyIndex"], (
+            label,
+            "GameplayAPI.start fired before LoadingAPI.ready",
+            ready_state,
         )
 
         interaction_guards = driver.execute_script(
@@ -835,6 +877,131 @@ def smoke_case(language: str, mobile: bool):
                     cycle,
                     landscape_cycle,
                 )
+
+            # Combine orientation blocking with page visibility. A user may
+            # rotate to portrait, background the browser, rotate back while
+            # hidden, then return. The native loop must remain paused until the
+            # page is visible again and must not get stuck afterwards.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 390,
+                    "height": 844,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "portraitPrimary",
+                        "angle": 0,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script(
+                """
+                window.__tptSyntheticHidden = true;
+                Object.defineProperty(document, 'hidden', {
+                    configurable: true,
+                    get() { return window.__tptSyntheticHidden; }
+                });
+                document.dispatchEvent(new Event('visibilitychange'));
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return document.hidden === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script(
+                """
+                window.__tptSyntheticHidden = false;
+                document.dispatchEvent(new Event('visibilitychange'));
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return document.hidden === false && "
+                    "window.__tptOrientationBlocked === false && "
+                    "window.__tptRuntimePaused === false && "
+                    "window.__yandexGameplayStarted === true"
+                )
+            )
+            visibility_orientation_state = driver.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    hidden: document.hidden,
+                    blocked: window.__tptOrientationBlocked,
+                    paused: window.__tptRuntimePaused,
+                    gameplay: window.__yandexGameplayStarted,
+                    width: rect.width,
+                    height: rect.height,
+                };
+                """
+            )
+            assert visibility_orientation_state["hidden"] is False, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["blocked"] is False, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["paused"] is False, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["gameplay"] is True, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["width"] > 0, (
+                label,
+                visibility_orientation_state,
+            )
+            assert visibility_orientation_state["height"] > 0, (
+                label,
+                visibility_orientation_state,
+            )
+            driver.execute_script(
+                """
+                delete document.hidden;
+                delete window.__tptSyntheticHidden;
+                """
+            )
 
             # Touch must still work after several orientation transitions.
             post_cycle_before = driver.execute_script(
@@ -1660,6 +1827,34 @@ def smoke_case(language: str, mobile: bool):
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
             )
+
+        browser_logs = driver.get_log("browser")
+        browser_log_path = os.path.join(
+            ARTIFACT_DIR, f"{label}-browser-console.json"
+        )
+        with open(browser_log_path, "w", encoding="utf-8") as handle:
+            json.dump(browser_logs, handle, ensure_ascii=False, indent=2)
+
+        fatal_markers = (
+            "Uncaught",
+            "TypeError",
+            "ReferenceError",
+            "SyntaxError",
+            "net::ERR",
+            "Failed to load resource",
+        )
+        fatal_browser_logs = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "favicon.ico" not in entry.get("message", "")
+            and any(marker in entry.get("message", "") for marker in fatal_markers)
+        ]
+        assert not fatal_browser_logs, (
+            label,
+            "fatal browser console errors",
+            fatal_browser_logs,
+        )
 
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
