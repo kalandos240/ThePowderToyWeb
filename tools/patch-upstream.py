@@ -556,8 +556,11 @@ options_ctor_patch = '''OptionsView::OptionsView() : ui::Window(ui::Point(-1, -1
 if options_diag not in options_text:
     if options_ctor_anchor not in options_text:
         raise SystemExit("OptionsView constructor anchor missing")
+    diag_insert_anchor = '#include <SDL.h>\n#include <emscripten.h>\n'
+    if diag_insert_anchor not in options_text:
+        raise SystemExit("OptionsView diagnostics include anchor missing")
+    options_text = options_text.replace(diag_insert_anchor, diag_insert_anchor + '\n' + options_diag, 1)
     options_text = options_text.replace(options_ctor_anchor, options_ctor_patch, 1)
-    options_text = options_diag + options_text
 
 options_replacements = [
     ('"Settings"', 'YandexWebText("Settings", "Настройки")'),
