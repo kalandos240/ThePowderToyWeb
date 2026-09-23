@@ -13,6 +13,8 @@ simulation_data = root / "upstream" / "src" / "simulation" / "SimulationData.cpp
 local_browser_controller = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserController.cpp"
 engine_cpp = root / "upstream" / "src" / "gui" / "interface" / "Engine.cpp"
 window_cpp = root / "upstream" / "src" / "gui" / "interface" / "Window.cpp"
+component_h = root / "upstream" / "src" / "gui" / "interface" / "Component.h"
+button_h = root / "upstream" / "src" / "gui" / "interface" / "Button.h"
 save_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "SaveButton.cpp"
 label_cpp = root / "upstream" / "src" / "gui" / "interface" / "Label.cpp"
 locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
@@ -1484,6 +1486,26 @@ for old, new in credits_replacements:
 credits_cpp.write_text(credits_text, encoding="utf-8")
 
 
+# Yandex mobile: mark buttons without RTTI so touch hit testing works with -fno-rtti.
+component_text = component_h.read_text(encoding="utf-8")
+component_anchor = "\t\tvirtual ~Component();\n"
+component_patch = "\t\tvirtual ~Component();\n\t\tvirtual bool IsButton() const { return false; }\n"
+if "virtual bool IsButton() const" not in component_text:
+    if component_anchor not in component_text:
+        raise SystemExit("Component.h button marker anchor missing")
+    component_text = component_text.replace(component_anchor, component_patch, 1)
+component_h.write_text(component_text, encoding="utf-8")
+
+button_text = button_h.read_text(encoding="utf-8")
+button_anchor = "\tvirtual ~Button() = default;\n"
+button_patch = "\tvirtual ~Button() = default;\n\tbool IsButton() const override { return true; }\n"
+if "bool IsButton() const override" not in button_text:
+    if button_anchor not in button_text:
+        raise SystemExit("Button.h IsButton anchor missing")
+    button_text = button_text.replace(button_anchor, button_patch, 1)
+button_h.write_text(button_text, encoding="utf-8")
+
+
 # Yandex mobile: make small buttons easier to tap without changing desktop geometry.
 window_text = window_cpp.read_text(encoding="utf-8")
 mouse_down_anchor = r'''void Window::DoMouseDown(int x_, int y_, unsigned button)
@@ -1563,7 +1585,7 @@ mouse_down_patch = r'''void Window::DoMouseDown(int x_, int y_, unsigned button)
 		for (int i = Components.size() - 1; i > -1 && !halt; --i)
 		{
 			auto *component = Components[i];
-			if (!component->Enabled || !component->Visible || !dynamic_cast<Button *>(component))
+			if (!component->Enabled || !component->Visible || !component->IsButton())
 				continue;
 
 			if (x >= component->Position.X - touchMarginX &&
@@ -1675,7 +1697,7 @@ mouse_up_patch = r'''void Window::DoMouseUp(int x_, int y_, unsigned button)
 				x < component->Position.X + component->Size.X &&
 				y < component->Position.Y + component->Size.Y;
 
-			if (!inside && Engine::Ref().TouchUI && dynamic_cast<Button *>(component))
+			if (!inside && Engine::Ref().TouchUI && component->IsButton())
 			{
 				constexpr int touchMarginX = 10;
 				constexpr int touchMarginY = 10;
