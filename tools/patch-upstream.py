@@ -298,6 +298,12 @@ include_locale(client_cpp, '#include "Config.h"\n')
 include_locale(powder, '#include "Config.h"\n')
 
 game_view_text = game_view.read_text(encoding="utf-8")
+if 'int GetSplitPosition() const' not in game_view_text:
+    game_view_text = game_view_text.replace(
+        'bool GetShowSplit() { return showSplit; }',
+        'bool GetShowSplit() { return showSplit; }\n\tint GetSplitPosition() const { return splitPosition; }',
+        1
+    )
 if '#include <emscripten.h>' not in game_view_text:
     game_view_text = game_view_text.replace(
         '#include <SDL.h>\n',
@@ -343,8 +349,9 @@ ui_geometry_patch = r'''
 
 	if (saveSimulationButton)
 	{
+		// Hit the primary/left Save action, not the secondary split action.
 		YandexWeb_TestSaveButtonX =
-			saveSimulationButton->Position.X + saveSimulationButton->Size.X / 2;
+			saveSimulationButton->Position.X + saveSimulationButton->GetSplitPosition() / 2;
 		YandexWeb_TestSaveButtonY =
 			saveSimulationButton->Position.Y + saveSimulationButton->Size.Y / 2;
 	}
