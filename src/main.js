@@ -56,7 +56,7 @@ let uiLanguage = "en";
 
 function applyPlatformLanguage(currentSDK) {
   const requested = getYandexLanguage(currentSDK);
-  uiLanguage = Object.hasOwn(MESSAGES, requested) ? requested : "en";
+  uiLanguage = Object.prototype.hasOwnProperty.call(MESSAGES, requested) ? requested : "en";
   document.documentElement.lang = uiLanguage;
   window.yandexDetectedLanguage = requested;
   window.tptLanguage = uiLanguage;
@@ -100,8 +100,6 @@ const ENGINE_STDERR_INFO_PREFIXES = [
   "ReadFile: stamps/stamps.def: No such file or directory",
   "required #PowderSessionInfo elements not found, can't authenticate",
   "network support not compiled in",
-  "explicit fps limit:",
-  "implicit fps limit via requestAnimationFrame",
   "web main loop via requestAnimationFrame",
   "invoking FS.syncfs"
 ];
