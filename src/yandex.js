@@ -158,11 +158,16 @@ export function installPlatformPauseBridge({ onPause, onResume } = {}) {
 
     currentSDK.on("game_api_resume", () => {
       platformPauseActive = false;
-
-      // Yandex automatically restores gameplay markup only when appropriate.
-      // We only resume the native loop here; our explicit markup state remains
-      // controlled by gameplayStart()/gameplayStop().
       resumeRuntime();
+
+      // Yandex does not auto-start gameplay on resume when GameplayAPI.stop()
+      // was already active before the platform pause (for example, a menu or
+      // portrait blocker). If that local blocker was cleared while the platform
+      // was paused, reconcile our explicit gameplay state now.
+      if (readySent && !document.hidden && !gameplayBlocked) {
+        void gameplayStart();
+      }
+
       console.info("[Yandex] game_api_resume");
     });
   });
