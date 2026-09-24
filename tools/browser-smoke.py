@@ -545,6 +545,14 @@ def smoke_case(language: str, mobile: bool):
                     viewport_state,
                 )
 
+                if language == "en" and viewport_name in ("compact", "tablet"):
+                    driver.save_screenshot(
+                        os.path.join(
+                            ARTIFACT_DIR,
+                            f"{label}-{viewport_name}-viewport.png",
+                        )
+                    )
+
             mobile_ready_order = driver.execute_script(
                 """
                 const events = window.__yandexSdkEvents || [];
