@@ -807,10 +807,24 @@ if '#include <emscripten.h>' not in save_text:
     save_text = save_text.replace('#include "Config.h"\n', '#include "Config.h"\n#include <emscripten.h>\n', 1)
 
 local_save_diag = r'''static LocalSaveActivity *YandexWeb_TestLocalSaveActivity = nullptr;
+static ui::Textbox *YandexWeb_TestLocalSaveFilenameField = nullptr;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLocalSaveOpen()
 {
 	return YandexWeb_TestLocalSaveActivity ? 1 : 0;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCaptureLocalSaveFilename()
+{
+	if (!YandexWeb_TestLocalSaveFilenameField)
+	{
+		EM_ASM({ window.__tptTestLocalSaveFilename = ''; });
+		return;
+	}
+	auto value = YandexWeb_TestLocalSaveFilenameField->GetText().ToUtf8();
+	EM_ASM({
+		window.__tptTestLocalSaveFilename = UTF8ToString($0);
+	}, value.c_str());
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCloseLocalSave()
@@ -847,9 +861,19 @@ dtor_patch = '''LocalSaveActivity::~LocalSaveActivity()
 {
 	if (YandexWeb_TestLocalSaveActivity == this)
 		YandexWeb_TestLocalSaveActivity = nullptr;
+	YandexWeb_TestLocalSaveFilenameField = nullptr;
 '''
 if dtor_marker in save_text and dtor_patch not in save_text:
     save_text = save_text.replace(dtor_marker, dtor_patch, 1)
+filename_field_anchor = '''	filenameField = new ui::Textbox(ui::Point(8, 25), ui::Point(Size.X-16, 16), save->GetDisplayName(), "[filename]");
+'''
+filename_field_patch = filename_field_anchor + '''	YandexWeb_TestLocalSaveFilenameField = filenameField;
+'''
+if 'YandexWeb_TestLocalSaveFilenameField = filenameField;' not in save_text:
+    if filename_field_anchor not in save_text:
+        raise SystemExit("LocalSaveActivity filename field anchor missing")
+    save_text = save_text.replace(filename_field_anchor, filename_field_patch, 1)
+
 save_replacements = [
     ('"Save to computer:"', 'YandexWebText("Save locally:", "Локальное сохранение:")'),
     ('"[filename]"', 'YandexWebText("[filename]", "[имя файла]")'),
