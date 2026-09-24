@@ -216,11 +216,21 @@ def smoke_case(language: str, mobile: bool):
             ready_state,
         )
         assert ready_state["readyIndex"] >= 0, (label, ready_state)
-        assert ready_state["gameplayStartIndex"] > ready_state["readyIndex"], (
-            label,
-            "GameplayAPI.start fired before LoadingAPI.ready",
-            ready_state,
-        )
+        if mobile:
+            assert (
+                ready_state["gameplayStartIndex"] == -1
+                or ready_state["gameplayStartIndex"] > ready_state["readyIndex"]
+            ), (
+                label,
+                "GameplayAPI.start fired before LoadingAPI.ready",
+                ready_state,
+            )
+        else:
+            assert ready_state["gameplayStartIndex"] > ready_state["readyIndex"], (
+                label,
+                "GameplayAPI.start did not follow LoadingAPI.ready",
+                ready_state,
+            )
 
         interaction_guards = driver.execute_script(
             """
@@ -459,6 +469,30 @@ def smoke_case(language: str, mobile: bool):
                 lambda d: d.execute_script(
                     "return window.__tptOrientationBlocked === false && window.__yandexGameplayStarted === true"
                 )
+            )
+            mobile_ready_order = driver.execute_script(
+                """
+                const events = window.__yandexSdkEvents || [];
+                return {
+                    readyCount: window.__yandexReadyCount || 0,
+                    events,
+                    readyIndex: events.indexOf('ready'),
+                    gameplayStartIndex: events.indexOf('gameplay-start'),
+                };
+                """
+            )
+            assert mobile_ready_order["readyCount"] == 1, (
+                label,
+                mobile_ready_order,
+            )
+            assert (
+                mobile_ready_order["readyIndex"] >= 0
+                and mobile_ready_order["gameplayStartIndex"]
+                    > mobile_ready_order["readyIndex"]
+            ), (
+                label,
+                "mobile GameplayAPI.start did not follow Game Ready after landscape resume",
+                mobile_ready_order,
             )
         else:
             driver.set_window_size(800, 600)
