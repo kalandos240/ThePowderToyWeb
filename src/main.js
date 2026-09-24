@@ -102,6 +102,7 @@ const ENGINE_STDERR_INFO_PREFIXES = [
   "network support not compiled in",
   "explicit fps limit:",
   "implicit fps limit via requestAnimationFrame",
+  "web main loop via requestAnimationFrame",
   "invoking FS.syncfs"
 ];
 
