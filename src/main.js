@@ -87,6 +87,7 @@ let sdkMobilePlatform = null;
 window.__tptRuntimePaused = false;
 window.__tptOrientationBlocked = false;
 window.__tptNativeModalBlocked = false;
+window.__tptNativeModalDepth = 0;
 window.__tptSdkMobilePlatform = null;
 
 function setStatus(message) {
@@ -173,9 +174,10 @@ function updateGameplayBlockState() {
 }
 
 window.__tptNativeModalBridge = {
-  setBlocked(blocked) {
+  setBlocked(blocked, depth = blocked ? 1 : 0) {
     nativeModalBlocked = Boolean(blocked);
     window.__tptNativeModalBlocked = nativeModalBlocked;
+    window.__tptNativeModalDepth = Math.max(0, Number(depth) || 0);
     updateGameplayBlockState();
   }
 };
