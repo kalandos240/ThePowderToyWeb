@@ -2196,6 +2196,17 @@ extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestEngineFps()
 	return ui::Engine::Ref().GetFps();
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDrawFrameIndex()
+{
+	return int(ui::Engine::Ref().FrameIndex);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetDrawLimit(int fps)
+{
+	fps = std::max(1, std::min(fps, 1000));
+	ui::Engine::Ref().SetDrawingFrequencyLimit(DrawLimitExplicit{ fps });
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 {
 	if (!YandexWeb_TestGameModel)
