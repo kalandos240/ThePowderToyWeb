@@ -100,8 +100,6 @@ const ENGINE_STDERR_INFO_PREFIXES = [
   "ReadFile: stamps/stamps.def: No such file or directory",
   "required #PowderSessionInfo elements not found, can't authenticate",
   "network support not compiled in",
-  "explicit fps limit:",
-  "implicit fps limit via requestAnimationFrame",
   "web main loop via requestAnimationFrame",
   "invoking FS.syncfs"
 ];
