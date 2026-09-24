@@ -328,46 +328,101 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestRemoveLocalSaveFile(const cha
 if "YandexWeb_PauseMainLoop" not in sdl_text:
     sdl_text = sdl_text.rstrip() + pause_patch + "\n"
 
-main_loop_state_anchor = '''	static bool mainLoopSet = false;
+fps_loop_anchor = r'''void ApplyFpsLimit()
+{
+	static bool mainLoopSet = false;
 	if (!mainLoopSet)
-'''
-main_loop_state_patch = '''	static bool mainLoopSet = false;
-	const bool mainLoopAlreadySet = mainLoopSet;
-	if (!mainLoopSet)
-'''
-if 'const bool mainLoopAlreadySet = mainLoopSet;' not in sdl_text:
-    if main_loop_state_anchor not in sdl_text:
-        raise SystemExit("PowderToySDLEmscripten.cpp main-loop state anchor missing")
-    sdl_text = sdl_text.replace(main_loop_state_anchor, main_loop_state_patch, 1)
-
-raf_limit_anchor = '''	int delay = 0; // no cap
+	{
+		emscripten_set_main_loop(MainLoopBody, 0, 0);
+		mainLoopSet = true;
+	}
+	// this generally attempts to replicate the behaviour of EngineProcess
+	std::optional<float> drawLimit;
+	auto &engine = ui::Engine::Ref();
+	auto fpsLimit = engine.GetFpsLimit();
+	if (auto *fpsLimitExplicit = std::get_if<FpsLimitExplicit>(&fpsLimit))
+	{
+		drawLimit = fpsLimitExplicit->value;
+	}
+	else if (std::holds_alternative<FpsLimitFollowDraw>(fpsLimit))
+	{
+		auto effectiveDrawLimit = engine.GetEffectiveDrawCap();
+		if (effectiveDrawLimit)
+		{
+			drawLimit = float(*effectiveDrawLimit);
+		}
+		// else // TODO: DrawLimitVsync
+		// {
+		// 	if (std::holds_alternative<DrawLimitVsync>(engine.GetDrawingFrequencyLimit()))
+		// 	{
+		// 		emscripten_set_main_loop_timing(EM_TIMING_RAF, 1);
+		// 		std::cerr << "implicit fps limit via vsync" << std::endl;
+		// 		return;
+		// 	}
+		// }
+	}
+	int delay = 0; // no cap
 	if (drawLimit.has_value())
 	{
 		delay = int(1000.f / *drawLimit);
 	}
 	emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, delay);
 	std::cerr << "explicit fps limit: " << delay << "ms delays" << std::endl;
-'''
-raf_limit_patch = '''	if (drawLimit.has_value())
+}'''
+
+fps_loop_patch = r'''void ApplyFpsLimit()
+{
+	static bool mainLoopSet = false;
+
+	// Browsers already synchronize requestAnimationFrame with the display.
+	// Only an explicit numeric cap should move the Emscripten loop to
+	// SETTIMEOUT; Follow display and uncapped modes stay on RAF.
+	std::optional<float> explicitDrawLimit;
+	auto &engine = ui::Engine::Ref();
+	auto fpsLimit = engine.GetFpsLimit();
+	if (auto *fpsLimitExplicit = std::get_if<FpsLimitExplicit>(&fpsLimit))
+		explicitDrawLimit = fpsLimitExplicit->value;
+
+	if (!mainLoopSet)
 	{
-		const int delay = int(1000.f / *drawLimit);
+		if (explicitDrawLimit.has_value())
+		{
+			int initialFps = int(*explicitDrawLimit);
+			if (initialFps < 1)
+				initialFps = 1;
+			emscripten_set_main_loop(MainLoopBody, initialFps, 0);
+			std::cerr << "explicit fps limit: "
+			          << int(1000.f / float(initialFps))
+			          << "ms delays" << std::endl;
+		}
+		else
+		{
+			// fps=0 selects requestAnimationFrame without a second timing call.
+			emscripten_set_main_loop(MainLoopBody, 0, 0);
+			std::cerr << "implicit fps limit via requestAnimationFrame" << std::endl;
+		}
+		mainLoopSet = true;
+		return;
+	}
+
+	if (explicitDrawLimit.has_value())
+	{
+		const float safeLimit = *explicitDrawLimit > 0.0f ? *explicitDrawLimit : 1.0f;
+		const int delay = int(1000.f / safeLimit);
 		emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, delay);
 		std::cerr << "explicit fps limit: " << delay << "ms delays" << std::endl;
 	}
 	else
 	{
-		// fps=0 in emscripten_set_main_loop already selects requestAnimationFrame.
-		// On the first call, keep that default without touching timing. On later
-		// calls, explicitly restore RAF after an explicit SETTIMEOUT cap.
-		if (mainLoopAlreadySet)
-			emscripten_set_main_loop_timing(EM_TIMING_RAF, 1);
+		emscripten_set_main_loop_timing(EM_TIMING_RAF, 1);
 		std::cerr << "implicit fps limit via requestAnimationFrame" << std::endl;
 	}
-'''
-if 'implicit fps limit via requestAnimationFrame' not in sdl_text:
-    if raf_limit_anchor not in sdl_text:
-        raise SystemExit("PowderToySDLEmscripten.cpp FPS limit anchor missing")
-    sdl_text = sdl_text.replace(raf_limit_anchor, raf_limit_patch, 1)
+}'''
+
+if 'Browsers already synchronize requestAnimationFrame with the display.' not in sdl_text:
+    if fps_loop_anchor not in sdl_text:
+        raise SystemExit("PowderToySDLEmscripten.cpp ApplyFpsLimit anchor missing")
+    sdl_text = sdl_text.replace(fps_loop_anchor, fps_loop_patch, 1)
 
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 
