@@ -376,20 +376,29 @@ fps_loop_anchor = r'''void ApplyFpsLimit()
 	}
 	emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, delay);
 	std::cerr << "explicit fps limit: " << delay << "ms delays" << std::endl;
+}
+
+// Is actually only called once at startup, the real main loop body is MainLoopBody.
+void MainLoop()
+{
+	ApplyFpsLimit();
+	MainLoopBody();
 }'''
 
 fps_loop_patch = r'''void ApplyFpsLimit()
 {
-	static bool mainLoopSet = false;
-	if (!mainLoopSet)
-	{
-		// EngineProcess already applies drawSchedule/tickSchedule caps for
-		// rendering and simulation independently. Keep the browser pump on RAF
-		// and let those native schedulers decide whether a frame/tick is due.
-		emscripten_set_main_loop(MainLoopBody, 0, 0);
-		mainLoopSet = true;
-	}
+	// EngineProcess already applies drawSchedule/tickSchedule caps for
+	// rendering and simulation independently. Emscripten timing must not be
+	// changed from UI/window setup paths before the browser main loop exists.
+}
+
+void MainLoop()
+{
+	// MainLoop is the one-shot startup entrypoint. Create the browser pump here,
+	// after native UI initialization, rather than from Engine::ShowWindow().
+	emscripten_set_main_loop(MainLoopBody, 0, 0);
 	std::cerr << "web main loop via requestAnimationFrame" << std::endl;
+	MainLoopBody();
 }'''
 
 if 'web main loop via requestAnimationFrame' not in sdl_text:
@@ -401,8 +410,10 @@ if "emscripten_set_main_loop_timing" in sdl_text:
     raise SystemExit(
         "Yandex Web must keep the Emscripten browser main loop on requestAnimationFrame"
     )
-if "emscripten_set_main_loop(MainLoopBody, 0, 0);" not in sdl_text:
-    raise SystemExit("Yandex Web RAF main-loop setup is missing")
+if sdl_text.count("emscripten_set_main_loop(MainLoopBody, 0, 0);") != 1:
+    raise SystemExit("Yandex Web must have exactly one RAF main-loop setup")
+if "void ApplyFpsLimit()\n{\n\t// EngineProcess already applies" not in sdl_text:
+    raise SystemExit("Yandex Web ApplyFpsLimit must not own browser timing")
 
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 
