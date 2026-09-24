@@ -2207,6 +2207,21 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetDrawLimit(int fps)
 	ui::Engine::Ref().SetDrawingFrequencyLimit(DrawLimitExplicit{ fps });
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestSimulationFrameCount()
+{
+	if (!YandexWeb_TestGameModel)
+		return -1.0;
+	return double(YandexWeb_TestGameModel->GetSimulation()->frameCount);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetSimulationFpsLimit(int fps)
+{
+	if (!YandexWeb_TestGameModel || !YandexWeb_TestGameModel->GetView())
+		return;
+	fps = std::max(3, std::min(fps, 1000));
+	YandexWeb_TestGameModel->GetView()->SetSimFpsLimit(FpsLimitExplicit{ float(fps) });
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
 {
 	if (!YandexWeb_TestGameModel)
