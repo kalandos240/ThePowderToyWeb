@@ -328,6 +328,32 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestRemoveLocalSaveFile(const cha
 if "YandexWeb_PauseMainLoop" not in sdl_text:
     sdl_text = sdl_text.rstrip() + pause_patch + "\n"
 
+raf_limit_anchor = '''	int delay = 0; // no cap
+	if (drawLimit.has_value())
+	{
+		delay = int(1000.f / *drawLimit);
+	}
+	emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, delay);
+	std::cerr << "explicit fps limit: " << delay << "ms delays" << std::endl;
+'''
+raf_limit_patch = '''	if (drawLimit.has_value())
+	{
+		const int delay = int(1000.f / *drawLimit);
+		emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, delay);
+		std::cerr << "explicit fps limit: " << delay << "ms delays" << std::endl;
+	}
+	else
+	{
+		// fps=0 in emscripten_set_main_loop already selects requestAnimationFrame.
+		// Keep that default instead of overriding it with SETTIMEOUT(0).
+		std::cerr << "implicit fps limit via requestAnimationFrame" << std::endl;
+	}
+'''
+if 'implicit fps limit via requestAnimationFrame' not in sdl_text:
+    if raf_limit_anchor not in sdl_text:
+        raise SystemExit("PowderToySDLEmscripten.cpp FPS limit anchor missing")
+    sdl_text = sdl_text.replace(raf_limit_anchor, raf_limit_patch, 1)
+
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 
 platform_text = emscripten_platform.read_text(encoding="utf-8")
