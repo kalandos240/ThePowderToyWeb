@@ -2045,6 +2045,51 @@ def smoke_case(language: str, mobile: bool):
                 {"fps30": draw_30_delta, "fps60": draw_60_delta},
             )
 
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetSimulationFpsLimit', null, ['number'], [20])"
+            )
+            sim_20_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            time.sleep(2.2)
+            sim_20_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            sim_20_delta = sim_20_end - sim_20_start
+            sim_20_rate = sim_20_delta / 2.2
+            assert 10 <= sim_20_rate <= 32, (
+                label,
+                "20 FPS simulation cap not respected",
+                {"ticks": sim_20_delta, "rate": sim_20_rate},
+            )
+
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetSimulationFpsLimit', null, ['number'], [60])"
+            )
+            sim_60_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            time.sleep(1.5)
+            sim_60_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            sim_60_delta = sim_60_end - sim_60_start
+            sim_60_rate = sim_60_delta / 1.5
+            assert sim_60_rate >= 35, (
+                label,
+                "60 FPS simulation cap did not recover after 20 FPS test",
+                {
+                    "fps20": {"ticks": sim_20_delta, "rate": sim_20_rate},
+                    "fps60": {"ticks": sim_60_delta, "rate": sim_60_rate},
+                },
+            )
+
         performance = None
         if language == "en":
             performance = [
