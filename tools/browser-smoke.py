@@ -2065,6 +2065,44 @@ def smoke_case(language: str, mobile: bool):
                 os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
             )
 
+            driver.execute_script("window.ysdk.emit('game_api_pause')")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptRuntimePaused === true && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+            driver.execute_script("window.ysdk.emit('game_api_resume')")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptRuntimePaused === false && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+            settings_platform_resume_state = driver.execute_script(
+                """
+                return {
+                    paused: window.__tptRuntimePaused,
+                    blocked: window.__tptNativeModalBlocked,
+                    gameplay: window.__yandexGameplayStarted,
+                };
+                """
+            )
+            assert settings_platform_resume_state["paused"] is False, (
+                label,
+                settings_platform_resume_state,
+            )
+            assert settings_platform_resume_state["blocked"] is True, (
+                label,
+                settings_platform_resume_state,
+            )
+            assert settings_platform_resume_state["gameplay"] is False, (
+                label,
+                settings_platform_resume_state,
+            )
+
             driver.execute_script(
                 """
                 window.__tptGameModule.ccall(
