@@ -23,6 +23,7 @@ This file is for the developer/release process only. It is not included in the g
 - Browser scrolling, overscroll/swipe-to-refresh, text selection, long-press selection, and the canvas context menu are disabled by the web shell.
 - Local progress uses Emscripten IDBFS/IndexedDB and is flushed during the game loop and before platform pause.
 - The Yandex build is pthread-free and does not require SharedArrayBuffer/cross-origin isolation.
+- The Emscripten browser pump stays on `requestAnimationFrame`; TPT's native draw/tick schedulers enforce rendering and simulation FPS caps without switching the browser loop to `setTimeout`.
 - Upstream HTTP features and external community links/actions are removed or blocked in the Yandex UI.
 
 ## CI release gates
@@ -41,6 +42,7 @@ The build workflow currently checks:
 - Real mobile touch selection and drawing.
 - Portrait -> landscape behavior and repeated orientation cycles.
 - Repeated fullscreen-like mobile viewport changes and dynamic safe-area/banner insets.
+- Compact-phone (568x320), baseline phone, and tablet (1024x768) landscape viewport fit without page scrolling.
 - Desktop layout checks across the effective 80%, 100%, and 125% browser-zoom viewport range.
 - Yandex pause/resume events, BFCache pagehide/pageshow recovery, and visibility/orientation race handling.
 - Game Ready ordering: LoadingAPI.ready() exactly once after the loader is hidden and before GameplayAPI.start().
@@ -55,6 +57,7 @@ The build workflow currently checks:
 - Browser smoke screenshots.
 - Desktop/mobile performance telemetry for DUST 20k/45k and water+gravity 12k/28k scenes.
 - Catastrophic performance regression gates: engine FPS >= 30 and p95 frame time <= 50 ms on CI.
+- Browser main-loop timing remains RAF while 30/60 rendering caps and 20/60 simulation caps are exercised through native TPT schedulers.
 - Current heavy-scene GitHub-runner baseline is approximately 59.7-60.1 engine FPS with ~16.7-16.8 ms p95.
 
 ## Monetization
