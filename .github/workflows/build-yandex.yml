@@ -65,6 +65,15 @@ jobs:
         run: |
           python3 tools/patch-upstream.py
 
+      - name: Check patched TPT source has no browser timing override
+        run: |
+          set -euo pipefail
+          if grep -RIn --include='*.cpp' --include='*.h' 'emscripten_set_main_loop_timing' upstream/src; then
+            echo "TPT source still overrides the Emscripten browser main-loop timing."
+            exit 1
+          fi
+          echo "TPT browser timing override audit: OK"
+
       - name: Check Yandex UI has no external community links
         run: |
           set -euo pipefail
