@@ -389,6 +389,13 @@ if 'web main loop via requestAnimationFrame' not in sdl_text:
         raise SystemExit("PowderToySDLEmscripten.cpp ApplyFpsLimit anchor missing")
     sdl_text = sdl_text.replace(fps_loop_anchor, fps_loop_patch, 1)
 
+if "emscripten_set_main_loop_timing" in sdl_text:
+    raise SystemExit(
+        "Yandex Web must keep the Emscripten browser main loop on requestAnimationFrame"
+    )
+if "emscripten_set_main_loop(MainLoopBody, 0, 0);" not in sdl_text:
+    raise SystemExit("Yandex Web RAF main-loop setup is missing")
+
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 
 platform_text = emscripten_platform.read_text(encoding="utf-8")
