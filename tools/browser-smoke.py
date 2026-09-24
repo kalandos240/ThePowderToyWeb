@@ -1538,6 +1538,63 @@ def smoke_case(language: str, mobile: bool):
             )
             assert local_save_size > 100, (label, "local CPS file too small", local_save_size)
 
+            if not mobile and language == "en":
+                # Reopen Save with the same filename so the native overwrite
+                # confirmation is stacked above LocalSaveActivity.
+                driver.execute_script(
+                    "window.__tptGameModule.ccall('YandexWeb_TestOpenLocalSave', null, [], [])"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptGameModule.ccall("
+                        "'YandexWeb_TestLocalSaveOpen', 'number', [], []) === 1 && "
+                        "window.__tptNativeModalDepth === 1 && "
+                        "window.__yandexGameplayStarted === false"
+                    )
+                )
+                ActionChains(driver).send_keys(save_name).send_keys(Keys.ENTER).perform()
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptNativeModalDepth === 2 && "
+                        "window.__tptNativeModalBlocked === true && "
+                        "window.__yandexGameplayStarted === false && "
+                        "window.__tptGameModule.ccall("
+                        "'YandexWeb_TestLocalSaveOpen', 'number', [], []) === 1"
+                    )
+                )
+
+                # Escape closes only ConfirmPrompt. The underlying Save dialog
+                # must keep gameplay blocked.
+                driver.execute_script(
+                    "window.__tptGameModule.ccall("
+                    "'YandexWeb_PushKey', null, ['number'], [27])"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptNativeModalDepth === 1 && "
+                        "window.__tptNativeModalBlocked === true && "
+                        "window.__yandexGameplayStarted === false && "
+                        "window.__tptGameModule.ccall("
+                        "'YandexWeb_TestLocalSaveOpen', 'number', [], []) === 1"
+                    )
+                )
+
+                # A second Escape closes LocalSaveActivity and only then may
+                # gameplay markup resume.
+                driver.execute_script(
+                    "window.__tptGameModule.ccall("
+                    "'YandexWeb_PushKey', null, ['number'], [27])"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        "return window.__tptNativeModalDepth === 0 && "
+                        "window.__tptNativeModalBlocked === false && "
+                        "window.__yandexGameplayStarted === true && "
+                        "window.__tptGameModule.ccall("
+                        "'YandexWeb_TestLocalSaveOpen', 'number', [], []) === 0"
+                    )
+                )
+
             if mobile:
                 wait.until(
                     lambda d: d.execute_script(
