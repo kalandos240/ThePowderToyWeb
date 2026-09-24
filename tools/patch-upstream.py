@@ -2167,7 +2167,9 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestActiveToolIsDust()
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestOpenLocalSave()
 {
-	GameController::Ref().OpenLocalSaveWindow(true);
+	// CI hook: always open the Save dialog instead of silently overwriting the
+	// current file, so browser smoke can exercise text input and nested prompts.
+	GameController::Ref().OpenLocalSaveWindow(false);
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDust(int target)
