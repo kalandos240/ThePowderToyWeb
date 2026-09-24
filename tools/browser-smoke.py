@@ -2103,9 +2103,10 @@ def smoke_case(language: str, mobile: bool):
                 settings_platform_resume_state,
             )
 
-            # Combined blocker race: closing a native modal while
-            # portrait mode is still blocking gameplay must not restart
-            # GameplayAPI until landscape is restored.
+            # Combined blocker race: portrait and a native modal can be
+            # active together. Returning to landscape clears only the
+            # orientation blocker; Settings must continue to keep gameplay
+            # stopped until the modal itself closes.
             driver.execute_cdp_cmd(
                 "Emulation.setDeviceMetricsOverride",
                 {
@@ -2124,32 +2125,11 @@ def smoke_case(language: str, mobile: bool):
                 lambda d: d.execute_script(
                     "return window.__tptOrientationBlocked === true && "
                     "window.__tptNativeModalBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
                     "window.__yandexGameplayStarted === false"
                 )
             )
-            driver.execute_script(
-                """
-                window.__tptGameModule.ccall(
-                    'YandexWeb_PushKey',
-                    null,
-                    ['number'],
-                    [27]
-                );
-                """
-            )
 
-            wait.until(
-                lambda d: d.execute_script(
-                    """
-                    return window.__tptGameModule.ccall(
-                        'YandexWeb_TestOptionsOpen', 'number', [], []
-                    ) === 0 &&
-                    window.__tptNativeModalBlocked === false &&
-                    window.__tptOrientationBlocked === true &&
-                    window.__yandexGameplayStarted === false;
-                    """
-                )
-            )
             driver.execute_cdp_cmd(
                 "Emulation.setDeviceMetricsOverride",
                 {
@@ -2167,17 +2147,32 @@ def smoke_case(language: str, mobile: bool):
             wait.until(
                 lambda d: d.execute_script(
                     "return window.__tptOrientationBlocked === false && "
-                    "window.__tptNativeModalBlocked === false && "
-                    "window.__yandexGameplayStarted === true"
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__tptRuntimePaused === false && "
+                    "window.__yandexGameplayStarted === false"
                 )
+            )
+
+            driver.execute_script(
+                """
+                window.__tptGameModule.ccall(
+                    'YandexWeb_PushKey',
+                    null,
+                    ['number'],
+                    [27]
+                );
+                """
             )
             wait.until(
                 lambda d: d.execute_script(
-                    "return window.__tptGameModule.ccall("
-                    "'YandexWeb_TestOptionsOpen', 'number', [], []) === 0 && "
-                    "window.__tptNativeModalBlocked === false && "
-                    "window.__tptOrientationBlocked === false && "
-                    "window.__yandexGameplayStarted === true"
+                    """
+                    return window.__tptGameModule.ccall(
+                        'YandexWeb_TestOptionsOpen', 'number', [], []
+                    ) === 0 &&
+                    window.__tptNativeModalBlocked === false &&
+                    window.__tptOrientationBlocked === false &&
+                    window.__yandexGameplayStarted === true;
+                    """
                 )
             )
             settings_closed_state = driver.execute_script(
