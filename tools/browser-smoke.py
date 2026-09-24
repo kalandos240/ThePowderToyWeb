@@ -2103,6 +2103,31 @@ def smoke_case(language: str, mobile: bool):
                 settings_platform_resume_state,
             )
 
+            # Combined blocker race: closing a native modal while
+            # portrait mode is still blocking gameplay must not restart
+            # GameplayAPI until landscape is restored.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 390,
+                    "height": 844,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "portraitPrimary",
+                        "angle": 0,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === true && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
             driver.execute_script(
                 """
                 window.__tptGameModule.ccall(
@@ -2113,6 +2138,7 @@ def smoke_case(language: str, mobile: bool):
                 );
                 """
             )
+
             wait.until(
                 lambda d: d.execute_script(
                     """
@@ -2120,8 +2146,40 @@ def smoke_case(language: str, mobile: bool):
                         'YandexWeb_TestOptionsOpen', 'number', [], []
                     ) === 0 &&
                     window.__tptNativeModalBlocked === false &&
-                    window.__yandexGameplayStarted === true;
+                    window.__tptOrientationBlocked === true &&
+                    window.__yandexGameplayStarted === false;
                     """
+                )
+            )
+
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && "
+                    "window.__tptNativeModalBlocked === false && "
+                    "window.__yandexGameplayStarted === true"
+                )
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptGameModule.ccall("
+                    "'YandexWeb_TestOptionsOpen', 'number', [], []) === 0 && "
+                    "window.__tptNativeModalBlocked === false && "
+                    "window.__tptOrientationBlocked === false && "
+                    "window.__yandexGameplayStarted === true"
                 )
             )
             settings_closed_state = driver.execute_script(
