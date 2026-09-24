@@ -20,7 +20,7 @@ This file is for the developer/release process only. It is not included in the g
 - Mobile portrait mode is blocked with a localized rotate-device prompt; simulation/gameplay are paused while blocked.
 - Desktop and mobile viewport changes, orientation changes, visualViewport changes, and fullscreen changes refit the canvas.
 - Safe-area content-box sizing subtracts CSS padding before scaling the canvas; repeated mobile viewport/fullscreen tests verify that the canvas never overflows the usable app area.
-- Browser scrolling, text selection, long-press selection, and the canvas context menu are disabled by the web shell.
+- Browser scrolling, overscroll/swipe-to-refresh, text selection, long-press selection, and the canvas context menu are disabled by the web shell.
 - Local progress uses Emscripten IDBFS/IndexedDB and is flushed during the game loop and before platform pause.
 - The Yandex build is pthread-free and does not require SharedArrayBuffer/cross-origin isolation.
 - Upstream HTTP features and external community links/actions are removed or blocked in the Yandex UI.
@@ -34,17 +34,28 @@ The build workflow currently checks:
 - No visible upstream community links in the patched GUI.
 - No SharedArrayBuffer/shared-memory/pthread build markers.
 - Uncompressed package size <= 100 MB.
+- ZIP integrity, exactly one root `index.html`, safe archive paths, and ASCII/no-whitespace path names.
 - Desktop EN and RU startup.
 - Mobile EN and RU startup.
 - Real desktop mouse selection and drawing.
 - Real mobile touch selection and drawing.
 - Portrait -> landscape behavior and repeated orientation cycles.
-- Repeated fullscreen-like mobile viewport changes.
-- Yandex pause/resume events.
+- Repeated fullscreen-like mobile viewport changes and dynamic safe-area/banner insets.
+- Desktop layout checks across the effective 80%, 100%, and 125% browser-zoom viewport range.
+- Yandex pause/resume events, BFCache pagehide/pageshow recovery, and visibility/orientation race handling.
+- Game Ready ordering: LoadingAPI.ready() exactly once after the loader is hidden and before GameplayAPI.start().
+- Native modal gameplay markup: Save/Open/Settings stop gameplay markup and restore it when appropriate.
+- Nested native modal stacks remain blocked until the final underlying modal closes.
+- Combined orientation + native-modal blockers compose correctly; clearing one blocker does not restart gameplay while the other remains active.
+- Platform resume reconciliation while orientation or native-modal blockers are active.
 - IndexedDB/IDBFS persistence across page reload.
+- Full mobile local save create -> browser -> reopen flow, including restored simulation state.
+- RU mobile text input, Backspace/Enter, UTF-8 save names, and IME composition de-duplication.
+- Browser console capture with unexpected SEVERE entries rejected.
 - Browser smoke screenshots.
-- Desktop/mobile frame-time telemetry on an approximately 20,000-particle stress scene.
-- Current 20k-particle CI baseline: median 16.7 ms / ~59.88 FPS, p95 16.7 ms on both desktop and mobile emulation.
+- Desktop/mobile performance telemetry for DUST 20k/45k and water+gravity 12k/28k scenes.
+- Catastrophic performance regression gates: engine FPS >= 30 and p95 frame time <= 50 ms on CI.
+- Current heavy-scene GitHub-runner baseline is approximately 59.7-60.1 engine FPS with ~16.7-16.8 ms p95.
 
 ## Monetization
 
@@ -67,8 +78,9 @@ For this sandbox game, a console-configured sticky banner is the lowest-risk fir
 - Verify Game Ready becomes green and is not called on timeout.
 - Test at least one desktop browser and one real Android/iOS device.
 - On mobile, repeat portrait/landscape and fullscreen transitions several times.
-- Verify long press does not open a browser context menu.
-- Create a real local save, reload the page, and reopen it.
-- Verify RU and EN through the Yandex language mock.
-- Run a heavy simulation for several minutes and check responsiveness.
+- Verify long press does not open a browser context menu on a real touch device.
+- Create a real local save, reload the page, and reopen it on a real device.
+- Verify RU and EN in the uploaded Yandex draft.
+- Test the real on-screen keyboard/IME on Android or iOS.
+- Run a heavy simulation for several minutes on representative hardware and check responsiveness/thermals.
 - Confirm the sticky banner/ad configuration, or state in the developer comment that the game is intentionally non-monetized.
