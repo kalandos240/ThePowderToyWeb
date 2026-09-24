@@ -470,6 +470,77 @@ def smoke_case(language: str, mobile: bool):
                     "return window.__tptOrientationBlocked === false && window.__yandexGameplayStarted === true"
                 )
             )
+            # Cover compact-phone and tablet landscape viewports in the
+            # same mobile session without multiplying full browser instances.
+            for viewport_name, vw, vh, dpr in (
+                ("compact", 568, 320, 2.0),
+                ("tablet", 1024, 768, 2.0),
+                ("baseline", 844, 390, 3.0),
+            ):
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": vw,
+                        "height": vh,
+                        "deviceScaleFactor": dpr,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "landscapePrimary",
+                            "angle": 90,
+                        },
+                    },
+                )
+                driver.execute_script(
+                    "window.dispatchEvent(new Event('resize'));"
+                    "window.dispatchEvent(new Event('orientationchange'));"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        const canvas = document.getElementById('canvas');
+                        const r = canvas.getBoundingClientRect();
+                        return (
+                            window.__tptOrientationBlocked === false &&
+                            window.__tptRuntimePaused === false &&
+                            window.__yandexGameplayStarted === true &&
+                            r.width > 0 &&
+                            r.height > 0 &&
+                            r.right <= window.innerWidth + 1 &&
+                            r.bottom <= window.innerHeight + 1
+                        );
+                        """
+                    )
+                )
+                viewport_state = driver.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    const r = canvas.getBoundingClientRect();
+                    return {
+                        width: r.width,
+                        height: r.height,
+                        viewportWidth: window.innerWidth,
+                        viewportHeight: window.innerHeight,
+                        scrollWidth: document.documentElement.scrollWidth,
+                        scrollHeight: document.documentElement.scrollHeight,
+                        blocked: window.__tptOrientationBlocked,
+                        paused: window.__tptRuntimePaused,
+                        gameplay: window.__yandexGameplayStarted,
+                    };
+                    """
+                )
+                assert viewport_state["scrollWidth"] <= viewport_state["viewportWidth"] + 1, (
+                    label,
+                    viewport_name,
+                    "horizontal mobile scroll",
+                    viewport_state,
+                )
+                assert viewport_state["scrollHeight"] <= viewport_state["viewportHeight"] + 1, (
+                    label,
+                    viewport_name,
+                    "vertical mobile scroll",
+                    viewport_state,
+                )
+
             mobile_ready_order = driver.execute_script(
                 """
                 const events = window.__yandexSdkEvents || [];
