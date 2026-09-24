@@ -2233,6 +2233,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetDrawLimit(int fps)
 	ui::Engine::Ref().SetDrawingFrequencyLimit(DrawLimitExplicit{ fps });
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestEffectiveDrawCap()
+{
+	auto cap = ui::Engine::Ref().GetEffectiveDrawCap();
+	return cap ? *cap : -1;
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestSimulationFrameCount()
 {
 	if (!YandexWeb_TestGameModel)
@@ -2246,6 +2252,16 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetSimulationFpsLimit(int fps
 		return;
 	fps = std::max(3, std::min(fps, 1000));
 	YandexWeb_TestGameModel->GetView()->SetSimFpsLimit(FpsLimitExplicit{ float(fps) });
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestSimulationFpsLimit()
+{
+	if (!YandexWeb_TestGameModel || !YandexWeb_TestGameModel->GetView())
+		return -1.0;
+	auto limit = YandexWeb_TestGameModel->GetView()->GetSimFpsLimit();
+	if (auto *explicitLimit = std::get_if<FpsLimitExplicit>(&limit))
+		return double(explicitLimit->value);
+	return 0.0;
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
