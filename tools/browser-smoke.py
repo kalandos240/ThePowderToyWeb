@@ -1037,6 +1037,91 @@ def smoke_case(language: str, mobile: bool):
                 """
             )
 
+            # A local blocker can clear while Yandex keeps the game paused.
+            # Because Yandex will not auto-start markup that was explicitly
+            # stopped before game_api_pause, our resume handler must reconcile
+            # the gameplay state once both blockers are gone.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 390,
+                    "height": 844,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "portraitPrimary",
+                        "angle": 0,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+            driver.execute_script("window.ysdk.emit('game_api_pause')")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script("window.ysdk.emit('game_api_resume')")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && "
+                    "window.__tptRuntimePaused === false && "
+                    "window.__yandexGameplayStarted === true"
+                )
+            )
+            platform_resume_reconciled = driver.execute_script(
+                """
+                return {
+                    blocked: window.__tptOrientationBlocked,
+                    paused: window.__tptRuntimePaused,
+                    gameplay: window.__yandexGameplayStarted,
+                };
+                """
+            )
+            assert platform_resume_reconciled["blocked"] is False, (
+                label,
+                platform_resume_reconciled,
+            )
+            assert platform_resume_reconciled["paused"] is False, (
+                label,
+                platform_resume_reconciled,
+            )
+            assert platform_resume_reconciled["gameplay"] is True, (
+                label,
+                platform_resume_reconciled,
+            )
+
             # Touch must still work after several orientation transitions.
             post_cycle_before = driver.execute_script(
                 "return window.__tptGameModule.ccall('YandexWeb_TestParticleCount', 'number', [], [])"
