@@ -2365,6 +2365,24 @@ def smoke_case(language: str, mobile: bool):
             fatal_browser_logs,
         )
 
+        obsolete_main_loop_warnings = (
+            "emscripten_set_main_loop_timing: Cannot set timing mode for main loop",
+            "Looks like you are rendering without using requestAnimationFrame for the main loop",
+        )
+        unexpected_main_loop_warnings = [
+            entry
+            for entry in browser_logs
+            if any(
+                marker in entry.get("message", "")
+                for marker in obsolete_main_loop_warnings
+            )
+        ]
+        assert not unexpected_main_loop_warnings, (
+            label,
+            "obsolete Emscripten main-loop warnings returned",
+            unexpected_main_loop_warnings,
+        )
+
         unexpected_severe_logs = [
             entry
             for entry in browser_logs
