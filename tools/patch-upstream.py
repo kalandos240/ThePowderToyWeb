@@ -388,8 +388,8 @@ fps_loop_patch = r'''void ApplyFpsLimit()
 		// and let those native schedulers decide whether a frame/tick is due.
 		emscripten_set_main_loop(MainLoopBody, 0, 0);
 		mainLoopSet = true;
+		std::cerr << "web main loop via requestAnimationFrame" << std::endl;
 	}
-	std::cerr << "web main loop via requestAnimationFrame" << std::endl;
 }'''
 
 if 'web main loop via requestAnimationFrame' not in sdl_text:
