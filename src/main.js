@@ -101,7 +101,12 @@ const ENGINE_STDERR_INFO_PREFIXES = [
   "required #PowderSessionInfo elements not found, can't authenticate",
   "network support not compiled in",
   "web main loop via requestAnimationFrame",
-  "invoking FS.syncfs"
+  "invoking FS.syncfs",
+  // Emscripten's SDL2 renderer asks for RAF timing while SDL_CreateRenderer
+  // runs, before the application has installed its own browser main loop.
+  // Our patched TPT source is statically checked to contain no such timing
+  // call, so this exact SDL2 diagnostic is informational rather than fatal.
+  "emscripten_set_main_loop_timing: Cannot set timing mode for main loop since a main loop does not exist!"
 ];
 
 const ENGINE_STDERR_WARNING_PREFIXES = [
