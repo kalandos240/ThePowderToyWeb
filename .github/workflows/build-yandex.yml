@@ -55,9 +55,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: upstream/build
+          # The build directory contains object files compiled from sources
+          # rewritten by tools/patch-upstream.py. Never fall back to a cache
+          # produced by a different patch revision: Ninja can otherwise reuse
+          # stale Emscripten objects and silently mix old/new main-loop logic.
           key: tpt-yandex-v100.1.400-emsdk-3.1.72-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ hashFiles('upstream/.github/build.sh') }}-${{ hashFiles('tools/patch-upstream.py') }}
-          restore-keys: |
-            tpt-yandex-v100.1.400-emsdk-3.1.72-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ hashFiles('upstream/.github/build.sh') }}-
 
       - name: Apply Yandex Web patches
         run: |
