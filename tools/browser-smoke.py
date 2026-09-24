@@ -2114,6 +2114,100 @@ def smoke_case(language: str, mobile: bool):
                 "pthread-free web build exposed threaded rendering setting",
                 threaded_control_present,
             )
+            # Triple blocker race: native modal + portrait gate + hidden
+            # document. Clearing any one or two blockers must never restart
+            # gameplay until the final blocker is gone.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 390,
+                    "height": 844,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "portraitPrimary",
+                        "angle": 0,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === true && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script(
+                """
+                window.__tptSyntheticHidden = true;
+                Object.defineProperty(document, 'hidden', {
+                    configurable: true,
+                    get() { return window.__tptSyntheticHidden; }
+                });
+                document.dispatchEvent(new Event('visibilitychange'));
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return document.hidden === true && "
+                    "window.__tptOrientationBlocked === true && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            # Clear visibility first: portrait + modal still block gameplay.
+            driver.execute_script(
+                """
+                window.__tptSyntheticHidden = false;
+                document.dispatchEvent(new Event('visibilitychange'));
+                """
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return document.hidden === false && "
+                    "window.__tptOrientationBlocked === true && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__tptRuntimePaused === true && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            # Clear portrait next: Settings remains the last gameplay blocker.
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": 844,
+                    "height": 390,
+                    "deviceScaleFactor": 3.0,
+                    "mobile": True,
+                    "screenOrientation": {
+                        "type": "landscapePrimary",
+                        "angle": 90,
+                    },
+                },
+            )
+            driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptOrientationBlocked === false && "
+                    "window.__tptNativeModalBlocked === true && "
+                    "window.__tptRuntimePaused === false && "
+                    "window.__yandexGameplayStarted === false"
+                )
+            )
+
+            driver.execute_script(
+                """
+                delete document.hidden;
+                delete window.__tptSyntheticHidden;
+                """
+            )
+
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-settings.png")
             )
