@@ -105,7 +105,8 @@ const ENGINE_STDERR_INFO_PREFIXES = [
 
 const ENGINE_STDERR_WARNING_PREFIXES = [
   "emscripten_set_main_loop_timing: Cannot set timing mode for main loop",
-  "Looks like you are rendering without using requestAnimationFrame for the main loop"
+  "Looks like you are rendering without using requestAnimationFrame for the main loop",
+  "warning: 2 FS.syncfs operations in flight at once"
 ];
 
 function logEngineStderr(...args) {
