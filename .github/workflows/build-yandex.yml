@@ -52,7 +52,7 @@ jobs:
 
       - name: Restore Emscripten build cache
         id: emscripten-build-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: upstream/build
           key: tpt-yandex-v100.1.400-emsdk-3.1.72-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ hashFiles('upstream/.github/build.sh') }}-${{ hashFiles('tools/patch-upstream.py') }}
@@ -99,6 +99,13 @@ jobs:
         run: |
           chmod +x .github/build.sh
           ./.github/build.sh
+
+      - name: Save Emscripten build cache
+        if: steps.emscripten-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: upstream/build
+          key: ${{ steps.emscripten-build-cache.outputs.cache-primary-key }}
 
       - name: Validate shared-memory-free browser output
         run: |
