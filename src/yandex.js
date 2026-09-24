@@ -5,6 +5,8 @@ let gameplayActive = false;
 let platformPauseActive = false;
 let gameplayBlocked = false;
 
+const SDK_INIT_TIMEOUT_MS = 8000;
+
 export async function initYandexSDK() {
   if (sdkInitPromise) {
     return sdkInitPromise;
@@ -16,14 +18,36 @@ export async function initYandexSDK() {
       return null;
     }
 
+    let timeoutId = null;
     try {
-      sdk = await window.YaGames.init();
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          const error = new Error(
+            `Yandex SDK initialization timed out after ${SDK_INIT_TIMEOUT_MS} ms`
+          );
+          error.name = "YandexSDKTimeoutError";
+          reject(error);
+        }, SDK_INIT_TIMEOUT_MS);
+      });
+
+      sdk = await Promise.race([
+        Promise.resolve(window.YaGames.init()),
+        timeoutPromise
+      ]);
       window.ysdk = sdk;
       console.info("[Yandex] SDK initialized.");
       return sdk;
     } catch (error) {
-      console.error("[Yandex] SDK initialization failed.", error);
+      if (error?.name === "YandexSDKTimeoutError") {
+        console.warn("[Yandex] SDK initialization timed out; continuing without SDK.");
+      } else {
+        console.error("[Yandex] SDK initialization failed.", error);
+      }
       return null;
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     }
   })();
 

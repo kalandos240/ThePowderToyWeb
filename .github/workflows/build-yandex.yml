@@ -213,7 +213,11 @@ jobs:
           window.__yandexSdkEvents = [];
           window.__yandexReadySnapshot = null;
           window.YaGames = {
-            init: async () => ({
+            init: async () => {
+              if (new URLSearchParams(location.search).get("sdk") === "hang") {
+                return new Promise(() => {});
+              }
+              return {
               environment: {
                 i18n: {
                   lang: new URLSearchParams(location.search).get("lang") || "en"
@@ -268,7 +272,8 @@ jobs:
                   callback();
                 }
               }
-            })
+              };
+            }
           };
           EOF
 
