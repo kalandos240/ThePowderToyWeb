@@ -470,6 +470,77 @@ def smoke_case(language: str, mobile: bool):
                     "return window.__tptOrientationBlocked === false && window.__yandexGameplayStarted === true"
                 )
             )
+            # Cover compact-phone and tablet landscape viewports in the
+            # same mobile session without multiplying full browser instances.
+            for viewport_name, vw, vh, dpr in (
+                ("compact", 568, 320, 2.0),
+                ("tablet", 1024, 768, 2.0),
+                ("baseline", 844, 390, 3.0),
+            ):
+                driver.execute_cdp_cmd(
+                    "Emulation.setDeviceMetricsOverride",
+                    {
+                        "width": vw,
+                        "height": vh,
+                        "deviceScaleFactor": dpr,
+                        "mobile": True,
+                        "screenOrientation": {
+                            "type": "landscapePrimary",
+                            "angle": 90,
+                        },
+                    },
+                )
+                driver.execute_script(
+                    "window.dispatchEvent(new Event('resize'));"
+                    "window.dispatchEvent(new Event('orientationchange'));"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        const canvas = document.getElementById('canvas');
+                        const r = canvas.getBoundingClientRect();
+                        return (
+                            window.__tptOrientationBlocked === false &&
+                            window.__tptRuntimePaused === false &&
+                            window.__yandexGameplayStarted === true &&
+                            r.width > 0 &&
+                            r.height > 0 &&
+                            r.right <= window.innerWidth + 1 &&
+                            r.bottom <= window.innerHeight + 1
+                        );
+                        """
+                    )
+                )
+                viewport_state = driver.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    const r = canvas.getBoundingClientRect();
+                    return {
+                        width: r.width,
+                        height: r.height,
+                        viewportWidth: window.innerWidth,
+                        viewportHeight: window.innerHeight,
+                        scrollWidth: document.documentElement.scrollWidth,
+                        scrollHeight: document.documentElement.scrollHeight,
+                        blocked: window.__tptOrientationBlocked,
+                        paused: window.__tptRuntimePaused,
+                        gameplay: window.__yandexGameplayStarted,
+                    };
+                    """
+                )
+                assert viewport_state["scrollWidth"] <= viewport_state["viewportWidth"] + 1, (
+                    label,
+                    viewport_name,
+                    "horizontal mobile scroll",
+                    viewport_state,
+                )
+                assert viewport_state["scrollHeight"] <= viewport_state["viewportHeight"] + 1, (
+                    label,
+                    viewport_name,
+                    "vertical mobile scroll",
+                    viewport_state,
+                )
+
             mobile_ready_order = driver.execute_script(
                 """
                 const events = window.__yandexSdkEvents || [];
@@ -2000,6 +2071,114 @@ def smoke_case(language: str, mobile: bool):
                 label,
                 "native local CPS save missing after browser reload",
                 persisted_local_save_size,
+            )
+
+        if not mobile and language == "en":
+            main_loop_raf = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestMainLoopUsesRAF', 'number', [], [])"
+            )
+            assert main_loop_raf == 1, (
+                label,
+                "Emscripten main loop is not using requestAnimationFrame",
+                main_loop_raf,
+            )
+
+            # The Emscripten pump stays permanently on requestAnimationFrame,
+            # while EngineProcess must still honor the user's rendering cap.
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetDrawLimit', null, ['number'], [30])"
+            )
+            draw_30_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            time.sleep(2.0)
+            draw_30_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            draw_30_delta = (draw_30_end - draw_30_start) % 7200
+            assert 35 <= draw_30_delta <= 80, (
+                label,
+                "30 FPS rendering cap not respected",
+                draw_30_delta,
+            )
+
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetDrawLimit', null, ['number'], [60])"
+            )
+            draw_60_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            time.sleep(1.5)
+            draw_60_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            draw_60_delta = (draw_60_end - draw_60_start) % 7200
+            assert draw_60_delta >= 65, (
+                label,
+                "60 FPS rendering cap did not recover after 30 FPS test",
+                {"fps30": draw_30_delta, "fps60": draw_60_delta},
+            )
+
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetSimulationFpsLimit', null, ['number'], [20])"
+            )
+            sim_20_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            time.sleep(2.2)
+            sim_20_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            sim_20_delta = sim_20_end - sim_20_start
+            sim_20_rate = sim_20_delta / 2.2
+            assert 10 <= sim_20_rate <= 32, (
+                label,
+                "20 FPS simulation cap not respected",
+                {"ticks": sim_20_delta, "rate": sim_20_rate},
+            )
+
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetSimulationFpsLimit', null, ['number'], [60])"
+            )
+            sim_60_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            time.sleep(1.5)
+            sim_60_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestSimulationFrameCount', 'number', [], [])"
+            )
+            sim_60_delta = sim_60_end - sim_60_start
+            sim_60_rate = sim_60_delta / 1.5
+            assert sim_60_rate >= 35, (
+                label,
+                "60 FPS simulation cap did not recover after 20 FPS test",
+                {
+                    "fps20": {"ticks": sim_20_delta, "rate": sim_20_rate},
+                    "fps60": {"ticks": sim_60_delta, "rate": sim_60_rate},
+                },
+            )
+
+            main_loop_raf_after_caps = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestMainLoopUsesRAF', 'number', [], [])"
+            )
+            assert main_loop_raf_after_caps == 1, (
+                label,
+                "FPS cap changes moved Emscripten main loop off requestAnimationFrame",
+                main_loop_raf_after_caps,
             )
 
         performance = None
