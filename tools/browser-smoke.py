@@ -234,19 +234,31 @@ def smoke_case(language: str, mobile: bool):
 
         interaction_guards = driver.execute_script(
             """
+            const app = document.getElementById('app');
             const canvas = document.getElementById('canvas');
             const bodyStyle = getComputedStyle(document.body);
             const canvasStyle = getComputedStyle(canvas);
-            const contextEvent = new MouseEvent('contextmenu', {
+            const canvasContextEvent = new MouseEvent('contextmenu', {
                 bubbles: true,
                 cancelable: true,
                 clientX: 20,
                 clientY: 20,
             });
-            const dispatchResult = canvas.dispatchEvent(contextEvent);
+            const appContextEvent = new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 2,
+                clientY: 2,
+            });
+            const canvasDispatchResult = canvas.dispatchEvent(canvasContextEvent);
+            const appDispatchResult = app.dispatchEvent(appContextEvent);
             return {
-                contextPrevented:
-                    contextEvent.defaultPrevented === true && dispatchResult === false,
+                canvasContextPrevented:
+                    canvasContextEvent.defaultPrevented === true &&
+                    canvasDispatchResult === false,
+                appContextPrevented:
+                    appContextEvent.defaultPrevented === true &&
+                    appDispatchResult === false,
                 bodyUserSelect: bodyStyle.userSelect,
                 bodyOverscrollBehavior: bodyStyle.overscrollBehavior,
                 canvasTouchAction: canvasStyle.touchAction,
@@ -257,9 +269,14 @@ def smoke_case(language: str, mobile: bool):
             };
             """
         )
-        assert interaction_guards["contextPrevented"] is True, (
+        assert interaction_guards["canvasContextPrevented"] is True, (
             label,
             "canvas context menu was not prevented",
+            interaction_guards,
+        )
+        assert interaction_guards["appContextPrevented"] is True, (
+            label,
+            "game-area context menu was not prevented",
             interaction_guards,
         )
         assert interaction_guards["bodyUserSelect"] == "none", (
