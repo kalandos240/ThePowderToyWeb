@@ -56,7 +56,7 @@ let uiLanguage = "en";
 
 function applyPlatformLanguage(currentSDK) {
   const requested = getYandexLanguage(currentSDK);
-  uiLanguage = Object.hasOwn(MESSAGES, requested) ? requested : "en";
+  uiLanguage = Object.prototype.hasOwnProperty.call(MESSAGES, requested) ? requested : "en";
   document.documentElement.lang = uiLanguage;
   window.yandexDetectedLanguage = requested;
   window.tptLanguage = uiLanguage;
