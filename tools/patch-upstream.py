@@ -1201,12 +1201,12 @@ engine_text = engine_cpp.read_text(encoding="utf-8")
 
 modal_bridge_helper = r'''
 #if defined(__EMSCRIPTEN__)
-static void YandexWeb_SetNativeModalBlocked(bool blocked)
+static void YandexWeb_SetNativeModalBlocked(bool blocked, int depth)
 {
 	EM_ASM({
 		if (window.__tptNativeModalBridge)
-			window.__tptNativeModalBridge.setBlocked(!!$0);
-	}, blocked ? 1 : 0);
+			window.__tptNativeModalBridge.setBlocked(!!$0, $1);
+	}, blocked ? 1 : 0, depth);
 }
 #endif
 
@@ -1226,7 +1226,7 @@ show_window_anchor = '''	state_ = window;
 }'''
 show_window_patch = '''	state_ = window;
 #if defined(__EMSCRIPTEN__)
-	YandexWeb_SetNativeModalBlocked(!windows.empty());
+	YandexWeb_SetNativeModalBlocked(!windows.empty(), int(windows.size()));
 #endif
 	ApplyFpsLimit();
 }'''
@@ -1254,7 +1254,7 @@ close_window_root_anchor = '''		state_ = nullptr;
 		return 1;'''
 close_window_root_patch = '''		state_ = nullptr;
 #if defined(__EMSCRIPTEN__)
-		YandexWeb_SetNativeModalBlocked(false);
+		YandexWeb_SetNativeModalBlocked(false, 0);
 #endif
 		ApplyFpsLimit();
 		return 1;'''
