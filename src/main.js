@@ -104,9 +104,7 @@ const ENGINE_STDERR_INFO_PREFIXES = [
   "invoking FS.syncfs"
 ];
 
-const ENGINE_STDERR_WARNING_PREFIXES = [
-  "warning: 2 FS.syncfs operations in flight at once"
-];
+const ENGINE_STDERR_WARNING_PREFIXES = [];
 
 function logEngineStderr(...args) {
   const text = args.map((value) => String(value)).join(" ");
