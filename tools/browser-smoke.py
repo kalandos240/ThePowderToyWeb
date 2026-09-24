@@ -2365,6 +2365,24 @@ def smoke_case(language: str, mobile: bool):
             fatal_browser_logs,
         )
 
+        obsolete_main_loop_warnings = (
+            "emscripten_set_main_loop_timing: Cannot set timing mode for main loop",
+            "Looks like you are rendering without using requestAnimationFrame for the main loop",
+        )
+        unexpected_main_loop_warnings = [
+            entry
+            for entry in browser_logs
+            if any(
+                marker in entry.get("message", "")
+                for marker in obsolete_main_loop_warnings
+            )
+        ]
+        assert not unexpected_main_loop_warnings, (
+            label,
+            "obsolete Emscripten main-loop warnings returned",
+            unexpected_main_loop_warnings,
+        )
+
         unexpected_severe_logs = [
             entry
             for entry in browser_logs
@@ -2385,9 +2403,99 @@ def smoke_case(language: str, mobile: bool):
         driver.quit()
 
 
+
+def tablet_device_case():
+    label = "tablet-en"
+    driver = make_driver(mobile=True)
+    try:
+        driver.set_page_load_timeout(45)
+        driver.get(f"{BASE_URL}/?lang=en&device=tablet")
+        wait = WebDriverWait(driver, 45)
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                return Boolean(
+                    canvas &&
+                    canvas.style.display === 'block' &&
+                    window.__tptGameModule &&
+                    window.__yandexLoadingReady === true
+                );
+                """
+            )
+        )
+        portrait = driver.execute_script(
+            """
+            return {
+                sdkMobile: window.__tptSdkMobilePlatform,
+                blocked: window.__tptOrientationBlocked,
+                gameplay: window.__yandexGameplayStarted,
+                paused: window.__tptRuntimePaused,
+            };
+            """
+        )
+        assert portrait["sdkMobile"] is True, (label, portrait)
+        assert portrait["blocked"] is True, (label, portrait)
+        assert portrait["gameplay"] is False, (label, portrait)
+        assert portrait["paused"] is True, (label, portrait)
+
+        driver.execute_cdp_cmd(
+            "Emulation.setDeviceMetricsOverride",
+            {
+                "width": 1024,
+                "height": 768,
+                "deviceScaleFactor": 2.0,
+                "mobile": True,
+                "screenOrientation": {
+                    "type": "landscapePrimary",
+                    "angle": 90,
+                },
+            },
+        )
+        driver.execute_script("window.dispatchEvent(new Event('orientationchange'));")
+        wait.until(
+            lambda d: d.execute_script(
+                "return window.__tptOrientationBlocked === false && "
+                "window.__tptRuntimePaused === false && "
+                "window.__yandexGameplayStarted === true"
+            )
+        )
+        landscape = driver.execute_script(
+            """
+            const rect = document.getElementById('canvas').getBoundingClientRect();
+            return {
+                sdkMobile: window.__tptSdkMobilePlatform,
+                blocked: window.__tptOrientationBlocked,
+                gameplay: window.__yandexGameplayStarted,
+                paused: window.__tptRuntimePaused,
+                width: rect.width,
+                height: rect.height,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+            };
+            """
+        )
+        assert landscape["sdkMobile"] is True, (label, landscape)
+        assert landscape["blocked"] is False, (label, landscape)
+        assert landscape["gameplay"] is True, (label, landscape)
+        assert landscape["paused"] is False, (label, landscape)
+        assert 0 < landscape["width"] <= landscape["viewportWidth"] + 1, (
+            label,
+            landscape,
+        )
+        assert 0 < landscape["height"] <= landscape["viewportHeight"] + 1, (
+            label,
+            landscape,
+        )
+        print(f"[smoke] {label}: OK {portrait}; landscape={landscape}")
+    finally:
+        driver.quit()
+
+
 if __name__ == "__main__":
     # Test both platform shapes and both supported languages.
     smoke_case("en", mobile=False)
     smoke_case("ru", mobile=False)
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
+    tablet_device_case()
