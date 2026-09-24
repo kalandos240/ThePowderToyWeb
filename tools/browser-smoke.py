@@ -2003,6 +2003,16 @@ def smoke_case(language: str, mobile: bool):
             )
 
         if not mobile and language == "en":
+            main_loop_raf = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestMainLoopUsesRAF', 'number', [], [])"
+            )
+            assert main_loop_raf == 1, (
+                label,
+                "Emscripten main loop is not using requestAnimationFrame",
+                main_loop_raf,
+            )
+
             # The Emscripten pump stays permanently on requestAnimationFrame,
             # while EngineProcess must still honor the user's rendering cap.
             driver.execute_script(
@@ -2088,6 +2098,16 @@ def smoke_case(language: str, mobile: bool):
                     "fps20": {"ticks": sim_20_delta, "rate": sim_20_rate},
                     "fps60": {"ticks": sim_60_delta, "rate": sim_60_rate},
                 },
+            )
+
+            main_loop_raf_after_caps = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestMainLoopUsesRAF', 'number', [], [])"
+            )
+            assert main_loop_raf_after_caps == 1, (
+                label,
+                "FPS cap changes moved Emscripten main loop off requestAnimationFrame",
+                main_loop_raf_after_caps,
             )
 
         performance = None
