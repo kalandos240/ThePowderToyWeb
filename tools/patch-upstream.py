@@ -373,53 +373,18 @@ fps_loop_anchor = r'''void ApplyFpsLimit()
 fps_loop_patch = r'''void ApplyFpsLimit()
 {
 	static bool mainLoopSet = false;
-
-	// Browsers already synchronize requestAnimationFrame with the display.
-	// Only an explicit numeric cap should move the Emscripten loop to
-	// SETTIMEOUT; Follow display and uncapped modes stay on RAF.
-	std::optional<float> explicitDrawLimit;
-	auto &engine = ui::Engine::Ref();
-	auto fpsLimit = engine.GetFpsLimit();
-	if (auto *fpsLimitExplicit = std::get_if<FpsLimitExplicit>(&fpsLimit))
-		explicitDrawLimit = fpsLimitExplicit->value;
-
 	if (!mainLoopSet)
 	{
-		if (explicitDrawLimit.has_value())
-		{
-			int initialFps = int(*explicitDrawLimit);
-			if (initialFps < 1)
-				initialFps = 1;
-			emscripten_set_main_loop(MainLoopBody, initialFps, 0);
-			std::cerr << "explicit fps limit: "
-			          << int(1000.f / float(initialFps))
-			          << "ms delays" << std::endl;
-		}
-		else
-		{
-			// fps=0 selects requestAnimationFrame without a second timing call.
-			emscripten_set_main_loop(MainLoopBody, 0, 0);
-			std::cerr << "implicit fps limit via requestAnimationFrame" << std::endl;
-		}
+		// EngineProcess already applies drawSchedule/tickSchedule caps for
+		// rendering and simulation independently. Keep the browser pump on RAF
+		// and let those native schedulers decide whether a frame/tick is due.
+		emscripten_set_main_loop(MainLoopBody, 0, 0);
 		mainLoopSet = true;
-		return;
 	}
-
-	if (explicitDrawLimit.has_value())
-	{
-		const float safeLimit = *explicitDrawLimit > 0.0f ? *explicitDrawLimit : 1.0f;
-		const int delay = int(1000.f / safeLimit);
-		emscripten_set_main_loop_timing(EM_TIMING_SETTIMEOUT, delay);
-		std::cerr << "explicit fps limit: " << delay << "ms delays" << std::endl;
-	}
-	else
-	{
-		emscripten_set_main_loop_timing(EM_TIMING_RAF, 1);
-		std::cerr << "implicit fps limit via requestAnimationFrame" << std::endl;
-	}
+	std::cerr << "web main loop via requestAnimationFrame" << std::endl;
 }'''
 
-if 'Browsers already synchronize requestAnimationFrame with the display.' not in sdl_text:
+if 'web main loop via requestAnimationFrame' not in sdl_text:
     if fps_loop_anchor not in sdl_text:
         raise SystemExit("PowderToySDLEmscripten.cpp ApplyFpsLimit anchor missing")
     sdl_text = sdl_text.replace(fps_loop_anchor, fps_loop_patch, 1)
