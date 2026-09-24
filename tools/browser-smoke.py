@@ -2634,9 +2634,69 @@ def smoke_case(language: str, mobile: bool):
         driver.quit()
 
 
+def smoke_sdk_init_timeout():
+    label = "desktop-sdk-timeout"
+    driver = make_driver(mobile=False)
+    started = time.monotonic()
+    try:
+        driver.set_page_load_timeout(45)
+        driver.get(f"{BASE_URL}/?lang=en&device=desktop&sdk=hang")
+        wait = WebDriverWait(driver, 20)
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const fatal = document.getElementById('fatal');
+                const loader = document.getElementById('loader');
+                return Boolean(
+                    canvas &&
+                    canvas.style.display === 'block' &&
+                    fatal && fatal.hidden &&
+                    loader && loader.hidden &&
+                    window.__tptGameModule
+                );
+                """
+            )
+        )
+
+        elapsed = time.monotonic() - started
+        assert elapsed < 15.0, (
+            label,
+            "stalled YaGames.init blocked game startup too long",
+            elapsed,
+        )
+        assert driver.execute_script("return window.ysdk === undefined") is True, (
+            label,
+            "timed-out SDK unexpectedly became active",
+        )
+        assert driver.execute_script(
+            "return window.__yandexLoadingReady === false"
+        ) is True, (
+            label,
+            "mock LoadingAPI.ready should not run after SDK timeout fallback",
+        )
+
+        browser_logs = driver.get_log("browser")
+        unexpected_severe_logs = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "favicon.ico" not in entry.get("message", "")
+        ]
+        assert not unexpected_severe_logs, (
+            label,
+            "unexpected severe browser console entries",
+            unexpected_severe_logs,
+        )
+        print(f"[smoke] {label}: OK startup fallback in {elapsed:.2f}s")
+    finally:
+        driver.quit()
+
+
 if __name__ == "__main__":
     # Test both platform shapes and both supported languages.
     smoke_case("en", mobile=False)
     smoke_case("ru", mobile=False)
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
+    smoke_sdk_init_timeout()
