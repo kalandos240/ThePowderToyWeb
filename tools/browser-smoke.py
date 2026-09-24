@@ -1552,7 +1552,9 @@ def smoke_case(language: str, mobile: bool):
                         "window.__yandexGameplayStarted === false"
                     )
                 )
-                ActionChains(driver).send_keys(save_name).send_keys(Keys.ENTER).perform()
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys("a").key_up(
+                    Keys.CONTROL
+                ).send_keys(save_name).send_keys(Keys.ENTER).perform()
                 wait.until(
                     lambda d: d.execute_script(
                         "return window.__tptNativeModalDepth === 2 && "
