@@ -93,6 +93,37 @@ function setStatus(message) {
   status.textContent = message;
 }
 
+const ENGINE_STDERR_INFO_PREFIXES = [
+  "ReadFile: powder.pref: No such file or directory",
+  "ReadFile: stamps/stamps.json: No such file or directory",
+  "ReadFile: stamps/stamps.def: No such file or directory",
+  "required #PowderSessionInfo elements not found, can't authenticate",
+  "network support not compiled in",
+  "explicit fps limit:",
+  "invoking FS.syncfs"
+];
+
+const ENGINE_STDERR_WARNING_PREFIXES = [
+  "emscripten_set_main_loop_timing: Cannot set timing mode for main loop",
+  "Looks like you are rendering without using requestAnimationFrame for the main loop"
+];
+
+function logEngineStderr(...args) {
+  const text = args.map((value) => String(value)).join(" ");
+
+  if (ENGINE_STDERR_INFO_PREFIXES.some((prefix) => text.startsWith(prefix))) {
+    console.info("[TPT]", ...args);
+    return;
+  }
+
+  if (ENGINE_STDERR_WARNING_PREFIXES.some((prefix) => text.startsWith(prefix))) {
+    console.warn("[TPT]", ...args);
+    return;
+  }
+
+  console.error("[TPT]", ...args);
+}
+
 function isTouchEnvironment() {
   return Boolean(
     navigator.maxTouchPoints > 0 ||
@@ -603,7 +634,7 @@ async function boot() {
   const gamePromise = window.create_powder({
     canvas,
     print: (...args) => console.log("[TPT]", ...args),
-    printErr: (...args) => console.error("[TPT]", ...args),
+    printErr: (...args) => logEngineStderr(...args),
     locateFile(path) {
       if (path.endsWith(".wasm")) {
         return `./game/${path}`;
