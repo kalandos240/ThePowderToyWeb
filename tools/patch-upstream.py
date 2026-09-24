@@ -183,6 +183,14 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
 	emscripten_resume_main_loop();
 }
 
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestMainLoopUsesRAF()
+{
+	int mode = -1;
+	int value = -1;
+	emscripten_get_main_loop_timing(&mode, &value);
+	return mode == EM_TIMING_RAF && value == 1 ? 1 : 0;
+}
+
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PushTextInput(const char *text)
 {
 	if (!text || !*text)
@@ -388,6 +396,13 @@ if 'web main loop via requestAnimationFrame' not in sdl_text:
     if fps_loop_anchor not in sdl_text:
         raise SystemExit("PowderToySDLEmscripten.cpp ApplyFpsLimit anchor missing")
     sdl_text = sdl_text.replace(fps_loop_anchor, fps_loop_patch, 1)
+
+if "emscripten_set_main_loop_timing" in sdl_text:
+    raise SystemExit(
+        "Yandex Web must keep the Emscripten browser main loop on requestAnimationFrame"
+    )
+if "emscripten_set_main_loop(MainLoopBody, 0, 0);" not in sdl_text:
+    raise SystemExit("Yandex Web RAF main-loop setup is missing")
 
 sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 
@@ -2194,6 +2209,32 @@ extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestClearSimulation()
 extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestEngineFps()
 {
 	return ui::Engine::Ref().GetFps();
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDrawFrameIndex()
+{
+	return int(ui::Engine::Ref().FrameIndex);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetDrawLimit(int fps)
+{
+	fps = std::max(1, std::min(fps, 1000));
+	ui::Engine::Ref().SetDrawingFrequencyLimit(DrawLimitExplicit{ fps });
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE double YandexWeb_TestSimulationFrameCount()
+{
+	if (!YandexWeb_TestGameModel)
+		return -1.0;
+	return double(YandexWeb_TestGameModel->GetSimulation()->frameCount);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSetSimulationFpsLimit(int fps)
+{
+	if (!YandexWeb_TestGameModel || !YandexWeb_TestGameModel->GetView())
+		return;
+	fps = std::max(3, std::min(fps, 1000));
+	YandexWeb_TestGameModel->GetView()->SetSimFpsLimit(FpsLimitExplicit{ float(fps) });
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestSelectDust()
