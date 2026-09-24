@@ -2167,6 +2167,18 @@ def smoke_case(language: str, mobile: bool):
             fatal_browser_logs,
         )
 
+        unexpected_severe_logs = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "favicon.ico" not in entry.get("message", "")
+        ]
+        assert not unexpected_severe_logs, (
+            label,
+            "unexpected severe browser console entries",
+            unexpected_severe_logs,
+        )
+
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
             f"paused={paused}; resumed={resumed}; performance={performance}"
