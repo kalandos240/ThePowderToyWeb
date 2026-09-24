@@ -2002,6 +2002,49 @@ def smoke_case(language: str, mobile: bool):
                 persisted_local_save_size,
             )
 
+        if not mobile and language == "en":
+            # The Emscripten pump stays permanently on requestAnimationFrame,
+            # while EngineProcess must still honor the user's rendering cap.
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetDrawLimit', null, ['number'], [30])"
+            )
+            draw_30_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            time.sleep(2.0)
+            draw_30_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            draw_30_delta = (draw_30_end - draw_30_start) % 7200
+            assert 35 <= draw_30_delta <= 80, (
+                label,
+                "30 FPS rendering cap not respected",
+                draw_30_delta,
+            )
+
+            driver.execute_script(
+                "window.__tptGameModule.ccall("
+                "'YandexWeb_TestSetDrawLimit', null, ['number'], [60])"
+            )
+            draw_60_start = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            time.sleep(1.5)
+            draw_60_end = driver.execute_script(
+                "return window.__tptGameModule.ccall("
+                "'YandexWeb_TestDrawFrameIndex', 'number', [], [])"
+            )
+            draw_60_delta = (draw_60_end - draw_60_start) % 7200
+            assert draw_60_delta >= 65, (
+                label,
+                "60 FPS rendering cap did not recover after 30 FPS test",
+                {"fps30": draw_30_delta, "fps60": draw_60_delta},
+            )
+
         performance = None
         if language == "en":
             performance = [
