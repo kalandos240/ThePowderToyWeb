@@ -586,6 +586,10 @@ if (window.visualViewport) {
   });
 }
 
+app.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
+
 canvas.addEventListener(
   "pointerdown",
   () => {
