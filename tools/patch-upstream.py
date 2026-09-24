@@ -183,6 +183,14 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_ResumeMainLoop()
 	emscripten_resume_main_loop();
 }
 
+EMSCRIPTEN_KEEPALIVE extern "C" int YandexWeb_TestMainLoopUsesRAF()
+{
+	int mode = -1;
+	int value = -1;
+	emscripten_get_main_loop_timing(&mode, &value);
+	return mode == EM_TIMING_RAF && value == 1 ? 1 : 0;
+}
+
 EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_PushTextInput(const char *text)
 {
 	if (!text || !*text)
