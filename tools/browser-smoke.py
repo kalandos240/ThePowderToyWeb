@@ -145,7 +145,11 @@ def smoke_case(language: str, mobile: bool):
     driver = make_driver(mobile)
     try:
         driver.set_page_load_timeout(45)
-        device_type = "mobile" if mobile else "desktop"
+        device_type = (
+            "tablet" if mobile and language == "ru"
+            else "mobile" if mobile
+            else "desktop"
+        )
         driver.get(f"{BASE_URL}/?lang={language}&device={device_type}")
 
         wait = WebDriverWait(driver, 45)
