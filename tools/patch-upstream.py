@@ -328,6 +328,18 @@ EMSCRIPTEN_KEEPALIVE extern "C" void YandexWeb_TestRemoveLocalSaveFile(const cha
 if "YandexWeb_PauseMainLoop" not in sdl_text:
     sdl_text = sdl_text.rstrip() + pause_patch + "\n"
 
+main_loop_state_anchor = '''	static bool mainLoopSet = false;
+	if (!mainLoopSet)
+'''
+main_loop_state_patch = '''	static bool mainLoopSet = false;
+	const bool mainLoopAlreadySet = mainLoopSet;
+	if (!mainLoopSet)
+'''
+if 'const bool mainLoopAlreadySet = mainLoopSet;' not in sdl_text:
+    if main_loop_state_anchor not in sdl_text:
+        raise SystemExit("PowderToySDLEmscripten.cpp main-loop state anchor missing")
+    sdl_text = sdl_text.replace(main_loop_state_anchor, main_loop_state_patch, 1)
+
 raf_limit_anchor = '''	int delay = 0; // no cap
 	if (drawLimit.has_value())
 	{
@@ -345,7 +357,10 @@ raf_limit_patch = '''	if (drawLimit.has_value())
 	else
 	{
 		// fps=0 in emscripten_set_main_loop already selects requestAnimationFrame.
-		// Keep that default instead of overriding it with SETTIMEOUT(0).
+		// On the first call, keep that default without touching timing. On later
+		// calls, explicitly restore RAF after an explicit SETTIMEOUT cap.
+		if (mainLoopAlreadySet)
+			emscripten_set_main_loop_timing(EM_TIMING_RAF, 1);
 		std::cerr << "implicit fps limit via requestAnimationFrame" << std::endl;
 	}
 '''
