@@ -1201,12 +1201,12 @@ engine_text = engine_cpp.read_text(encoding="utf-8")
 
 modal_bridge_helper = r'''
 #if defined(__EMSCRIPTEN__)
-static void YandexWeb_SetNativeModalBlocked(bool blocked)
+static void YandexWeb_SetNativeModalBlocked(bool blocked, int depth)
 {
 	EM_ASM({
 		if (window.__tptNativeModalBridge)
-			window.__tptNativeModalBridge.setBlocked(!!$0);
-	}, blocked ? 1 : 0);
+			window.__tptNativeModalBridge.setBlocked(!!$0, $1);
+	}, blocked ? 1 : 0, depth);
 }
 #endif
 
@@ -1226,11 +1226,11 @@ show_window_anchor = '''	state_ = window;
 }'''
 show_window_patch = '''	state_ = window;
 #if defined(__EMSCRIPTEN__)
-	YandexWeb_SetNativeModalBlocked(!windows.empty());
+	YandexWeb_SetNativeModalBlocked(!windows.empty(), int(windows.size()));
 #endif
 	ApplyFpsLimit();
 }'''
-if 'YandexWeb_SetNativeModalBlocked(!windows.empty());' not in engine_text:
+if 'YandexWeb_SetNativeModalBlocked(!windows.empty(), int(windows.size()));' not in engine_text:
     if show_window_anchor not in engine_text:
         raise SystemExit("Engine.cpp ShowWindow modal anchor missing")
     engine_text = engine_text.replace(show_window_anchor, show_window_patch, 1)
@@ -1240,11 +1240,11 @@ close_window_pop_anchor = '''		ignoreEvents = true;
 		return 0;'''
 close_window_pop_patch = '''		ignoreEvents = true;
 #if defined(__EMSCRIPTEN__)
-		YandexWeb_SetNativeModalBlocked(!windows.empty());
+		YandexWeb_SetNativeModalBlocked(!windows.empty(), int(windows.size()));
 #endif
 		ApplyFpsLimit();
 		return 0;'''
-if engine_text.count('YandexWeb_SetNativeModalBlocked(!windows.empty());') < 2:
+if engine_text.count('YandexWeb_SetNativeModalBlocked(!windows.empty(), int(windows.size()));') < 2:
     if close_window_pop_anchor not in engine_text:
         raise SystemExit("Engine.cpp CloseWindow pop modal anchor missing")
     engine_text = engine_text.replace(close_window_pop_anchor, close_window_pop_patch, 1)
@@ -1254,11 +1254,11 @@ close_window_root_anchor = '''		state_ = nullptr;
 		return 1;'''
 close_window_root_patch = '''		state_ = nullptr;
 #if defined(__EMSCRIPTEN__)
-		YandexWeb_SetNativeModalBlocked(false);
+		YandexWeb_SetNativeModalBlocked(false, 0);
 #endif
 		ApplyFpsLimit();
 		return 1;'''
-if 'YandexWeb_SetNativeModalBlocked(false);' not in engine_text:
+if 'YandexWeb_SetNativeModalBlocked(false, 0);' not in engine_text:
     if close_window_root_anchor not in engine_text:
         raise SystemExit("Engine.cpp CloseWindow root modal anchor missing")
     engine_text = engine_text.replace(close_window_root_anchor, close_window_root_patch, 1)
