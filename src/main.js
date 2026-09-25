@@ -118,6 +118,7 @@ let viewportUpdateScheduled = false;
 let lastCanvasStyleWidth = "";
 let lastCanvasStyleHeight = "";
 let lastCanvasImageRendering = "";
+let lastCanvasFitGeometry = null;
 let adTimerId = null;
 let adCycleActive = false;
 const AD_INTERVAL_MS = 120000;
@@ -516,13 +517,36 @@ function updateOrientationGate() {
 function fitCanvas() {
   const logicalWidth = canvas.width || 629;
   const logicalHeight = canvas.height || 424;
+  const appWidth = app.clientWidth;
+  const appHeight = app.clientHeight;
+
+  // ResizeObserver, visualViewport and fullscreen events can all schedule the
+  // same geometry more than once. Bail out before getComputedStyle() so
+  // duplicate notifications do not force repeated style/layout reads.
+  if (
+    lastCanvasFitGeometry &&
+    lastCanvasFitGeometry.logicalWidth === logicalWidth &&
+    lastCanvasFitGeometry.logicalHeight === logicalHeight &&
+    lastCanvasFitGeometry.appWidth === appWidth &&
+    lastCanvasFitGeometry.appHeight === appHeight
+  ) {
+    return;
+  }
+
+  lastCanvasFitGeometry = {
+    logicalWidth,
+    logicalHeight,
+    appWidth,
+    appHeight
+  };
+
   const appStyle = getComputedStyle(app);
   const horizontalPadding =
     parseFloat(appStyle.paddingLeft) + parseFloat(appStyle.paddingRight);
   const verticalPadding =
     parseFloat(appStyle.paddingTop) + parseFloat(appStyle.paddingBottom);
-  const availableWidth = Math.max(0, app.clientWidth - horizontalPadding);
-  const availableHeight = Math.max(0, app.clientHeight - verticalPadding);
+  const availableWidth = Math.max(0, appWidth - horizontalPadding);
+  const availableHeight = Math.max(0, appHeight - verticalPadding);
 
   if (!logicalWidth || !logicalHeight || !availableWidth || !availableHeight) {
     return;
