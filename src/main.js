@@ -309,8 +309,11 @@ function focusMobileTextInput() {
   if (
     !mobileTextInputActive ||
     !isTouchEnvironment() ||
+    document.hidden ||
+    platformPauseRequested ||
     orientationBlocked ||
-    document.hidden
+    nativeModalBlocked ||
+    adPauseRequested
   ) {
     return;
   }
