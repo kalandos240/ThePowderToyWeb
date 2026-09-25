@@ -282,9 +282,12 @@ export async function signalGameReady() {
     return;
   }
 
-  const currentSDK = await initYandexSDK();
+  // Native presentation readiness must not wait for SDK loading/initialization.
+  // If Yandex is already adopted, notify it immediately; otherwise adoptSDK()
+  // reconciles this logical ready state when the SDK arrives later.
   readySent = true;
-  sendLoadingReady(currentSDK);
+  sendLoadingReady(sdk || window.ysdk || null);
+  void initYandexSDK();
 }
 
 export async function gameplayStart() {
@@ -292,9 +295,11 @@ export async function gameplayStart() {
     return;
   }
 
-  const currentSDK = await initYandexSDK();
+  // Keep the local gameplay state independent of SDK latency. A late SDK is
+  // reconciled by adoptSDK(), which starts GameplayAPI only when appropriate.
   gameplayActive = true;
-  startGameplayOnSDK(currentSDK);
+  startGameplayOnSDK(sdk || window.ysdk || null);
+  void initYandexSDK();
 }
 
 export async function gameplayStop() {
@@ -302,9 +307,11 @@ export async function gameplayStop() {
     return;
   }
 
-  const currentSDK = await initYandexSDK();
+  // Stopping gameplay is purely a local state transition. Do not start or
+  // await SDK initialization just to stop; an already adopted SDK is updated
+  // synchronously, and a future SDK will observe gameplayActive=false.
   gameplayActive = false;
-  stopGameplayOnSDK(currentSDK);
+  stopGameplayOnSDK(sdk || window.ysdk || null);
 }
 
 export async function canShowFullscreenAd() {
