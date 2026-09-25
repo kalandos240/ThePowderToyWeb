@@ -1303,10 +1303,22 @@ restore_wall_anchor = """	std::copy(snap.BlockMap       .begin(), snap.BlockMap 
 	std::copy(snap.ElecMap"""
 restore_wall_patch = """	std::copy(snap.BlockMap       .begin(), snap.BlockMap       .end(), &bmap[0][0]      );
 	yandexWebWallsMayExist = true;
+	yandexWebWallCellsDirty = true;
 	std::copy(snap.ElecMap"""
 if restore_wall_anchor not in editing_text:
     raise SystemExit("Simulation::Restore wall-presence anchor missing")
 editing_text = editing_text.replace(restore_wall_anchor, restore_wall_patch, 1)
+
+create_walls_start_anchor = """int Simulation::CreateWalls(int x, int y, int rx, int ry, int wall, Brush const *cBrush)
+{"""
+create_walls_start_patch = """int Simulation::CreateWalls(int x, int y, int rx, int ry, int wall, Brush const *cBrush)
+{
+	yandexWebWallCellsDirty = true;"""
+if create_walls_start_anchor not in editing_text:
+    raise SystemExit("Simulation::CreateWalls sparse-cache anchor missing")
+editing_text = editing_text.replace(
+    create_walls_start_anchor, create_walls_start_patch, 1
+)
 
 create_wall_anchor = """				else
 					bmap[wallY][wallX] = wall;
@@ -1325,6 +1337,15 @@ create_wall_patch = """				else
 if create_wall_anchor not in editing_text:
     raise SystemExit("Simulation::CreateWalls wall-presence anchor missing")
 editing_text = editing_text.replace(create_wall_anchor, create_wall_patch, 1)
+clear_area_anchor = """void Simulation::clear_area(int area_x, int area_y, int area_w, int area_h)
+{"""
+clear_area_patch = """void Simulation::clear_area(int area_x, int area_y, int area_w, int area_h)
+{
+	yandexWebWallCellsDirty = true;"""
+if clear_area_anchor not in editing_text:
+    raise SystemExit("Simulation::clear_area sparse-cache anchor missing")
+editing_text = editing_text.replace(clear_area_anchor, clear_area_patch, 1)
+
 editing_cpp.write_text(editing_text, encoding="utf-8")
 
 lua_simulation_text = lua_simulation_cpp.read_text(encoding="utf-8")
@@ -1342,6 +1363,7 @@ lua_wall_patch = """static int wallMap(lua_State *L)
 		// Lua may mutate the wall map while paused. Mark conservatively even
 		// for reads; the next running full wall scan can prove false again.
 		lsi->sim->yandexWebWallsMayExist = true;
+		lsi->sim->yandexWebWallCellsDirty = true;
 		return lsi->sim->bmap[p.Y][p.X];
 	});
 }"""
