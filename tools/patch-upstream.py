@@ -1646,6 +1646,57 @@ for old, new in model_replacements:
 game_model_cpp.write_text(model_text, encoding="utf-8")
 
 controller_text = game_controller_cpp.read_text(encoding="utf-8")
+
+install_anchor = '''void GameController::Install()
+{
+	if constexpr (CAN_INSTALL)
+	{
+		new ConfirmPrompt("Install " + String(APPNAME), "Do you wish to install " + String(APPNAME) + " on this computer?\\nThis allows you to open save files and saves directly from the website.", { [] {
+			if (Platform::Install())
+			{
+				new InformationMessage("Success", "Installation completed", false);
+			}
+			else
+			{
+				new ErrorMessage("Could not install", "The installation did not complete due to an error");
+			}
+		} });
+	}
+	else
+	{
+		new InformationMessage("No installation necessary", "You don't need to install " + String(APPNAME) + " on this platform", false);
+	}
+}'''
+install_patch = '''void GameController::Install()
+{
+#if defined(__EMSCRIPTEN__)
+	// Yandex Web: desktop OS installation is not applicable in a browser.
+	return;
+#else
+	if constexpr (CAN_INSTALL)
+	{
+		new ConfirmPrompt("Install " + String(APPNAME), "Do you wish to install " + String(APPNAME) + " on this computer?\\nThis allows you to open save files and saves directly from the website.", { [] {
+			if (Platform::Install())
+			{
+				new InformationMessage("Success", "Installation completed", false);
+			}
+			else
+			{
+				new ErrorMessage("Could not install", "The installation did not complete due to an error");
+			}
+		} });
+	}
+	else
+	{
+		new InformationMessage("No installation necessary", "You don't need to install " + String(APPNAME) + " on this platform", false);
+	}
+#endif
+}'''
+if "Yandex Web: desktop OS installation is not applicable" not in controller_text:
+    if install_anchor not in controller_text:
+        raise SystemExit("GameController::Install browser guard anchor missing")
+    controller_text = controller_text.replace(install_anchor, install_patch, 1)
+
 controller_replacements = [
     ('gameModel->SetInfoTip("Gravity: Vertical");',
      'gameModel->SetInfoTip(YandexWebText("Gravity: Vertical", "Гравитация: вертикальная"));'),
