@@ -52,7 +52,14 @@ jobs:
           grep -Fn 'script.src = "/sdk.js";' src/yandex.js
           grep -Fn 'script.async = true;' src/yandex.js
           grep -Fn 'loadYandexSDKScript().then' src/yandex.js
-          echo "Yandex SDK async loader audit: OK"
+          grep -Fn 'const sdkPromise = initYandexSDK();' src/main.js
+          grep -Fn 'await loadScript("./game/powder.js");' src/main.js
+          grep -Fn 'const currentSDK = window.ysdk || null;' src/main.js
+          if grep -Fn 'const [currentSDK] = await Promise.all' src/main.js; then
+            echo "Engine bootstrap is waiting for Yandex SDK latency again."
+            exit 1
+          fi
+          echo "Yandex SDK async/non-blocking engine bootstrap audit: OK"
 
       - name: Check local engine preload hints
         run: |
