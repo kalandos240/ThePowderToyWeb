@@ -1512,6 +1512,75 @@ inline String YandexWebTranslateUi(const String &source)
 	YW_UI("View History", "История");
 	YW_UI("Overwrite", "Перезаписать");
 	YW_UI("Confirm", "Подтвердить");
+
+	// Core simulation/options window.
+	YW_UI("Heat simulation \\bgIntroduced in version 34", "Тепловая симуляция");
+	YW_UI("Can cause odd behaviour when disabled", "При отключении возможны необычные эффекты");
+	YW_UI("Newtonian gravity \\bgIntroduced in version 48", "Ньютоновская гравитация");
+	YW_UI("May cause poor performance on older computers", "Может снижать производительность на слабых устройствах");
+	YW_UI("Ambient heat simulation \\bgIntroduced in version 50", "Фоновая тепловая симуляция");
+	YW_UI("Can cause odd / broken behaviour with many saves", "Некоторые сохранения могут работать некорректно");
+	YW_UI("Water equalisation \\bgIntroduced in version 61", "Выравнивание воды");
+	YW_UI("May cause poor performance with a lot of water", "Большое количество воды может снижать производительность");
+	YW_UI("Air simulation mode", "Режим симуляции воздуха");
+	YW_UI("Pressure off", "Без давления");
+	YW_UI("Velocity off", "Без скорости воздуха");
+	YW_UI("No update", "Без обновления");
+	YW_UI("Ambient air temperature", "Температура воздуха");
+	YW_UI("Ambient air pressure", "Давление воздуха");
+	YW_UI("Ambient air velocity", "Скорость воздуха");
+	YW_UI("Vorticity confinement", "Усиление завихрений");
+	YW_UI("Air heat convection mode", "Режим тепловой конвекции");
+	YW_UI("Gravity simulation mode", "Режим гравитации");
+	YW_UI("Vertical", "Вертикальная");
+	YW_UI("Radial", "Радиальная");
+	YW_UI("Custom", "Пользовательская");
+	YW_UI("Custom Gravity", "Пользовательская гравитация");
+	YW_UI("Edge mode", "Режим границ");
+	YW_UI("Void", "Пустота");
+	YW_UI("Solid", "Твёрдая граница");
+	YW_UI("Loop", "Зацикливание");
+	YW_UI("Temperature scale", "Шкала температуры");
+	YW_UI("Celsius", "Цельсий");
+	YW_UI("Fahrenheit", "Фаренгейт");
+	YW_UI("Simulation framerate cap", "Ограничение FPS симуляции");
+	YW_UI("Rendering framerate cap", "Ограничение FPS отрисовки");
+	YW_UI("Exact", "Точно");
+	YW_UI("Uncapped", "Без ограничения");
+	YW_UI("Follow display", "По частоте экрана");
+	YW_UI("Window scale factor for larger screens", "Масштаб окна для больших экранов");
+	YW_UI("Resizable \\bg- allow resizing and maximizing window", "Изменяемый размер окна");
+	YW_UI("Fullscreen \\bg- fill the entire screen", "Полноэкранный режим");
+	YW_UI("Set optimal screen resolution", "Использовать оптимальное разрешение");
+	YW_UI("Force integer scaling \\bg- less blurry", "Целочисленное масштабирование");
+	YW_UI("Blurry scaling \\bg- more blurry, better on very big screens", "Сглаженное масштабирование");
+	YW_UI("Include pressure", "Сохранять давление");
+	YW_UI("When saving, copying, stamping, etc.", "При сохранении, копировании и создании штампов");
+	YW_UI("Perfect circle brush", "Точная круглая кисть");
+	YW_UI("Separate rendering thread", "Отдельный поток отрисовки");
+	YW_UI("May increase framerate when fancy effects are in use", "Может повысить FPS при использовании эффектов");
+	YW_UI("Colour space used by decoration tools", "Цветовое пространство декораций");
+	YW_UI("Open data folder", "Открыть папку данных");
+	YW_UI("Credits - Find out who contributed to TPT", "Авторы проекта");
+
+	// Render options descriptions.
+	YW_UI("Adds Special flare effects to some elements", "Добавляет специальные световые эффекты некоторым элементам");
+	YW_UI("Fire effect for gasses", "Эффект огня для газов");
+	YW_UI("Glow effect on some elements", "Свечение некоторых элементов");
+	YW_UI("Blur effect for liquids", "Размытие жидкостей");
+	YW_UI("Makes everything be drawn like a blob", "Отрисовывает элементы как сгустки");
+	YW_UI("Basic rendering, without this, most things will be invisible", "Базовая отрисовка, без неё большинство элементов невидимо");
+	YW_UI("Glow effect on sparks", "Свечение искр");
+	YW_UI("Displays pressure as red and blue, and velocity as white", "Давление красным и синим, скорость белым");
+	YW_UI("Displays pressure, red is positive and blue is negative", "Давление: красный — положительное, синий — отрицательное");
+	YW_UI("Displays the temperature of the air like heat display does", "Показывает температуру воздуха");
+	YW_UI("Displays vorticity, red is clockwise and blue is anticlockwise", "Показывает завихрения: красный — по часовой, синий — против");
+	YW_UI("Gravity lensing, Newtonian Gravity bends light with this on", "Гравитационное линзирование при ньютоновской гравитации");
+	YW_UI("Element paths persist on the screen for a while", "Следы элементов некоторое время остаются на экране");
+	YW_UI("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: тёмно-синий — холод, розовый — жар");
+	YW_UI("Displays the life value of elements in greyscale gradients", "Показывает значение жизни элементов оттенками серого");
+	YW_UI("Changes colors of elements slightly to show heat diffusing through them", "Изменяет цвета элементов, показывая распространение тепла");
+	YW_UI("No special effects at all for anything, overrides all other options and deco", "Отключает специальные эффекты и декорации");
 #undef YW_UI
 	return source;
 }
