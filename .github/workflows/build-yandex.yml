@@ -214,8 +214,12 @@ jobs:
           window.__yandexReadySnapshot = null;
           window.YaGames = {
             init: async () => {
-              if (new URLSearchParams(location.search).get("sdk") === "hang") {
+              const sdkMode = new URLSearchParams(location.search).get("sdk");
+              if (sdkMode === "hang") {
                 return new Promise(() => {});
+              }
+              if (sdkMode === "delay") {
+                await new Promise((resolve) => setTimeout(resolve, 11000));
               }
               return {
               environment: {
