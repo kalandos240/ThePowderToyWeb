@@ -4674,6 +4674,42 @@ gravity_text = gravity_text.replace(gravity_work_anchor, gravity_work_patch, 1)
 gravity_cpp.write_text(gravity_text, encoding="utf-8")
 
 controller_text = game_controller_cpp.read_text(encoding="utf-8")
+
+# Reset Air / Reset Spark are user-triggered maintenance operations. Particle
+# slots at and beyond parts.active are guaranteed free, so avoid walking the
+# full NPART capacity on Web builds.
+reset_air_anchor = """void GameController::ResetAir()
+{
+	Simulation * sim = gameModel->GetSimulation();
+	sim->air->Clear();
+	for (int i = 0; i < NPART; i++)"""
+reset_air_patch = """void GameController::ResetAir()
+{
+	Simulation * sim = gameModel->GetSimulation();
+	sim->air->Clear();
+	for (int i = 0; i < sim->parts.active; i++)"""
+if reset_air_anchor not in controller_text:
+    raise SystemExit("GameController::ResetAir active-range anchor missing")
+controller_text = controller_text.replace(
+    reset_air_anchor, reset_air_patch, 1
+)
+
+reset_spark_anchor = """void GameController::ResetSpark()
+{
+	auto &sd = SimulationData::CRef();
+	Simulation * sim = gameModel->GetSimulation();
+	for (int i = 0; i < NPART; i++)"""
+reset_spark_patch = """void GameController::ResetSpark()
+{
+	auto &sd = SimulationData::CRef();
+	Simulation * sim = gameModel->GetSimulation();
+	for (int i = 0; i < sim->parts.active; i++)"""
+if reset_spark_anchor not in controller_text:
+    raise SystemExit("GameController::ResetSpark active-range anchor missing")
+controller_text = controller_text.replace(
+    reset_spark_anchor, reset_spark_patch, 1
+)
+
 controller_anchor = """bool GameController::ThreadedRenderingAllowed()
 {
 	return gameModel->GetThreadedRendering() && !GetPaused() && !commandInterface->HaveSimGraphicsEventHandlers();
