@@ -30,6 +30,7 @@ locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
 simulation_cpp = root / "upstream" / "src" / "simulation" / "Simulation.cpp"
+simulation_h = root / "upstream" / "src" / "simulation" / "Simulation.h"
 renderer_cpp = root / "upstream" / "src" / "graphics" / "Renderer.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
@@ -78,6 +79,19 @@ meson_text = meson_text.replace(threads_anchor, threads_patch, 1)
 thread_callback_arg = "\t\t'-Wl,-u,_emscripten_run_callback_on_thread',\n"
 if thread_callback_arg in meson_text:
     meson_text = meson_text.replace(thread_callback_arg, "", 1)
+
+# Production Yandex builds do not ship source maps and should not carry
+# Emscripten filesystem debug instrumentation in the runtime.
+for release_debug_arg in [
+    "\t\t'-s', 'FS_DEBUG',\n",
+    "\t\t'--source-map-base=./',\n",
+    "\t\t'-gsource-map',\n",
+]:
+    if release_debug_arg not in meson_text:
+        raise SystemExit(
+            f"meson.build production debug flag anchor not found: {release_debug_arg!r}"
+        )
+    meson_text = meson_text.replace(release_debug_arg, "", 1)
 
 meson.write_text(meson_text, encoding="utf-8")
 
@@ -781,6 +795,22 @@ game_view_text = game_view_text.replace(
 game_view.write_text(game_view_text, encoding="utf-8")
 
 
+# Browser performance: remember whether the freshly rebuilt pmap contains
+# any cell that can possibly trigger CheckStacking. This lets the Web build
+# skip a full XRES*YRES scan on normal non-stacked frames.
+simulation_h_text = simulation_h.read_text(encoding="utf-8")
+stacking_member_anchor = "\tbool force_stacking_check = false;\n"
+stacking_member_patch = (
+    "\tbool force_stacking_check = false;\n"
+    "\tbool yandexWebStackingCandidate = false;\n"
+)
+if stacking_member_anchor not in simulation_h_text:
+    raise SystemExit("Simulation.h stacking candidate anchor missing")
+simulation_h_text = simulation_h_text.replace(
+    stacking_member_anchor, stacking_member_patch, 1
+)
+simulation_h.write_text(simulation_h_text, encoding="utf-8")
+
 # Browser performance: avoid a second full particle-array scan when
 # RecalcFreeParticles observed no holes/deaths. Parts::Flatten() only rebuilds
 # the free list and trims the active tail, so it is a no-op for a dense array.
@@ -793,6 +823,7 @@ recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
 {
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	bool yandexWebNeedsFlatten = false;
+	yandexWebStackingCandidate = false;
 	memset(pmap, 0, sizeof(pmap));"""
 if recalc_start not in simulation_text:
     raise SystemExit("RecalcFreeParticles start anchor missing")
@@ -803,6 +834,19 @@ recalc_end = simulation_text.find("\nvoid Parts::Flatten()", recalc_pos)
 if recalc_pos < 0 or recalc_end < 0:
     raise SystemExit("RecalcFreeParticles function bounds missing")
 segment = simulation_text[recalc_pos:recalc_end]
+
+count_anchor = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
+					pmap_count[y][x]++;"""
+count_patch = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
+				{
+					auto &cellCount = pmap_count[y][x];
+					cellCount++;
+					if (cellCount > 5)
+						yandexWebStackingCandidate = true;
+				}"""
+if count_anchor not in segment:
+    raise SystemExit("RecalcFreeParticles stacking-count anchor missing")
+segment = segment.replace(count_anchor, count_patch, 1)
 
 empty_anchor = """		if (!parts[i].type)
 		{
@@ -846,6 +890,83 @@ flatten_patch = """	if (yandexWebNeedsFlatten)
 if flatten_anchor not in simulation_text:
     raise SystemExit("RecalcFreeParticles Flatten anchor missing")
 simulation_text = simulation_text.replace(flatten_anchor, flatten_patch, 1)
+
+stacking_anchor = """void Simulation::CheckStacking()
+{
+	auto &sd = SimulationData::CRef();
+	auto &elements = sd.elements;
+	bool excessive_stacking_found = false;
+	force_stacking_check = false;"""
+stacking_patch = """void Simulation::CheckStacking()
+{
+	auto &sd = SimulationData::CRef();
+	auto &elements = sd.elements;
+	bool excessive_stacking_found = false;
+	force_stacking_check = false;
+
+	// Yandex Web: RecalcFreeParticles already observed the exact >5 threshold.
+	// With no candidate, the full simulation-grid scan cannot find stacking.
+	if (!yandexWebStackingCandidate)
+		return;"""
+if stacking_anchor not in simulation_text:
+    raise SystemExit("Simulation::CheckStacking fast-path anchor missing")
+simulation_text = simulation_text.replace(stacking_anchor, stacking_patch, 1)
+
+wire_anchor = """		// make WIRE work
+		if(elementCount[PT_WIRE] > 0)
+		{
+			for (int nx = 0; nx < XRES; nx++)
+			{
+				for (int ny = 0; ny < YRES; ny++)
+				{
+					int r = pmap[ny][nx];
+					if (!r)
+						continue;
+					if(parts[ID(r)].type == PT_WIRE)
+						parts[ID(r)].tmp = parts[ID(r)].ctype;
+				}
+			}
+		}"""
+wire_patch = """		// make WIRE work
+		if(elementCount[PT_WIRE] > 0)
+		{
+			// Yandex Web: preserve pmap-visible WIRE semantics while scanning
+			// active particles instead of every simulation pixel.
+			for (int i = 0; i < parts.active; ++i)
+			{
+				if (parts[i].type != PT_WIRE)
+					continue;
+				int x = int(parts[i].x + 0.5f);
+				int y = int(parts[i].y + 0.5f);
+				if (x < 0 || y < 0 || x >= XRES || y >= YRES)
+					continue;
+				int r = pmap[y][x];
+				if (r && TYP(r) == PT_WIRE && ID(r) == i)
+					parts[i].tmp = parts[i].ctype;
+			}
+		}"""
+if wire_anchor not in simulation_text:
+    raise SystemExit("Simulation WIRE grid-scan anchor missing")
+simulation_text = simulation_text.replace(wire_anchor, wire_patch, 1)
+
+save_start = simulation_text.find("std::unique_ptr<GameSave> Simulation::Save")
+save_end = simulation_text.find("\nvoid Simulation::SaveSimOptions", save_start)
+if save_start < 0 or save_end < 0:
+    raise SystemExit("Simulation::Save bounds missing")
+save_segment = simulation_text[save_start:save_end]
+save_loop_anchor = "	for (int i = 0; i < NPART; i++)\n"
+if save_loop_anchor not in save_segment:
+    raise SystemExit("Simulation::Save full NPART scan anchor missing")
+save_segment = save_segment.replace(
+    save_loop_anchor,
+    "	// Yandex Web: slots at and beyond parts.active are guaranteed free.\n"
+    "	for (int i = 0; i < parts.active; i++)\n",
+    1,
+)
+simulation_text = (
+    simulation_text[:save_start] + save_segment + simulation_text[save_end:]
+)
+
 simulation_cpp.write_text(simulation_text, encoding="utf-8")
 
 # Browser performance: FIREMODE is part of the default renderer, but most
