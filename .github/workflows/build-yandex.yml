@@ -116,6 +116,30 @@ jobs:
 
           echo "Browser external-navigation sink: disabled"
 
+      - name: Check player-facing UI has no build diagnostics
+        run: |
+          set -euo pipefail
+          INTRO="upstream/src/gui/game/IntroText.h"
+          GAME_VIEW="upstream/src/gui/game/GameView.cpp"
+
+          grep -Fn 'Yandex Web: keep player-facing help free of build/debug flags.' "$INTRO"
+          grep -Fn 'Imported online-sign tooltips disabled in Yandex Web.' "$GAME_VIEW"
+
+          if grep -Fn 'VersionInfo()' "$INTRO"; then
+            echo "Intro help still exposes upstream build/version diagnostics."
+            exit 1
+          fi
+          if grep -EIn 'NOHTTP|USE_UPDATESERVER|starcatcher|tptserv' "$INTRO"; then
+            echo "Technical/network build marker remains in player-facing intro."
+            exit 1
+          fi
+          if grep -EIn 'unavailable in this build|недоступн.{0,20}верс' "$GAME_VIEW"; then
+            echo "Technical unavailable-build wording remains in player-facing GameView."
+            exit 1
+          fi
+
+          echo "Player-facing technical-message audit: OK"
+
       - name: Check reachable local UI localization
         run: |
           set -euo pipefail
