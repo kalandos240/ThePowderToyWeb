@@ -945,6 +945,7 @@ jobs:
           path: |
             test-artifacts/performance.json
             test-artifacts/startup-performance.json
+            test-artifacts/idle-performance.json
             test-artifacts/payload-size.json
           if-no-files-found: warn
           retention-days: 14
