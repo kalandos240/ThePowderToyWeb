@@ -313,7 +313,6 @@ function focusMobileTextInput() {
     document.hidden ||
     platformPauseRequested ||
     orientationBlocked ||
-    nativeModalBlocked ||
     adPauseRequested
   ) {
     return;
