@@ -258,6 +258,7 @@ let mobileTextInputActive = false;
 let mobileTextInputRect = null;
 let mobileCompositionActive = false;
 let mobileCompositionCommit = "";
+let platformPauseRestoreTextInputFocus = false;
 
 window.__tptMobileTextInputActive = false;
 window.__tptMobileTextInputFocused = false;
@@ -642,8 +643,27 @@ function applyRuntimePauseState() {
 }
 
 function setRuntimePaused(paused) {
-  platformPauseRequested = Boolean(paused);
+  const nextPaused = Boolean(paused);
+
+  if (nextPaused && !platformPauseRequested) {
+    platformPauseRestoreTextInputFocus =
+      document.activeElement === mobileTextInput;
+    if (platformPauseRestoreTextInputFocus) {
+      mobileTextInput.blur();
+      window.__tptMobileTextInputFocused = false;
+    }
+  }
+
+  platformPauseRequested = nextPaused;
   applyRuntimePauseState();
+
+  if (
+    !platformPauseRequested &&
+    platformPauseRestoreTextInputFocus
+  ) {
+    platformPauseRestoreTextInputFocus = false;
+    focusMobileTextInput();
+  }
 }
 
 function showFatal(error) {
