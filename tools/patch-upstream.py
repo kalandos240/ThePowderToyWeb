@@ -43,6 +43,7 @@ tool_button_cpp = root / "upstream" / "src" / "gui" / "game" / "ToolButton.cpp"
 tool_button_h = root / "upstream" / "src" / "gui" / "game" / "ToolButton.h"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
+elements_dir = root / "upstream" / "src" / "simulation" / "elements"
 intro_text_h = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 property_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "PropertyTool.cpp"
 sign_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "SignTool.cpp"
@@ -896,6 +897,7 @@ simulation_h_text = simulation_h_text.replace(
 stacking_member_anchor = "\tbool force_stacking_check = false;\n"
 stacking_member_patch = (
     "\tbool force_stacking_check = false;\n"
+    "\tbool yandexWebGravityMassDirty = false;\n"
     "\tbool yandexWebStackingCandidate = false;\n"
     "\tstd::vector<int> yandexWebStackingCells;\n"
     "\tstd::vector<int> yandexWebCountedCells;\n"
@@ -1184,6 +1186,44 @@ if wire_anchor not in simulation_text:
     raise SystemExit("Simulation WIRE grid-scan anchor missing")
 simulation_text = simulation_text.replace(wire_anchor, wire_patch, 1)
 
+gravity_mass_clear_anchor = """		DispatchNewtonianGravity();
+		// gravIn::mass is now potentially garbage, which is ok, we were going to clear it for the frame anyway
+		for (auto p : gravIn.mass.Size().OriginRect())
+		{
+			gravIn.mass[p] = 0.f;
+		}"""
+gravity_mass_clear_patch = """		DispatchNewtonianGravity();
+		// Exchange may swap gravIn.mass while Newtonian gravity is active.
+		// With gravity disabled, clear only when a gravity writer touched it.
+		if (grav || yandexWebGravityMassDirty)
+		{
+			for (auto p : gravIn.mass.Size().OriginRect())
+			{
+				gravIn.mass[p] = 0.f;
+			}
+			yandexWebGravityMassDirty = false;
+		}"""
+if gravity_mass_clear_anchor not in simulation_text:
+    raise SystemExit("Simulation::BeforeSim gravity-mass clear anchor missing")
+simulation_text = simulation_text.replace(
+    gravity_mass_clear_anchor, gravity_mass_clear_patch, 1
+)
+
+reset_gravity_anchor = """	gravIn = newGravIn;
+	if (grav)
+	{
+		gravOut = newGravOut;"""
+reset_gravity_patch = """	gravIn = newGravIn;
+	yandexWebGravityMassDirty = true;
+	if (grav)
+	{
+		gravOut = newGravOut;"""
+if reset_gravity_anchor not in simulation_text:
+    raise SystemExit("Simulation::ResetNewtonianGravity dirty anchor missing")
+simulation_text = simulation_text.replace(
+    reset_gravity_anchor, reset_gravity_patch, 1
+)
+
 wall_scan_anchor = """		// decrease wall conduction, make walls block air and ambient heat
 		for (int y = 0; y < YCELLS; y++)
 		{
@@ -1264,6 +1304,7 @@ clear_pmap_anchor = "\tmemset(pmap, 0, sizeof(pmap));\n"
 clear_pmap_patch = (
     "\tmemset(pmap, 0, sizeof(pmap));\n"
     "\tyandexWebWallsMayExist = false;\n"
+    "\tyandexWebGravityMassDirty = false;\n"
     "\tyandexWebWallCells.clear();\n"
     "\tyandexWebWallCellsDirty = false;\n"
     "\tmemset(pmap_count, 0, sizeof(pmap_count));\n"
