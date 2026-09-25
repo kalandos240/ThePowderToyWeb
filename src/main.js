@@ -834,12 +834,22 @@ async function boot() {
   });
 
   setStatus(message("init"));
-  const [currentSDK] = await Promise.all([
-    initYandexSDK(),
-    loadScript("./game/powder.js")
-  ]);
+
+  // Start the platform SDK immediately, but do not put its network/init latency
+  // on the engine critical path. The local JS/WASM payload can compile in
+  // parallel; if Yandex is already ready by the time powder.js arrives we use
+  // its locale/device data, otherwise browser fallbacks are used and the
+  // existing late-SDK reconciliation path adopts Yandex afterwards.
+  const sdkPromise = initYandexSDK();
+  await loadScript("./game/powder.js");
+  const currentSDK = window.ysdk || null;
+  startupTiming.sdkAvailableAtEngineStart = Boolean(currentSDK);
   await applyPlatformDevice(currentSDK);
   applyPlatformLanguage(currentSDK);
+
+  // Keep the SDK promise alive explicitly so startup errors remain handled by
+  // initYandexSDK(), while engine startup never waits for the SDK timeout.
+  void sdkPromise;
 
   setStatus(message("engine"));
 
