@@ -1467,6 +1467,85 @@ if walls_anchor not in renderer_text:
     raise SystemExit("Renderer::DrawWalls wall-presence fast-path anchor missing")
 renderer_text = renderer_text.replace(walls_anchor, walls_patch, 1)
 
+# When the simulation scan has produced an exact wall-cell cache, render only
+# those cells. If a paused edit invalidated the cache, preserve upstream
+# behaviour by falling back to a complete grid traversal until the next tick.
+draw_walls_start = renderer_text.find("void Renderer::DrawWalls()")
+draw_walls_end = renderer_text.find(
+    "\nvoid Renderer::render_fire()", draw_walls_start
+)
+if draw_walls_start < 0 or draw_walls_end < 0:
+    raise SystemExit("Renderer::DrawWalls sparse-cache bounds missing")
+draw_walls = renderer_text[draw_walls_start:draw_walls_end]
+
+draw_walls_grid_anchor = """	auto &wtypes = sd.wtypes;
+	for (int y = 0; y < YCELLS; y++)
+		for (int x =0; x < XCELLS; x++)
+			if (sim->bmap[y][x])
+			{"""
+draw_walls_grid_patch = """	auto &wtypes = sd.wtypes;
+	auto yandexWebDrawWallCell = [&](int x, int y)
+	{
+		if (!sim->bmap[y][x])
+			return;"""
+if draw_walls_grid_anchor not in draw_walls:
+    raise SystemExit("Renderer::DrawWalls grid prefix anchor missing")
+draw_walls = draw_walls.replace(
+    draw_walls_grid_anchor, draw_walls_grid_patch, 1
+)
+
+invalid_wall_anchor = """				if (wt >= UI_WALLCOUNT)
+					continue;"""
+invalid_wall_patch = """				if (wt >= UI_WALLCOUNT)
+					return;"""
+if invalid_wall_anchor not in draw_walls:
+    raise SystemExit("Renderer::DrawWalls invalid-wall continue anchor missing")
+draw_walls = draw_walls.replace(
+    invalid_wall_anchor, invalid_wall_patch, 1
+)
+
+stream_continue_anchor = """							AddPixel({ oldX, oldY }, 0xFFFFFF_rgb .WithAlpha(255));
+							continue;"""
+stream_continue_patch = """							AddPixel({ oldX, oldY }, 0xFFFFFF_rgb .WithAlpha(255));
+							return;"""
+if stream_continue_anchor not in draw_walls:
+    raise SystemExit("Renderer::DrawWalls stream continue anchor missing")
+draw_walls = draw_walls.replace(
+    stream_continue_anchor, stream_continue_patch, 1
+)
+
+draw_walls_suffix_anchor = "			}\n}"
+suffix_pos = draw_walls.rfind(draw_walls_suffix_anchor)
+if suffix_pos < 0:
+    raise SystemExit("Renderer::DrawWalls sparse-cache suffix anchor missing")
+draw_walls_suffix_patch = """	};
+
+	if (!sim->yandexWebWallCellsDirty)
+	{
+		for (int cell : sim->yandexWebWallCells)
+		{
+			int y = cell / XCELLS;
+			int x = cell % XCELLS;
+			yandexWebDrawWallCell(x, y);
+		}
+		return;
+	}
+
+	for (int y = 0; y < YCELLS; ++y)
+		for (int x = 0; x < XCELLS; ++x)
+			yandexWebDrawWallCell(x, y);
+}"""
+draw_walls = (
+    draw_walls[:suffix_pos]
+    + draw_walls_suffix_patch
+    + draw_walls[suffix_pos + len(draw_walls_suffix_anchor):]
+)
+renderer_text = (
+    renderer_text[:draw_walls_start]
+    + draw_walls
+    + renderer_text[draw_walls_end:]
+)
+
 signs_anchor = """	std::vector<sign> signs = sim->signs;
 	for (auto &currentSign : signs)"""
 signs_patch = """	const auto &signs = sim->signs;
