@@ -28,6 +28,17 @@ const fatalTitle = document.querySelector("#fatal h1");
 const fatalMessage = document.getElementById("fatal-message");
 const reloadButton = document.getElementById("reload");
 
+// Lightweight startup telemetry used by the release smoke tests. Values are
+// navigation-relative milliseconds from performance.now(); there is no
+// network reporting and the object stays local to the page.
+const startupTiming = {
+  moduleReadyMs: performance.now(),
+  engineFactoryStartMs: null,
+  nativePresentableMs: null,
+  readyMs: null
+};
+window.__tptStartupTiming = startupTiming;
+
 const MESSAGES = {
   en: {
     init: "Initializing Yandex Games…",
@@ -708,6 +719,7 @@ async function onPresentable() {
   }
 
   presentable = true;
+  startupTiming.nativePresentableMs = performance.now();
   fitCanvas();
 
   canvas.style.display = "block";
@@ -721,6 +733,7 @@ async function onPresentable() {
 
   await signalGameReady();
   await gameplayStart();
+  startupTiming.readyMs = performance.now();
   scheduleNextAd();
 }
 
@@ -843,6 +856,7 @@ async function boot() {
   nativeLanguageLocked = true;
   window.__tptLanguageLocked = uiLanguage;
 
+  startupTiming.engineFactoryStartMs = performance.now();
   const gamePromise = window.create_powder({
     canvas,
     print: (...args) => logEngineStdout(...args),
