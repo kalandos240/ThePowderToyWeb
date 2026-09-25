@@ -249,8 +249,13 @@ jobs:
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
           grep -Fn 'bool yandexWebStackingCandidate = false;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebStackingCells;' "$SIM_H"
+          grep -Fn 'std::vector<int> yandexWebCountedCells;' "$SIM_H"
           grep -Fn 'yandexWebStackingCandidate = false;' "$SIM"
           grep -Fn 'yandexWebStackingCells.clear();' "$SIM"
+          grep -Fn 'for (int cell : yandexWebCountedCells)' "$SIM"
+          grep -Fn 'yandexWebCountedCells.clear();' "$SIM"
+          grep -Fn 'if (cellCount == 0)' "$SIM"
+          grep -Fn 'yandexWebCountedCells.push_back(y * XRES + x);' "$SIM"
           grep -Fn 'if (cellCount == 6)' "$SIM"
           grep -Fn 'yandexWebStackingCells.push_back(y * XRES + x);' "$SIM"
           grep -Fn 'if (!yandexWebStackingCandidate)' "$SIM"
@@ -275,6 +280,10 @@ jobs:
               "bool yandexWebNeedsFlatten = false;",
               "yandexWebStackingCandidate = false;",
               "yandexWebStackingCells.clear();",
+              "for (int cell : yandexWebCountedCells)",
+              "yandexWebCountedCells.clear();",
+              "if (cellCount == 0)",
+              "yandexWebCountedCells.push_back(y * XRES + x);",
               "if (cellCount == 6)",
               "yandexWebStackingCandidate = true;",
               "yandexWebStackingCells.push_back(y * XRES + x);",
@@ -286,6 +295,10 @@ jobs:
                   raise SystemExit(
                       f"RecalcFreeParticles optimization missing: {marker}"
                   )
+          if "memset(pmap_count, 0, sizeof(pmap_count));" in recalc:
+              raise SystemExit(
+                  "RecalcFreeParticles still clears the complete pmap_count grid"
+              )
 
           stacking_start = text.find("void Simulation::CheckStacking()")
           stacking_end = text.find(
@@ -310,6 +323,14 @@ jobs:
               raise SystemExit("WIRE active-particle scan missing")
           if "ID(r) == i" not in before:
               raise SystemExit("WIRE pmap-visibility guard missing")
+
+          clear_start = text.find("void Simulation::clear_sim(void)")
+          clear_end = text.find("\nbool Simulation::IsWallBlocking", clear_start)
+          clear = text[clear_start:clear_end]
+          if "memset(pmap_count, 0, sizeof(pmap_count));" not in clear:
+              raise SystemExit("clear_sim no longer initializes pmap_count")
+          if "yandexWebCountedCells.clear();" not in clear:
+              raise SystemExit("clear_sim sparse-count reset missing")
 
           save_start = text.find("std::unique_ptr<GameSave> Simulation::Save")
           save_end = text.find("\nvoid Simulation::SaveSimOptions", save_start)
