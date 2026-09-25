@@ -2646,6 +2646,95 @@ def smoke_case(language: str, mobile: bool):
         driver.quit()
 
 
+def smoke_sdk_script_failure():
+    label = "desktop-sdk-script-failure"
+    driver = make_driver(mobile=False, browser_language="ru-RU")
+    started = time.monotonic()
+    try:
+        driver.execute_cdp_cmd("Network.enable", {})
+        driver.execute_cdp_cmd(
+            "Network.setBlockedURLs",
+            {"urls": ["*://*/sdk.js"]},
+        )
+        driver.set_page_load_timeout(45)
+        driver.get(f"{BASE_URL}/?lang=ru&device=desktop")
+
+        wait = WebDriverWait(driver, 20)
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const fatal = document.getElementById('fatal');
+                const loader = document.getElementById('loader');
+                return Boolean(
+                    canvas &&
+                    canvas.style.display === 'block' &&
+                    fatal && fatal.hidden &&
+                    loader && loader.hidden &&
+                    window.__tptGameModule
+                );
+                """
+            )
+        )
+
+        state = driver.execute_script(
+            """
+            const script = document.getElementById('yandex-games-sdk');
+            return {
+                sdkMissing: window.ysdk === undefined,
+                yaGamesMissing: window.YaGames === undefined,
+                language: window.tptLanguage,
+                lockedLanguage: window.__tptLanguageLocked,
+                sdkScriptPresent: Boolean(script),
+                sdkScriptAsync: script?.async === true,
+                sdkScriptPath: script?.getAttribute('src') || '',
+                fatalHidden: document.getElementById('fatal').hidden,
+                loaderHidden: document.getElementById('loader').hidden,
+                canvasDisplay: document.getElementById('canvas').style.display,
+            };
+            """
+        )
+        elapsed = time.monotonic() - started
+
+        assert elapsed < 15.0, (
+            label,
+            "blocked /sdk.js prevented local fallback startup",
+            elapsed,
+            state,
+        )
+        assert state["sdkMissing"] is True, (label, state)
+        assert state["yaGamesMissing"] is True, (label, state)
+        assert state["language"] == "ru", (label, state)
+        assert state["lockedLanguage"] == "ru", (label, state)
+        assert state["sdkScriptPresent"] is True, (label, state)
+        assert state["sdkScriptAsync"] is True, (label, state)
+        assert state["sdkScriptPath"] == "/sdk.js", (label, state)
+        assert state["fatalHidden"] is True, (label, state)
+        assert state["loaderHidden"] is True, (label, state)
+        assert state["canvasDisplay"] == "block", (label, state)
+
+        browser_logs = driver.get_log("browser")
+        unexpected_severe_logs = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "favicon.ico" not in entry.get("message", "")
+            and not (
+                "sdk.js" in entry.get("message", "")
+                and "ERR_BLOCKED_BY_CLIENT" in entry.get("message", "")
+            )
+        ]
+        assert not unexpected_severe_logs, (
+            label,
+            "unexpected severe browser console entries",
+            unexpected_severe_logs,
+        )
+
+        print(f"[smoke] {label}: OK fallback={elapsed:.2f}s {state}")
+    finally:
+        driver.quit()
+
+
 def smoke_sdk_late_recovery():
     label = "desktop-sdk-late-recovery"
     driver = make_driver(mobile=False, browser_language="ru-RU")
@@ -2787,4 +2876,5 @@ if __name__ == "__main__":
     smoke_case("ru", mobile=False)
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
+    smoke_sdk_script_failure()
     smoke_sdk_late_recovery()
