@@ -260,6 +260,17 @@ jobs:
           grep -Fn 'constexpr bool USE_UPDATESERVER         = false;' "$CONFIG_FILE"
           grep -Fn 'constexpr bool IGNORE_UPDATES           = true;' "$CONFIG_FILE"
           grep -Fn 'FORCE_WINDOW_FRAME_OPS = forceWindowFrameOpsEmbedded;' "$CONFIG_FILE"
+          grep -Fn 'constexpr char SERVER[]         = "";' "$CONFIG_FILE"
+          grep -Fn 'constexpr char STATICSERVER[]   = "";' "$CONFIG_FILE"
+
+          if grep -Fi 'powdertoy.co.uk' "$CONFIG_FILE"; then
+            echo "Upstream simulation server remains in compiled Config.h."
+            exit 1
+          fi
+          if grep -Fi 'static.powdertoy.co.uk' "$CONFIG_FILE"; then
+            echo "Upstream static server remains in compiled Config.h."
+            exit 1
+          fi
 
           if grep -Fn 'constexpr bool NOHTTP                   = false;' "$CONFIG_FILE"; then
             echo "HTTP support is enabled in the compiled Yandex build."
