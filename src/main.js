@@ -5,6 +5,7 @@ import {
   gameplayStart,
   gameplayStop,
   getYandexLanguage,
+  onYandexSDKReady,
   setGameplayBlocked
 } from "./yandex.js";
 
@@ -84,6 +85,7 @@ let runtimePaused = false;
 let orientationBlocked = false;
 let nativeModalBlocked = false;
 let sdkMobilePlatform = null;
+let nativeLanguageLocked = false;
 window.__tptRuntimePaused = false;
 window.__tptOrientationBlocked = false;
 window.__tptNativeModalBlocked = false;
@@ -571,6 +573,29 @@ function scheduleViewportUpdate() {
   );
 }
 
+onYandexSDKReady((currentSDK, { late } = {}) => {
+  if (!late) {
+    return;
+  }
+
+  void (async () => {
+    await applyPlatformDevice(currentSDK);
+
+    const detectedLanguage = getYandexLanguage(currentSDK);
+    window.yandexDetectedLanguage = detectedLanguage;
+
+    if (!nativeLanguageLocked) {
+      applyPlatformLanguage(currentSDK);
+    } else if (detectedLanguage !== uiLanguage) {
+      console.warn(
+        `[Yandex] Late SDK language ${detectedLanguage} differs from active ${uiLanguage}; keeping the current native UI language for this session.`
+      );
+    }
+
+    scheduleViewportUpdate();
+  })();
+});
+
 window.addEventListener("resize", scheduleViewportUpdate, { passive: true });
 window.addEventListener("orientationchange", scheduleViewportUpdate, { passive: true });
 window.addEventListener("pageshow", scheduleViewportUpdate);
@@ -641,6 +666,12 @@ async function boot() {
 
   setStatus(message("simulation"));
 
+  // The native UI caches its locale when it is constructed. From this point
+  // onward keep one language for the session instead of mixing RU/EN if a
+  // previously timed-out SDK reports a different locale later.
+  nativeLanguageLocked = true;
+  window.__tptLanguageLocked = uiLanguage;
+
   const gamePromise = window.create_powder({
     canvas,
     print: (...args) => console.log("[TPT]", ...args),
@@ -669,5 +700,8 @@ async function boot() {
     setStatus(message("preparing"));
   }
 }
+
+// Local/no-SDK fallback should respect the browser language immediately.
+applyPlatformLanguage(null);
 
 void boot().catch(showFatal);
