@@ -287,6 +287,7 @@ jobs:
           SIM_H="upstream/src/simulation/Simulation.h"
           AIR="upstream/src/simulation/Air.cpp"
           RENDERER="upstream/src/graphics/Renderer.cpp"
+          RENDERER_H="upstream/src/graphics/Renderer.h"
           MESON="upstream/meson.build"
           BUILD_SH="upstream/.github/build.sh"
           EMSCRIPTEN_PLATFORM="upstream/src/common/platform/Emscripten.cpp"
@@ -318,8 +319,12 @@ jobs:
           grep -Fn 'bool yandexWebAirIsZero = true;' "$AIR"
           grep -Fn 'bmap[y][x] == WL_FAN' "$AIR"
           grep -Fn 'if (yandexWebAirIsZero)' "$AIR"
-          grep -Fn 'bool yandexWebHasFire = false;' "$RENDERER"
-          grep -Fn 'if (!yandexWebHasFire)' "$RENDERER"
+          grep -Fn 'bool yandexWebFireActive = false;' "$RENDERER_H"
+          grep -Fn 'if(!(renderMode & FIREMODE) || !yandexWebFireActive)' "$RENDERER"
+          grep -Fn 'bool yandexWebNextFireActive = false;' "$RENDERER"
+          grep -Fn 'yandexWebFireActive = yandexWebNextFireActive;' "$RENDERER"
+          grep -Fn 'yandexWebFireActive = false;' "$RENDERER"
+          test "$(grep -Fc 'yandexWebFireActive = true;' "$RENDERER")" -ge 4
           grep -Fn 'const auto &signs = sim->signs;' "$RENDERER"
           grep -Fn 'static bool shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
           grep -Fn 'if (!syncFsInFlight && shouldSyncFs)' "$EMSCRIPTEN_PLATFORM"
@@ -335,6 +340,10 @@ jobs:
           fi
           if grep -Fn '#include <atomic>' "$EMSCRIPTEN_PLATFORM"; then
             echo "Unused atomic support returned to Emscripten platform code."
+            exit 1
+          fi
+          if grep -Fn 'bool yandexWebHasFire = false;' "$RENDERER"; then
+            echo "Renderer returned to scanning the complete fire grid before every fire pass."
             exit 1
           fi
           if grep -Fn 'std::vector<sign> signs = sim->signs;' "$RENDERER"; then
