@@ -912,13 +912,9 @@ async function boot() {
   const currentSDK = window.ysdk || null;
   startupTiming.sdkAvailableAtEngineStart = Boolean(currentSDK);
 
-  // DeviceInfo is an optional refinement. Touch/coarse-pointer detection is
-  // already the supported fallback, so a slow async deviceInfo implementation
-  // must not delay creation of the native engine. The SDK-ready reconciliation
-  // path applies the authoritative classification when it resolves.
-  void applyPlatformDevice(currentSDK).then(() => {
-    scheduleViewportUpdate();
-  });
+  // DeviceInfo reconciliation is owned by onYandexSDKReady(). Keeping it out
+  // of boot avoids duplicate SDK device queries and duplicate viewport work.
+  // Until then, isMobilePlatform() uses the browser touch/pointer fallback.
   applyPlatformLanguage(currentSDK);
 
   // Keep the SDK promise alive explicitly so startup errors remain handled by
