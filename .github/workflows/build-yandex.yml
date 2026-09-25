@@ -141,6 +141,20 @@ jobs:
         run: |
           python3 tools/patch-upstream.py
 
+      - name: Check localized ToolButton captions stay inside bounds
+        run: |
+          set -euo pipefail
+          TOOL_BUTTON="upstream/src/gui/game/ToolButton.cpp"
+          LOCALE="upstream/src/YandexWebLocale.h"
+          grep -Fn 'const int yandexWebCaptionWidth = Size.X > 4 ? Size.X - 4 : 0;' "$TOOL_BUTTON"
+          grep -Fn 'Graphics::TextSize(buttonDisplayText).X > yandexWebCaptionWidth' "$TOOL_BUTTON"
+          grep -Fn 'buttonDisplayText.Substr(0, buttonDisplayText.size() - 1)' "$TOOL_BUTTON"
+          if grep -Fn 'maxVisibleCharacters' "$LOCALE"; then
+            echo "Russian tool labels are being truncated by character count again."
+            exit 1
+          fi
+          echo "Localized ToolButton pixel-width fitting: OK"
+
       - name: Check patched TPT source has no browser timing override
         run: |
           set -euo pipefail
