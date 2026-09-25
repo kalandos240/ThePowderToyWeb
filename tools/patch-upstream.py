@@ -980,6 +980,8 @@ inline String YandexWebTranslateUi(const String &source)
 	YW_UI("Disabled", "Отключено");
 	YW_UI("Default", "По умолчанию");
 	YW_UI("None", "Нет");
+	YW_UI("Legacy", "Классический");
+	YW_UI("Boussinesq", "Буссинеск");
 	YW_UI("Pause", "Пауза");
 	YW_UI("Resume", "Продолжить");
 	YW_UI("Quit", "Выйти");
