@@ -176,8 +176,13 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     return metric
 
 
-def make_driver(mobile: bool, browser_language: str | None = None):
+def make_driver(
+    mobile: bool,
+    browser_language: str | None = None,
+    page_load_strategy: str = "normal",
+):
     options = Options()
+    options.page_load_strategy = page_load_strategy
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-gpu")
@@ -2871,7 +2876,17 @@ def smoke_sdk_script_failure():
 
 def smoke_sdk_script_delay():
     label = "desktop-sdk-script-delay"
-    driver = make_driver(mobile=False, browser_language="ru-RU")
+    # A dynamically inserted async script still participates in the document
+    # load event. Selenium's normal navigation strategy would therefore wait
+    # for the deliberately delayed /sdk.js before returning from driver.get(),
+    # hiding the exact pre-load fallback behaviour this smoke is meant to test.
+    # Use "none" only here so WebDriver returns immediately after navigation
+    # starts and the assertion measures actual canvas readiness.
+    driver = make_driver(
+        mobile=False,
+        browser_language="ru-RU",
+        page_load_strategy="none",
+    )
     started = time.monotonic()
     try:
         driver.set_page_load_timeout(45)
