@@ -15,6 +15,14 @@ const sdkReadySubscribers = new Set();
 
 const SDK_INIT_TIMEOUT_MS = 8000;
 const SDK_SCRIPT_ID = "yandex-games-sdk";
+const YANDEX_DEBUG =
+  new URLSearchParams(window.location.search).get("tpt-debug") === "1";
+
+function debugInfo(...args) {
+  if (YANDEX_DEBUG) {
+    console.info(...args);
+  }
+}
 
 function loadYandexSDKScript() {
   if (typeof window.YaGames !== "undefined") {
@@ -75,7 +83,7 @@ function sendLoadingReady(currentSDK) {
   try {
     currentSDK.features?.LoadingAPI?.ready();
     loadingReadySent = true;
-    console.info("[Yandex] LoadingAPI.ready sent.");
+    debugInfo("[Yandex] LoadingAPI.ready sent.");
   } catch (error) {
     console.error("[Yandex] LoadingAPI.ready failed.", error);
   }
@@ -129,7 +137,7 @@ function installSDKPauseListeners(currentSDK) {
     // unchanged here: for an SDK that was already active, Yandex also owns the
     // matching resume. A late SDK adopted during the pause never sets this flag.
     pauseRuntimeCallback();
-    console.info("[Yandex] game_api_pause");
+    debugInfo("[Yandex] game_api_pause");
   });
 
   currentSDK.on("game_api_resume", () => {
@@ -149,7 +157,7 @@ function installSDKPauseListeners(currentSDK) {
       }
     }
 
-    console.info("[Yandex] game_api_resume");
+    debugInfo("[Yandex] game_api_resume");
   });
 }
 
@@ -174,9 +182,9 @@ function adoptSDK(currentSDK, late = false) {
   installSDKPauseListeners(currentSDK);
 
   if (late) {
-    console.info("[Yandex] SDK initialized after startup timeout; state reconciled.");
+    debugInfo("[Yandex] SDK initialized after startup timeout; state reconciled.");
   } else {
-    console.info("[Yandex] SDK initialized.");
+    debugInfo("[Yandex] SDK initialized.");
   }
 
   sendLoadingReady(currentSDK);
@@ -231,7 +239,7 @@ export async function initYandexSDK() {
 
       const currentSDK = await Promise.race([rawInitPromise, timeoutPromise]);
       if (!currentSDK) {
-        console.info("[Yandex] SDK is unavailable; using local development mode.");
+        debugInfo("[Yandex] SDK is unavailable; using local development mode.");
         return null;
       }
       return adoptSDK(currentSDK);
@@ -309,7 +317,7 @@ export async function showFullscreenAd() {
   const currentSDK = await initYandexSDK();
   const show = currentSDK?.adv?.showFullscreenAdv;
   if (typeof show !== "function") {
-    console.info("[Yandex] Fullscreen advertising is unavailable.");
+    debugInfo("[Yandex] Fullscreen advertising is unavailable.");
     return false;
   }
 
@@ -329,10 +337,10 @@ export async function showFullscreenAd() {
       show.call(currentSDK.adv, {
         callbacks: {
           onOpen() {
-            console.info("[Yandex] Fullscreen ad opened.");
+            debugInfo("[Yandex] Fullscreen ad opened.");
           },
           onClose(wasShown) {
-            console.info("[Yandex] Fullscreen ad closed.", { wasShown });
+            debugInfo("[Yandex] Fullscreen ad closed.", { wasShown });
             finish(wasShown);
           },
           onError(error) {
@@ -340,7 +348,7 @@ export async function showFullscreenAd() {
             finish(false);
           },
           onOffline() {
-            console.info("[Yandex] Fullscreen ad skipped while offline.");
+            debugInfo("[Yandex] Fullscreen ad skipped while offline.");
             finish(false);
           }
         }
