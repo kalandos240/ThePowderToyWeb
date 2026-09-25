@@ -425,6 +425,9 @@ def smoke_case(language: str, mobile: bool):
                 orientationDisplay: getComputedStyle(document.getElementById('orientation-gate')).display,
                 ready: window.__yandexLoadingReady,
                 gameplay: window.__yandexGameplayStarted,
+                sdkScriptPresent: Boolean(document.getElementById('yandex-games-sdk')),
+                sdkScriptAsync: document.getElementById('yandex-games-sdk')?.async === true,
+                sdkScriptPath: document.getElementById('yandex-games-sdk')?.getAttribute('src') || '',
             };
             """
         )
@@ -438,6 +441,9 @@ def smoke_case(language: str, mobile: bool):
         assert state["canvasWidth"] <= state["viewportWidth"] + 1, (label, state)
         assert state["canvasHeight"] <= state["viewportHeight"] + 1, (label, state)
         assert state["ready"] is True, (label, state)
+        assert state["sdkScriptPresent"] is True, (label, state)
+        assert state["sdkScriptAsync"] is True, (label, state)
+        assert state["sdkScriptPath"] == "/sdk.js", (label, state)
 
         if not mobile and language == "en":
             locale_aliases = driver.execute_async_script(
