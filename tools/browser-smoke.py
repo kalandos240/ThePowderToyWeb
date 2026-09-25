@@ -176,6 +176,48 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     return metric
 
 
+def record_idle_cpu_metric(driver, label, sample_seconds=1.5):
+    driver.execute_cdp_cmd("Performance.enable", {})
+
+    def snapshot():
+        raw = driver.execute_cdp_cmd("Performance.getMetrics", {})
+        return {
+            item["name"]: float(item["value"])
+            for item in raw.get("metrics", [])
+        }
+
+    before = snapshot()
+    time.sleep(sample_seconds)
+    after = snapshot()
+
+    def delta(name):
+        return max(0.0, after.get(name, 0.0) - before.get(name, 0.0))
+
+    metric = {
+        "label": label,
+        "sample_seconds": sample_seconds,
+        "task_duration_ms": round(delta("TaskDuration") * 1000.0, 3),
+        "script_duration_ms": round(delta("ScriptDuration") * 1000.0, 3),
+        "layout_duration_ms": round(delta("LayoutDuration") * 1000.0, 3),
+        "recalc_style_duration_ms": round(
+            delta("RecalcStyleDuration") * 1000.0, 3
+        ),
+        "js_heap_used_bytes": int(after.get("JSHeapUsedSize", 0.0)),
+    }
+
+    report_path = os.path.join(ARTIFACT_DIR, "idle-performance.json")
+    report = []
+    if os.path.exists(report_path):
+        with open(report_path, "r", encoding="utf-8") as handle:
+            report = json.load(handle)
+    report.append(metric)
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2)
+
+    print(f"[idle-performance] {metric}")
+    return metric
+
+
 def record_startup_metric(driver, label):
     timing = driver.execute_script(
         "return window.__tptStartupTiming ? {...window.__tptStartupTiming} : null"
@@ -326,6 +368,8 @@ def smoke_case(language: str, mobile: bool):
         )
 
         startup_performance = record_startup_metric(driver, label)
+        if language == "en" and not mobile:
+            idle_performance = record_idle_cpu_metric(driver, label)
 
         sdk_mobile_platform = driver.execute_script(
             "return window.__tptSdkMobilePlatform"
