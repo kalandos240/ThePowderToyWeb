@@ -340,3 +340,56 @@ jobs:
           path: ThePowderToy-Yandex.zip
           if-no-files-found: error
           retention-days: 14
+
+
+  compatibility:
+    name: Firefox / WebKit compatibility smoke
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout Yandex wrapper
+        uses: actions/checkout@v4
+
+      - name: Download built Yandex package
+        uses: actions/download-artifact@v4
+        with:
+          name: ThePowderToy-Yandex
+          path: compat-package
+
+      - name: Unpack exact release artifact
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          unzip -q compat-package/ThePowderToy-Yandex.zip -d dist
+          test -f dist/index.html
+          test -f dist/game/powder.js
+          test -f dist/game/powder.wasm
+          test ! -f dist/sdk.js
+
+      - name: Install Firefox and WebKit test browsers
+        run: |
+          python3 -m pip install --user --upgrade playwright
+          python3 -m playwright install --with-deps firefox webkit
+
+      - name: Run cross-browser release smoke
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory dist > /tmp/tpt-compat-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 1
+
+          TPT_COMPAT_URL=http://127.0.0.1:8766 \
+          TPT_COMPAT_ARTIFACT_DIR=compat-artifacts \
+          python3 tools/browser-compat-smoke.py
+
+      - name: Upload cross-browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThePowderToy-Cross-Browser
+          path: compat-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
