@@ -1792,6 +1792,51 @@ if "Yandex Web: desktop OS installation is not applicable" not in controller_tex
         raise SystemExit("GameController::Install browser guard anchor missing")
     controller_text = controller_text.replace(install_anchor, install_patch, 1)
 
+# Compile upstream online controllers out of the browser build entirely. These
+# methods are reachable from more than visible buttons (for example Lua and
+# imported online-sign commands), so hiding UI alone is not enough.
+def guard_online_controller_method(signature, next_signature):
+    global controller_text
+    marker = signature + "\n{\n#if defined(__EMSCRIPTEN__)"
+    if marker in controller_text:
+        return
+
+    start = controller_text.find(signature + "\n{")
+    if start < 0:
+        raise SystemExit(f"GameController online method anchor missing: {signature}")
+    end = controller_text.find(next_signature, start)
+    if end < 0:
+        raise SystemExit(
+            f"GameController next method anchor missing after {signature}: {next_signature}"
+        )
+
+    segment = controller_text[start:end]
+    segment = segment.replace(
+        signature + "\n{",
+        signature
+        + "\n{\n#if defined(__EMSCRIPTEN__)\n"
+        + "\t// Yandex Web: upstream online controller path disabled.\n"
+        + "\treturn;\n#else",
+        1,
+    )
+    close = segment.rfind("}\n\n")
+    if close < 0:
+        raise SystemExit(f"GameController method end missing: {signature}")
+    segment = segment[:close] + "#endif\n" + segment[close:]
+    controller_text = controller_text[:start] + segment + controller_text[end:]
+
+
+for signature, next_signature in [
+    ("void GameController::OpenSearch(String searchText)", "void GameController::OpenLocalSaveWindow(bool asCurrent)"),
+    ("void GameController::OpenSaveDone()", "void GameController::OpenSavePreview(int saveID, int saveDate, SavePreviewType savePreviewType)"),
+    ("void GameController::OpenSavePreview(int saveID, int saveDate, SavePreviewType savePreviewType)", "void GameController::OpenSavePreview()"),
+    ("void GameController::OpenSavePreview()", "void GameController::OpenLocalBrowse()"),
+    ("void GameController::OpenLogin()", "void GameController::OpenProfile()"),
+    ("void GameController::OpenProfile()", "void GameController::OpenElementSearch()"),
+    ("void GameController::OpenTags()", "void GameController::OpenStamps()"),
+]:
+    guard_online_controller_method(signature, next_signature)
+
 controller_replacements = [
     ('gameModel->SetInfoTip("Gravity: Vertical");',
      'gameModel->SetInfoTip(YandexWebText("Gravity: Vertical", "Гравитация: вертикальная"));'),
