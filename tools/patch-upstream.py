@@ -64,6 +64,18 @@ if pthread_arg not in meson_text:
     raise SystemExit("meson.build USE_PTHREADS anchor not found")
 meson_text = meson_text.replace(pthread_arg, "", 1)
 
+# The Yandex artifact only runs in a browser. Restricting Emscripten's
+# generated environment removes Node/shell/worker startup branches from the
+# glue code and reduces parse/startup overhead without changing gameplay.
+wasm_arg = "		'-s', 'WASM=1',\n"
+web_environment_arg = "		'-s', 'ENVIRONMENT=web',\n"
+if wasm_arg not in meson_text:
+    raise SystemExit("meson.build WASM anchor not found")
+if "ENVIRONMENT=web" not in meson_text:
+    meson_text = meson_text.replace(
+        wasm_arg, wasm_arg + web_environment_arg, 1
+    )
+
 threads_anchor = """fftw_dep = dependency('fftw3f', static: is_static)
 threads_dep = dependency('threads')
 if host_platform == 'emscripten'"""
