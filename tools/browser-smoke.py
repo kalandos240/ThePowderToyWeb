@@ -111,7 +111,7 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     return metric
 
 
-def make_driver(mobile: bool):
+def make_driver(mobile: bool, browser_language: str | None = None):
     options = Options()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -119,6 +119,12 @@ def make_driver(mobile: bool):
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1365,768")
     options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+    if browser_language:
+        options.add_argument(f"--lang={browser_language}")
+        options.add_experimental_option(
+            "prefs",
+            {"intl.accept_languages": f"{browser_language},ru,en"},
+        )
     if mobile:
         options.add_experimental_option(
             "mobileEmulation",
@@ -2636,11 +2642,11 @@ def smoke_case(language: str, mobile: bool):
 
 def smoke_sdk_late_recovery():
     label = "desktop-sdk-late-recovery"
-    driver = make_driver(mobile=False)
+    driver = make_driver(mobile=False, browser_language="ru-RU")
     started = time.monotonic()
     try:
         driver.set_page_load_timeout(45)
-        driver.get(f"{BASE_URL}/?lang=en&device=desktop&sdk=delay")
+        driver.get(f"{BASE_URL}/?lang=ru&device=desktop&sdk=delay")
         wait = WebDriverWait(driver, 20)
 
         # The native game must become presentable from the 8-second fallback
@@ -2668,10 +2674,30 @@ def smoke_sdk_late_recovery():
             "slow YaGames.init blocked game startup instead of using timeout fallback",
             fallback_elapsed,
         )
-        assert driver.execute_script("return window.ysdk === undefined") is True, (
+        fallback_state = driver.execute_script(
+            """
+            return {
+                sdkMissing: window.ysdk === undefined,
+                language: window.tptLanguage,
+                lockedLanguage: window.__tptLanguageLocked,
+                sdkMobilePlatform: window.__tptSdkMobilePlatform,
+                htmlLanguage: document.documentElement.lang,
+            };
+            """
+        )
+        assert fallback_state["sdkMissing"] is True, (
             label,
             "delayed SDK resolved before fallback state was observed",
+            fallback_state,
         )
+        assert fallback_state["language"] == "ru", (
+            label,
+            "browser-language fallback did not select Russian",
+            fallback_state,
+        )
+        assert fallback_state["lockedLanguage"] == "ru", (label, fallback_state)
+        assert fallback_state["sdkMobilePlatform"] is None, (label, fallback_state)
+        assert fallback_state["htmlLanguage"] == "ru", (label, fallback_state)
         assert driver.execute_script(
             "return window.__yandexLoadingReady === false"
         ) is True, (
@@ -2705,6 +2731,11 @@ def smoke_sdk_late_recovery():
                 gameplayStartIndex: events.indexOf('gameplay-start'),
                 loaderHidden: document.getElementById('loader').hidden,
                 canvasDisplay: document.getElementById('canvas').style.display,
+                language: window.tptLanguage,
+                detectedLanguage: window.yandexDetectedLanguage,
+                lockedLanguage: window.__tptLanguageLocked,
+                sdkMobilePlatform: window.__tptSdkMobilePlatform,
+                htmlLanguage: document.documentElement.lang,
             };
             """
         )
@@ -2717,6 +2748,11 @@ def smoke_sdk_late_recovery():
         )
         assert recovered["loaderHidden"] is True, (label, recovered)
         assert recovered["canvasDisplay"] == "block", (label, recovered)
+        assert recovered["language"] == "ru", (label, recovered)
+        assert recovered["detectedLanguage"] == "ru", (label, recovered)
+        assert recovered["lockedLanguage"] == "ru", (label, recovered)
+        assert recovered["sdkMobilePlatform"] is False, (label, recovered)
+        assert recovered["htmlLanguage"] == "ru", (label, recovered)
 
         browser_logs = driver.get_log("browser")
         unexpected_severe_logs = [
