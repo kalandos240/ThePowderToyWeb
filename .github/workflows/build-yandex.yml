@@ -55,6 +55,12 @@ jobs:
           grep -Fn 'const sdkPromise = initYandexSDK();' src/main.js
           grep -Fn 'await loadScript("./game/powder.js");' src/main.js
           grep -Fn 'const currentSDK = window.ysdk || null;' src/main.js
+          grep -Fn 'onYandexSDKReady((currentSDK) => {' src/main.js
+          grep -Fn 'await applyPlatformDevice(currentSDK);' src/main.js
+          if grep -Fn 'if (!late)' src/main.js; then
+            echo "Async SDK reconciliation is restricted to timeout-only arrivals again."
+            exit 1
+          fi
           if grep -Fn 'const [currentSDK] = await Promise.all' src/main.js; then
             echo "Engine bootstrap is waiting for Yandex SDK latency again."
             exit 1
