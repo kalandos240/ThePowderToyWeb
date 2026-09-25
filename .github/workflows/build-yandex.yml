@@ -155,6 +155,15 @@ jobs:
           grep -Fn 'YandexWeb_TestDustButtonTextWidth' "$GAME_VIEW"
           grep -Fn 'YandexWeb_TestDustButtonWidth' "$GAME_VIEW"
           grep -Fn 'YandexWeb_TestMaxToolButtonOverflow' "$GAME_VIEW"
+          grep -Fn 'YandexWeb_TestDustButtonTextWidthValue' "$GAME_VIEW"
+          grep -Fn 'YandexWeb_TestDustButtonWidthValue' "$GAME_VIEW"
+          grep -Fn 'YandexWeb_TestMaxToolButtonOverflowValue' "$GAME_VIEW"
+          if grep -Fq 'static int YandexWeb_TestDustButtonTextWidth =' "$GAME_VIEW" ||
+             grep -Fq 'static int YandexWeb_TestDustButtonWidth =' "$GAME_VIEW" ||
+             grep -Fq 'static int YandexWeb_TestMaxToolButtonOverflow =' "$GAME_VIEW"; then
+            echo "UI diagnostic function/static variable symbol collision returned."
+            exit 1
+          fi
           if grep -Fn 'maxVisibleCharacters' "$LOCALE"; then
             echo "Russian tool labels are being truncated by character count again."
             exit 1
