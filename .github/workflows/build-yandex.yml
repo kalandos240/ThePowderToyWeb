@@ -488,6 +488,8 @@ jobs:
           window.__yandexReadyCount = 0;
           window.__yandexSdkEvents = [];
           window.__yandexReadySnapshot = null;
+          window.__yandexAdOpenCount = 0;
+          window.__yandexAdCloseCount = 0;
           window.YaGames = {
             init: async () => {
               const sdkMode = new URLSearchParams(location.search).get("sdk");
@@ -515,6 +517,19 @@ jobs:
                     return type === "tablet";
                   }
                 };
+              },
+              adv: {
+                showFullscreenAdv({ callbacks } = {}) {
+                  window.__yandexSdkEvents.push("ad-request");
+                  callbacks?.onOpen?.();
+                  window.__yandexAdOpenCount += 1;
+                  window.__yandexSdkEvents.push("ad-open");
+                  setTimeout(() => {
+                    window.__yandexAdCloseCount += 1;
+                    window.__yandexSdkEvents.push("ad-close");
+                    callbacks?.onClose?.(true);
+                  }, 80);
+                }
               },
               features: {
                 LoadingAPI: {
