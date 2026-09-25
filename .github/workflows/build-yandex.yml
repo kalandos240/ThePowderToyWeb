@@ -96,6 +96,25 @@ jobs:
           fi
           grep -Fn 'YandexWebText("Done", "Готово")' upstream/src/gui/colourpicker/ColourPickerActivity.cpp
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
+          if grep -Fn 'new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());' upstream/src/gui/game/GameView.cpp; then
+            echo "Dropped-save error is still English-only."
+            exit 1
+          fi
+          if grep -Fn 'new ErrorMessage("Could not create stamp", "Error serializing save file");' upstream/src/gui/game/GameController.cpp; then
+            echo "Stamp serialization error is still English-only."
+            exit 1
+          fi
+          if grep -Fn 'new ErrorMessage("Could not create stamp", "Error generating save file");' upstream/src/gui/game/GameController.cpp; then
+            echo "Stamp generation error is still English-only."
+            exit 1
+          fi
+          if grep -Fn ', " Total:", std::hypot' upstream/src/gui/options/OptionsView.cpp; then
+            echo "Custom-gravity magnitude label is still English-only."
+            exit 1
+          fi
+          grep -Fn 'YandexWebText("Dropped save file could not be loaded: ", "Не удалось загрузить перетащенное сохранение: ")' upstream/src/gui/game/GameView.cpp
+          grep -Fn 'YandexWebText("Could not create stamp", "Не удалось создать штамп")' upstream/src/gui/game/GameController.cpp
+          grep -Fn 'YandexWebText(" Total:", " Модуль:")' upstream/src/gui/options/OptionsView.cpp
           echo "Reachable local UI localization audit: OK"
 
       - name: Build upstream Emscripten target without external HTTP features
