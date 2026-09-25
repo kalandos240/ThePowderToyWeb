@@ -2634,14 +2634,17 @@ def smoke_case(language: str, mobile: bool):
         driver.quit()
 
 
-def smoke_sdk_init_timeout():
-    label = "desktop-sdk-timeout"
+def smoke_sdk_late_recovery():
+    label = "desktop-sdk-late-recovery"
     driver = make_driver(mobile=False)
     started = time.monotonic()
     try:
         driver.set_page_load_timeout(45)
-        driver.get(f"{BASE_URL}/?lang=en&device=desktop&sdk=hang")
+        driver.get(f"{BASE_URL}/?lang=en&device=desktop&sdk=delay")
         wait = WebDriverWait(driver, 20)
+
+        # The native game must become presentable from the 8-second fallback
+        # before the deliberately delayed SDK resolves at 11 seconds.
         wait.until(
             lambda d: d.execute_script(
                 """
@@ -2659,22 +2662,61 @@ def smoke_sdk_init_timeout():
             )
         )
 
-        elapsed = time.monotonic() - started
-        assert elapsed < 15.0, (
+        fallback_elapsed = time.monotonic() - started
+        assert fallback_elapsed < 10.5, (
             label,
-            "stalled YaGames.init blocked game startup too long",
-            elapsed,
+            "slow YaGames.init blocked game startup instead of using timeout fallback",
+            fallback_elapsed,
         )
         assert driver.execute_script("return window.ysdk === undefined") is True, (
             label,
-            "timed-out SDK unexpectedly became active",
+            "delayed SDK resolved before fallback state was observed",
         )
         assert driver.execute_script(
             "return window.__yandexLoadingReady === false"
         ) is True, (
             label,
-            "mock LoadingAPI.ready should not run after SDK timeout fallback",
+            "LoadingAPI.ready ran before delayed SDK recovery",
         )
+
+        # When the original YaGames.init() eventually resolves, the running
+        # game must adopt it without reload and replay platform state exactly
+        # once: LoadingAPI.ready first, then GameplayAPI.start.
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return Boolean(
+                    window.ysdk &&
+                    window.__yandexReadyCount === 1 &&
+                    window.__yandexLoadingReady === true &&
+                    window.__yandexGameplayStarted === true
+                );
+                """
+            )
+        )
+
+        recovered = driver.execute_script(
+            """
+            const events = window.__yandexSdkEvents || [];
+            return {
+                readyCount: window.__yandexReadyCount || 0,
+                events,
+                readyIndex: events.indexOf('ready'),
+                gameplayStartIndex: events.indexOf('gameplay-start'),
+                loaderHidden: document.getElementById('loader').hidden,
+                canvasDisplay: document.getElementById('canvas').style.display,
+            };
+            """
+        )
+        assert recovered["readyCount"] == 1, (label, recovered)
+        assert recovered["readyIndex"] >= 0, (label, recovered)
+        assert recovered["gameplayStartIndex"] > recovered["readyIndex"], (
+            label,
+            "late SDK recovery did not preserve Ready -> Gameplay ordering",
+            recovered,
+        )
+        assert recovered["loaderHidden"] is True, (label, recovered)
+        assert recovered["canvasDisplay"] == "block", (label, recovered)
 
         browser_logs = driver.get_log("browser")
         unexpected_severe_logs = [
@@ -2688,7 +2730,11 @@ def smoke_sdk_init_timeout():
             "unexpected severe browser console entries",
             unexpected_severe_logs,
         )
-        print(f"[smoke] {label}: OK startup fallback in {elapsed:.2f}s")
+        total_elapsed = time.monotonic() - started
+        print(
+            f"[smoke] {label}: OK fallback={fallback_elapsed:.2f}s "
+            f"recovered={total_elapsed:.2f}s"
+        )
     finally:
         driver.quit()
 
@@ -2699,4 +2745,4 @@ if __name__ == "__main__":
     smoke_case("ru", mobile=False)
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
-    smoke_sdk_init_timeout()
+    smoke_sdk_late_recovery()
