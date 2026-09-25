@@ -993,6 +993,62 @@ inline String YandexWebTranslateUi(const String &source)
 #undef YW_UI
 	return source;
 }
+
+inline String YandexWebToolButtonText(
+	ByteString const &identifier,
+	String const &name,
+	String const &description
+)
+{
+	if (!YandexWebIsRussian())
+		return name;
+
+	// Keep canonical identifiers and element names untouched internally. Only
+	// the text painted on ToolButton is localized, so saves, Lua scripts and
+	// element lookup remain fully upstream-compatible.
+#define YW_TOOL(id, ru) if (identifier == id) return ByteString(ru).FromUtf8()
+	YW_TOOL("DEFAULT_PT_DUST", "ПЫЛЬ");
+	YW_TOOL("DEFAULT_PT_WATR", "ВОДА");
+	YW_TOOL("DEFAULT_PT_SEED", "СЕМЯ");
+	YW_TOOL("DEFAULT_PT_SLCN", "КРЕМНИЙ");
+	YW_TOOL("DEFAULT_PT_SAWD", "ОПИЛКИ");
+	YW_TOOL("DEFAULT_PT_CLST", "ГЛИНА");
+	YW_TOOL("DEFAULT_PT_SAND", "ПЕСОК");
+	YW_TOOL("DEFAULT_PT_STNE", "КАМЕНЬ");
+	YW_TOOL("DEFAULT_PT_ROCK", "ПОРОДА");
+	YW_TOOL("DEFAULT_PT_BRCK", "КИРПИЧ");
+	YW_TOOL("DEFAULT_PT_DMND", "АЛМАЗ");
+	YW_TOOL("DEFAULT_PT_GLAS", "СТЕКЛО");
+	YW_TOOL("DEFAULT_PT_WOOD", "ДЕРЕВО");
+	YW_TOOL("DEFAULT_PT_FIRE", "ОГОНЬ");
+	YW_TOOL("DEFAULT_PT_PLSM", "ПЛАЗМА");
+	YW_TOOL("DEFAULT_PT_LAVA", "ЛАВА");
+	YW_TOOL("DEFAULT_PT_SMKE", "ДЫМ");
+	YW_TOOL("DEFAULT_PT_OIL", "НЕФТЬ");
+	YW_TOOL("DEFAULT_PT_GAS", "ГАЗ");
+	YW_TOOL("DEFAULT_PT_METL", "МЕТАЛЛ");
+	YW_TOOL("DEFAULT_PT_IRON", "ЖЕЛЕЗО");
+	YW_TOOL("DEFAULT_PT_GOLD", "ЗОЛОТО");
+	YW_TOOL("DEFAULT_PT_SPRK", "ИСКРА");
+	YW_TOOL("DEFAULT_PT_BTRY", "БАТАР.");
+	YW_TOOL("DEFAULT_PT_ACID", "КИСЛОТА");
+	YW_TOOL("DEFAULT_PT_SALT", "СОЛЬ");
+#undef YW_TOOL
+
+	// Every built-in element has a localized description in the Yandex build.
+	// For less common tools derive a compact visible label from its first
+	// localized word instead of exposing the upstream English abbreviation.
+	String label = description;
+	if (String::Split split = label.SplitBy('.'))
+		label = split.Before();
+	if (String::Split split = label.SplitBy(':'))
+		label = split.Before();
+	if (String::Split split = label.SplitBy(' '))
+		label = split.Before();
+	if (!label.size())
+		return name;
+	return label;
+}
 ''', encoding="utf-8")
 
 def include_locale(path, anchor):
@@ -1154,6 +1210,11 @@ textbox_text = textbox_text.replace(set_placeholder_anchor, set_placeholder_patc
 textbox_cpp.write_text(textbox_text, encoding="utf-8")
 
 game_view_text = game_view.read_text(encoding="utf-8")
+visible_tool_anchor = "tool->Name, tool->Identifier, tool->Description"
+visible_tool_patch = "YandexWebToolButtonText(tool->Identifier, tool->Name, tool->Description), tool->Identifier, tool->Description"
+if visible_tool_anchor not in game_view_text:
+    raise SystemExit("GameView visible tool-label anchor missing")
+game_view_text = game_view_text.replace(visible_tool_anchor, visible_tool_patch, 1)
 if 'int GetSplitPosition() const' not in game_view_text:
     game_view_text = game_view_text.replace(
         'bool GetShowSplit() { return showSplit; }',
@@ -1175,6 +1236,7 @@ static int YandexWeb_TestUiWidth = -1;
 static int YandexWeb_TestUiHeight = -1;
 static int YandexWeb_TestDustButtonX = -1;
 static int YandexWeb_TestDustButtonY = -1;
+static int YandexWeb_TestDustButtonRussian = -1;
 static int YandexWeb_TestSaveButtonX = -1;
 static int YandexWeb_TestSaveButtonY = -1;
 static int YandexWeb_TestSettingsButtonX = -1;
@@ -1194,6 +1256,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiWidth() { return YandexWe
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexWeb_TestUiHeight; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonX() { return YandexWeb_TestDustButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonY() { return YandexWeb_TestDustButtonY; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonIsRussian() { return YandexWeb_TestDustButtonRussian; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonX() { return YandexWeb_TestSaveButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonY() { return YandexWeb_TestSaveButtonY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonX() { return YandexWeb_TestSettingsButtonX; }
@@ -1258,12 +1321,15 @@ ui_geometry_patch = r'''
 
 	YandexWeb_TestDustButtonX = -1;
 	YandexWeb_TestDustButtonY = -1;
+	YandexWeb_TestDustButtonRussian = -1;
 	for (auto *button : toolButtons)
 	{
 		if (button && button->tool && button->tool->Identifier == "DEFAULT_PT_DUST")
 		{
 			YandexWeb_TestDustButtonX = button->Position.X + button->Size.X / 2;
 			YandexWeb_TestDustButtonY = button->Position.Y + button->Size.Y / 2;
+			YandexWeb_TestDustButtonRussian =
+				button->GetText() == ByteString("ПЫЛЬ").FromUtf8() ? 1 : 0;
 			break;
 		}
 	}
@@ -2616,6 +2682,11 @@ for old, new in sign_replacements:
 sign_tool_cpp.write_text(sign_text, encoding="utf-8")
 
 search_text = element_search_cpp.read_text(encoding="utf-8")
+search_tool_anchor = "tool->Name, tool->Identifier, tool->Description"
+search_tool_patch = "YandexWebToolButtonText(tool->Identifier, tool->Name, tool->Description), tool->Identifier, tool->Description"
+if search_tool_anchor not in search_text:
+    raise SystemExit("ElementSearch visible tool-label anchor missing")
+search_text = search_text.replace(search_tool_anchor, search_tool_patch, 1)
 search_replacements = [
     ('ui::Point(Size.X-8, 15), "Element Search")',
      'ui::Point(Size.X-8, 15), YandexWebText("Element Search", "Поиск элементов"))'),

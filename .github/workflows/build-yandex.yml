@@ -255,6 +255,9 @@ jobs:
           fi
           grep -Fn 'YandexWebText("Done", "Готово")' upstream/src/gui/colourpicker/ColourPickerActivity.cpp
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
+          grep -Fn 'YandexWebToolButtonText(tool->Identifier, tool->Name, tool->Description)' upstream/src/gui/game/GameView.cpp
+          grep -Fn 'YandexWebToolButtonText(tool->Identifier, tool->Name, tool->Description)' upstream/src/gui/elementsearch/ElementSearchActivity.cpp
+          grep -Fn 'YW_TOOL("DEFAULT_PT_DUST", "ПЫЛЬ")' upstream/src/YandexWebLocale.h
           grep -Fn 'ButtonText(YandexWebTranslateUi(buttonText))' upstream/src/gui/interface/Button.cpp
           grep -Fn 'toolTip(YandexWebTranslateUi(toolTip))' upstream/src/gui/interface/Button.cpp
           grep -Fn 'text(YandexWebTranslateUi(text))' upstream/src/gui/interface/Checkbox.cpp

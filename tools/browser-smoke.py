@@ -572,6 +572,31 @@ def smoke_case(language: str, mobile: bool):
             server_control_mask,
         )
 
+        dust_button_russian = int(
+            driver.execute_script(
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestDustButtonIsRussian',
+                    'number',
+                    [],
+                    []
+                );
+                """
+            )
+        )
+        if language == "ru":
+            assert dust_button_russian == 1, (
+                label,
+                "visible DUST tool button is not localized in Russian mode",
+                dust_button_russian,
+            )
+        else:
+            assert dust_button_russian == 0, (
+                label,
+                "English mode unexpectedly received Russian DUST button text",
+                dust_button_russian,
+            )
+
         native_fullscreen = driver.execute_script(
             """
             const before = Boolean(document.fullscreenElement);
