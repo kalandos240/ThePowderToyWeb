@@ -803,6 +803,10 @@ game_dialog_replacements = [
         'new ErrorMessage(YandexWebText("Error loading stamp", "Ошибка загрузки штампа"), YandexWebText("Dropped stamp could not be loaded: ", "Не удалось загрузить перетащенный штамп: ") + saveFile->GetError());'
     ),
     (
+        'new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());',
+        'new ErrorMessage(YandexWebText("Error loading save", "Ошибка загрузки сохранения"), YandexWebText("Dropped save file could not be loaded: ", "Не удалось загрузить перетащенное сохранение: ") + saveFile->GetError());'
+    ),
+    (
         'new ConfirmPrompt("Remove custom GOL type", "Are you sure you want to remove " + identifier.Substr(20).FromUtf8() + "?",',
         'new ConfirmPrompt(YandexWebText("Remove custom GOL type", "Удалить пользовательский тип «Жизни»"), YandexWebText("Are you sure you want to remove ", "Удалить тип ") + identifier.Substr(20).FromUtf8() + "?",'
     ),
@@ -1068,6 +1072,7 @@ options_replacements = [
     ('"Radial"', 'YandexWebText("Radial", "Радиальная")'),
     ('"Custom"', 'YandexWebText("Custom", "Своя")'),
     ('"Custom Gravity"', 'YandexWebText("Custom Gravity", "Своя гравитация")'),
+    ('" Total:"', 'YandexWebText(" Total:", " Модуль:")'),
     ('"Edge mode"', 'YandexWebText("Edge mode", "Режим границ")'),
     ('"Void"', 'YandexWebText("Void", "Пустота")'),
     ('"Solid"', 'YandexWebText("Solid", "Твёрдая граница")'),
@@ -1441,6 +1446,10 @@ controller_replacements = [
      'gameModel->SetInfoTip(YandexWebText("Saved Successfully", "Сохранено успешно"));'),
     ('new ErrorMessage("Error loading stamp", file->GetError());',
      'new ErrorMessage(YandexWebText("Error loading save", "Ошибка загрузки сохранения"), file->GetError());'),
+    ('new ErrorMessage("Could not create stamp", "Error serializing save file");',
+     'new ErrorMessage(YandexWebText("Could not create stamp", "Не удалось создать штамп"), YandexWebText("Error serializing save file", "Не удалось подготовить данные штампа"));'),
+    ('new ErrorMessage("Could not create stamp", "Error generating save file");',
+     'new ErrorMessage(YandexWebText("Could not create stamp", "Не удалось создать штамп"), YandexWebText("Error generating save file", "Не удалось создать данные штампа"));'),
 ]
 for old, new in controller_replacements:
     if old in controller_text:
