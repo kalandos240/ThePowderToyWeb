@@ -837,6 +837,7 @@ stacking_member_patch = (
     "\tbool force_stacking_check = false;\n"
     "\tbool yandexWebStackingCandidate = false;\n"
     "\tstd::vector<int> yandexWebStackingCells;\n"
+    "\tstd::vector<int> yandexWebCountedCells;\n"
 )
 if stacking_member_anchor not in simulation_h_text:
     raise SystemExit("Simulation.h stacking candidate anchor missing")
@@ -870,11 +871,21 @@ if recalc_pos < 0 or recalc_end < 0:
     raise SystemExit("RecalcFreeParticles function bounds missing")
 segment = simulation_text[recalc_pos:recalc_end]
 
+count_reset_anchor = """	memset(pmap_count, 0, sizeof(pmap_count));"""
+count_reset_patch = """	for (int cell : yandexWebCountedCells)
+		pmap_count[cell / XRES][cell % XRES] = 0;
+	yandexWebCountedCells.clear();"""
+if count_reset_anchor not in segment:
+    raise SystemExit("RecalcFreeParticles pmap_count memset anchor missing")
+segment = segment.replace(count_reset_anchor, count_reset_patch, 1)
+
 count_anchor = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
 					pmap_count[y][x]++;"""
 count_patch = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
 				{
 					auto &cellCount = pmap_count[y][x];
+					if (cellCount == 0)
+						yandexWebCountedCells.push_back(y * XRES + x);
 					cellCount++;
 					if (cellCount == 6)
 					{
@@ -1039,6 +1050,26 @@ wire_patch = """		// make WIRE work
 if wire_anchor not in simulation_text:
     raise SystemExit("Simulation WIRE grid-scan anchor missing")
 simulation_text = simulation_text.replace(wire_anchor, wire_patch, 1)
+
+clear_start = simulation_text.find("void Simulation::clear_sim(void)")
+clear_end = simulation_text.find("\nbool Simulation::IsWallBlocking", clear_start)
+if clear_start < 0 or clear_end < 0:
+    raise SystemExit("Simulation::clear_sim bounds missing")
+clear_segment = simulation_text[clear_start:clear_end]
+clear_pmap_anchor = "	memset(pmap, 0, sizeof(pmap));\n"
+clear_pmap_patch = (
+    "	memset(pmap, 0, sizeof(pmap));\n"
+    "	memset(pmap_count, 0, sizeof(pmap_count));\n"
+    "	yandexWebCountedCells.clear();\n"
+    "	yandexWebStackingCells.clear();\n"
+    "	yandexWebStackingCandidate = false;\n"
+)
+if clear_pmap_anchor not in clear_segment:
+    raise SystemExit("Simulation::clear_sim pmap anchor missing")
+clear_segment = clear_segment.replace(clear_pmap_anchor, clear_pmap_patch, 1)
+simulation_text = (
+    simulation_text[:clear_start] + clear_segment + simulation_text[clear_end:]
+)
 
 save_start = simulation_text.find("std::unique_ptr<GameSave> Simulation::Save")
 save_end = simulation_text.find("\nvoid Simulation::SaveSimOptions", save_start)
