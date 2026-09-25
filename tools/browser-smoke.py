@@ -3266,29 +3266,23 @@ def smoke_sdk_brief_delay_recovery():
             )
         )
 
-        pre_sdk = driver.execute_script(
+        startup_state = driver.execute_script(
             """
-            return {
-                sdkMissing: window.ysdk === undefined,
-                language: window.tptLanguage,
-                sdkMobilePlatform: window.__tptSdkMobilePlatform,
-                startupTiming: window.__tptStartupTiming
-                    ? {...window.__tptStartupTiming}
-                    : null,
-            };
+            return window.__tptStartupTiming
+                ? {...window.__tptStartupTiming}
+                : null;
             """
         )
-        assert pre_sdk["sdkMissing"] is True, (label, pre_sdk)
-        assert pre_sdk["language"] == "en", (
+        assert startup_state, (label, startup_state)
+        assert startup_state["sdkAvailableAtEngineStart"] is False, (
             label,
-            "browser fallback should be active before the SDK resolves",
-            pre_sdk,
+            "briefly delayed SDK was already on the engine-start path",
+            startup_state,
         )
-        assert pre_sdk["sdkMobilePlatform"] is None, (label, pre_sdk)
-        assert pre_sdk["startupTiming"], (label, pre_sdk)
-        assert pre_sdk["startupTiming"]["sdkAvailableAtEngineStart"] is False, (
+        assert startup_state["engineFactoryStartMs"] < 2000.0, (
             label,
-            pre_sdk,
+            "engine factory failed to start before brief SDK initialization",
+            startup_state,
         )
 
         # brief-delay resolves well before SDK_INIT_TIMEOUT_MS. The callback
@@ -3300,7 +3294,9 @@ def smoke_sdk_brief_delay_recovery():
                 return Boolean(
                     window.ysdk &&
                     window.__tptSdkMobilePlatform === true &&
-                    window.yandexDetectedLanguage === 'ru'
+                    window.yandexDetectedLanguage === 'ru' &&
+                    window.__yandexReadyCount === 1 &&
+                    window.__yandexLoadingReady === true
                 );
                 """
             )
