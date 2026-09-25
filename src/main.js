@@ -768,8 +768,8 @@ onYandexSDKReady((currentSDK) => {
 
     if (!nativeLanguageLocked) {
       applyPlatformLanguage(currentSDK);
-    } else if (detectedLanguage !== uiLanguage) {
-      console.warn(
+    } else if (detectedLanguage !== uiLanguage && ENGINE_STDOUT_DEBUG) {
+      console.info(
         `[Yandex] SDK language ${detectedLanguage} differs from active ${uiLanguage}; keeping the current native UI language for this session.`
       );
     }
