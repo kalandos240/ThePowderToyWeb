@@ -27,6 +27,18 @@ PROTOCOL_RELATIVE_HOST = re.compile(
 
 # Upstream/community/network-service hosts that must never survive into the
 # no-HTTP Yandex runtime, even if they are not written as a full URL.
+FORBIDDEN_AUTHORED_NETWORK_PRIMITIVES = (
+    b"fetch(",
+    b"XMLHttpRequest",
+    b"WebSocket",
+    b"EventSource",
+    b"sendBeacon",
+    b"window.open",
+    b"location.assign",
+    b"location.replace",
+    b"document.location",
+)
+
 FORBIDDEN_SERVICE_MARKERS = (
     b"powdertoy.co.uk",
     b"www.powdertoy.co.uk",
@@ -76,6 +88,12 @@ def main():
                 f"{rel}: external URL literal {value.decode('utf-8', 'replace')}"
             )
         lower = data.lower()
+        for primitive in FORBIDDEN_AUTHORED_NETWORK_PRIMITIVES:
+            if primitive.lower() in lower:
+                failures.append(
+                    f"{rel}: forbidden network/navigation primitive "
+                    f"{primitive.decode()}"
+                )
         for marker in FORBIDDEN_SERVICE_MARKERS:
             if marker in lower:
                 failures.append(
@@ -105,7 +123,7 @@ def main():
         )
 
     print("Third-party runtime network audit: OK")
-    print("Checked authored runtime for external URL literals.")
+    print("Checked authored runtime for external URL literals and direct network/navigation primitives.")
     print("Checked JS/WASM runtime for upstream/community service hosts.")
     print("Only the same-origin Yandex SDK path /sdk.js is permitted by the port.")
 
