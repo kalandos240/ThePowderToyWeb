@@ -248,6 +248,29 @@ def run_case(browser, browser_name: str, language: str, mobile: bool):
         }
         print(f"[compat] {label}: OK")
         return result
+    except Exception as error:
+        try:
+            page.screenshot(
+                path=str(ARTIFACT_DIR / f"{label}-failure.png"),
+                full_page=True,
+            )
+        except Exception:
+            pass
+
+        failure = {
+            "label": label,
+            "browser": browser_name,
+            "language": language,
+            "mobile": mobile,
+            "error": repr(error),
+            "console_errors": console_errors,
+            "page_errors": page_errors,
+        }
+        with (ARTIFACT_DIR / f"{label}-failure.json").open(
+            "w", encoding="utf-8"
+        ) as handle:
+            json.dump(failure, handle, ensure_ascii=False, indent=2)
+        raise
     finally:
         context.close()
 
