@@ -458,6 +458,89 @@ if "Yandex Web: Lua HTTP API disabled" not in lua_script_text:
         "// Yandex Web: Lua HTTP API disabled in browser builds.\n" + lua_http_open_patch,
         1,
     )
+# Export a runtime diagnostic so browser smoke can prove the final Lua state
+# does not expose any network/navigation API after the native engine starts.
+if "#include <emscripten.h>" not in lua_script_text:
+    lua_include_anchor = '#include "simulation/SimulationData.h"\n'
+    if lua_include_anchor not in lua_script_text:
+        raise SystemExit("LuaScriptInterface.cpp Emscripten include anchor missing")
+    lua_script_text = lua_script_text.replace(
+        lua_include_anchor,
+        lua_include_anchor + "#if defined(__EMSCRIPTEN__)\n#include <emscripten.h>\n#endif\n",
+        1,
+    )
+
+lua_ctor_anchor = "LuaScriptInterface::LuaScriptInterface(GameController *newGameController, GameModel *newGameModel) :\n"
+lua_network_diag = r'''#if defined(__EMSCRIPTEN__)
+static int YandexWeb_TestLuaNetworkApiMaskValue = -1;
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestLuaNetworkApiMask()
+{
+	return YandexWeb_TestLuaNetworkApiMaskValue;
+}
+#endif
+
+'''
+if "YandexWeb_TestLuaNetworkApiMask()" not in lua_script_text:
+    if lua_ctor_anchor not in lua_script_text:
+        raise SystemExit("LuaScriptInterface.cpp constructor anchor missing")
+    lua_script_text = lua_script_text.replace(
+        lua_ctor_anchor,
+        lua_network_diag + lua_ctor_anchor,
+        1,
+    )
+
+lua_open_end_anchor = """	LuaSocket::Open(L);
+	LuaTools::Open(L);
+	{
+		lua_getglobal(L, "os");"""
+lua_open_end_patch = r'''	LuaSocket::Open(L);
+	LuaTools::Open(L);
+#if defined(__EMSCRIPTEN__)
+	// Bit 0: global http table
+	// Bit 1: tpt.installScriptManager
+	// Bit 2: platform.openLink
+	// Bit 3: socket.tcp
+	YandexWeb_TestLuaNetworkApiMaskValue = 0;
+
+	auto hasGlobal = [this](const char *name) {
+		lua_getglobal(L, name);
+		bool present = !lua_isnil(L, -1);
+		lua_pop(L, 1);
+		return present;
+	};
+	auto hasField = [this](const char *globalName, const char *fieldName) {
+		lua_getglobal(L, globalName);
+		bool present = false;
+		if (lua_istable(L, -1))
+		{
+			lua_getfield(L, -1, fieldName);
+			present = !lua_isnil(L, -1);
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 1);
+		return present;
+	};
+
+	if (hasGlobal("http"))
+		YandexWeb_TestLuaNetworkApiMaskValue |= 1;
+	if (hasField("tpt", "installScriptManager"))
+		YandexWeb_TestLuaNetworkApiMaskValue |= 2;
+	if (hasField("platform", "openLink"))
+		YandexWeb_TestLuaNetworkApiMaskValue |= 4;
+	if (hasField("socket", "tcp"))
+		YandexWeb_TestLuaNetworkApiMaskValue |= 8;
+#endif
+	{
+		lua_getglobal(L, "os");'''
+if "YandexWeb_TestLuaNetworkApiMaskValue |= 8;" not in lua_script_text:
+    if lua_open_end_anchor not in lua_script_text:
+        raise SystemExit("LuaScriptInterface.cpp Lua API diagnostic anchor missing")
+    lua_script_text = lua_script_text.replace(
+        lua_open_end_anchor,
+        lua_open_end_patch,
+        1,
+    )
+
 lua_script_interface_cpp.write_text(lua_script_text, encoding="utf-8")
 
 lua_misc_text = lua_misc_cpp.read_text(encoding="utf-8")
