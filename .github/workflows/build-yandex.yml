@@ -343,6 +343,7 @@ jobs:
           BUILD_SH="upstream/.github/build.sh"
           EMSCRIPTEN_PLATFORM="upstream/src/common/platform/Emscripten.cpp"
           GRAVITY_FFT="upstream/src/simulation/gravity/Fft.cpp"
+          GAME_CONTROLLER="upstream/src/gui/game/GameController.cpp"
 
           grep -Fn 'bool yandexWebNeedsFlatten = false;' "$SIM"
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
@@ -404,6 +405,17 @@ jobs:
           grep -Fn 'yandexWebFireActive = false;' "$RENDERER"
           test "$(grep -Fc 'yandexWebFireActive = true;' "$RENDERER")" -ge 4
           grep -Fn 'const auto &signs = sim->signs;' "$RENDERER"
+          grep -Fn 'void GameController::ResetAir()' "$GAME_CONTROLLER"
+          grep -Fn 'void GameController::ResetSpark()' "$GAME_CONTROLLER"
+          test "$(grep -Fc 'for (int i = 0; i < sim->parts.active; i++)' "$GAME_CONTROLLER")" -ge 2
+          if grep -A8 -F 'void GameController::ResetAir()' "$GAME_CONTROLLER" | grep -F '< NPART'; then
+            echo "ResetAir returned to scanning all particle slots."
+            exit 1
+          fi
+          if grep -A18 -F 'void GameController::ResetSpark()' "$GAME_CONTROLLER" | grep -F '< NPART'; then
+            echo "ResetSpark returned to scanning all particle slots."
+            exit 1
+          fi
           grep -Fn 'bool yandexWebHasEffectiveMass = false;' "$GRAVITY_FFT"
           grep -Fn 'if (!yandexWebHasEffectiveMass)' "$GRAVITY_FFT"
           grep -Fn 'fftGravity->gravIn.mass = gravIn.mass;' "$GRAVITY_FFT"
