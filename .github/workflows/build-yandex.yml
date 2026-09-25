@@ -146,6 +146,10 @@ jobs:
               "powdertoy.co.uk",
               "irc.libera.chat",
               "tpt.io/discord",
+              "Server features are disabled",
+              "Saves in this build",
+              "Серверные функции отключены",
+              "Сохранения этой версии",
           )
           found = [value for value in forbidden if value in player_intro]
           if found:
