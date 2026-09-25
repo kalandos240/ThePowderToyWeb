@@ -531,6 +531,24 @@ def smoke_case(language: str, mobile: bool):
             lua_network_mask,
         )
 
+        server_control_mask = int(
+            driver.execute_script(
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestServerControlsVisibleMask',
+                    'number',
+                    [],
+                    []
+                );
+                """
+            )
+        )
+        assert server_control_mask == 0, (
+            label,
+            "upstream server/account control is visible",
+            server_control_mask,
+        )
+
         if not mobile and language == "en":
             locale_aliases = driver.execute_async_script(
                 """
