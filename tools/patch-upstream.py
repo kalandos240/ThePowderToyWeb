@@ -881,8 +881,8 @@ simulation_h_text = simulation_h_text.replace(
 )
 recalc_decl_anchor = "\tvoid RecalcFreeParticles(bool do_life_dec);\n"
 recalc_decl_patch = (
-    "\tvoid RecalcFreeParticles(bool do_life_dec, "
-    "bool rebuildStackingCounts = true);\n"
+    "\tvoid RecalcFreeParticles(bool do_life_dec);\n"
+    "\tvoid RebuildStackingCounts();\n"
 )
 if recalc_decl_anchor not in simulation_h_text:
     raise SystemExit("Simulation.h RecalcFreeParticles declaration anchor missing")
@@ -899,21 +899,13 @@ recalc_start = """void Simulation::RecalcFreeParticles(bool do_life_dec)
 {
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	memset(pmap, 0, sizeof(pmap));"""
-recalc_start_patch = """void Simulation::RecalcFreeParticles(
-	bool do_life_dec,
-	bool rebuildStackingCounts
-)
+recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
 {
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	bool yandexWebNeedsFlatten = false;
-	if (rebuildStackingCounts)
-	{
-		yandexWebStackingCandidate = false;
-		yandexWebStackingCells.clear();
-	}
 
 	// After clear_sim(), or after the previous RecalcFreeParticles flattened
-	// away the last dead slots, all three occupancy maps are already empty.
+	// away the last dead slots, all occupancy maps are already empty.
 	// Avoid clearing several large grids every frame while an empty scene is
 	// idle (common during startup and before the player begins drawing).
 	if (parts.active == 0)
@@ -938,35 +930,16 @@ if recalc_pos < 0 or recalc_end < 0:
     raise SystemExit("RecalcFreeParticles function bounds missing")
 segment = simulation_text[recalc_pos:recalc_end]
 
-count_reset_anchor = """\tmemset(pmap_count, 0, sizeof(pmap_count));"""
-count_reset_patch = """	if (rebuildStackingCounts)
-	{
-		for (int cell : yandexWebCountedCells)
-			pmap_count[cell / XRES][cell % XRES] = 0;
-		yandexWebCountedCells.clear();
-	}"""
+count_reset_anchor = """	memset(pmap_count, 0, sizeof(pmap_count));"""
 if count_reset_anchor not in segment:
     raise SystemExit("RecalcFreeParticles pmap_count memset anchor missing")
-segment = segment.replace(count_reset_anchor, count_reset_patch, 1)
+segment = segment.replace(count_reset_anchor, "", 1)
 
 count_anchor = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
 					pmap_count[y][x]++;"""
-count_patch = """				if (rebuildStackingCounts &&
-				    t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
-				{
-					auto &cellCount = pmap_count[y][x];
-					if (cellCount == 0)
-						yandexWebCountedCells.push_back(y * XRES + x);
-					cellCount++;
-					if (cellCount == 6)
-					{
-						yandexWebStackingCandidate = true;
-						yandexWebStackingCells.push_back(y * XRES + x);
-					}
-				}"""
 if count_anchor not in segment:
-    raise SystemExit("RecalcFreeParticles stacking-count anchor missing")
-segment = segment.replace(count_anchor, count_patch, 1)
+    raise SystemExit("RecalcFreeParticles pmap_count increment anchor missing")
+segment = segment.replace(count_anchor, "", 1)
 
 empty_anchor = """		if (!parts[i].type)
 		{
@@ -1010,6 +983,52 @@ flatten_patch = """	if (yandexWebNeedsFlatten)
 if flatten_anchor not in simulation_text:
     raise SystemExit("RecalcFreeParticles Flatten anchor missing")
 simulation_text = simulation_text.replace(flatten_anchor, flatten_patch, 1)
+
+stacking_rebuild_anchor = """void Simulation::CheckStacking()
+{"""
+stacking_rebuild_patch = """void Simulation::RebuildStackingCounts()
+{
+	for (int cell : yandexWebCountedCells)
+		pmap_count[cell / XRES][cell % XRES] = 0;
+	yandexWebCountedCells.clear();
+	yandexWebStackingCells.clear();
+	yandexWebStackingCandidate = false;
+
+	auto &elements = SimulationData::CRef().elements;
+	for (int i = 0; i < parts.active; ++i)
+	{
+		int t = parts[i].type;
+		if (t <= PT_NONE || t >= PT_NUM)
+			continue;
+		if (elements[t].Properties & TYPE_ENERGY)
+			continue;
+		if (t == PT_THDR || t == PT_EMBR || t == PT_FIGH || t == PT_PLSM)
+			continue;
+
+		int x = int(parts[i].x + 0.5f);
+		int y = int(parts[i].y + 0.5f);
+		if (x < 0 || y < 0 || x >= XRES || y >= YRES)
+			continue;
+
+		auto &cellCount = pmap_count[y][x];
+		if (cellCount == 0)
+			yandexWebCountedCells.push_back(y * XRES + x);
+		cellCount++;
+		if (cellCount == 6)
+		{
+			yandexWebStackingCandidate = true;
+			yandexWebStackingCells.push_back(y * XRES + x);
+		}
+	}
+}
+
+void Simulation::CheckStacking()
+{"""
+if stacking_rebuild_anchor not in simulation_text:
+    raise SystemExit("Simulation::CheckStacking insertion anchor missing")
+simulation_text = simulation_text.replace(
+    stacking_rebuild_anchor, stacking_rebuild_patch, 1
+)
 
 stacking_anchor = """void Simulation::CheckStacking()
 {
@@ -1084,38 +1103,16 @@ simulation_text = simulation_text.replace(
     stacking_scan_anchor, stacking_scan_patch, 1
 )
 
-stacking_schedule_anchor = """	if (debug_nextToUpdate == 0)
-		RecalcFreeParticles(willUpdate);
-
-	if (willUpdate)
-	{"""
-stacking_schedule_patch = """	bool yandexWebCheckStacking = false;
-	if (debug_nextToUpdate == 0)
-	{
-		if (willUpdate)
-			yandexWebCheckStacking =
-				force_stacking_check || rng.chance(1, 10);
-		RecalcFreeParticles(willUpdate, yandexWebCheckStacking);
-	}
-
-	if (willUpdate)
-	{"""
-if stacking_schedule_anchor not in simulation_text:
-    raise SystemExit("BeforeSim stacking schedule anchor missing")
-simulation_text = simulation_text.replace(
-    stacking_schedule_anchor, stacking_schedule_patch, 1
-)
-
 stacking_call_anchor = """		// check for stacking and create BHOL if found
 		if (force_stacking_check || rng.chance(1, 10))
 		{
 			CheckStacking();
 		}"""
-stacking_call_patch = """		// Check stacking only on frames that built fresh counts.
-		if (yandexWebCheckStacking ||
-		    (debug_nextToUpdate != 0 &&
-		     (force_stacking_check || rng.chance(1, 10))))
+stacking_call_patch = """		// pmap_count is only used by CheckStacking. Preserve the original RNG
+		// decision point, then build counts only on frames that need them.
+		if (force_stacking_check || rng.chance(1, 10))
 		{
+			RebuildStackingCounts();
 			CheckStacking();
 		}"""
 if stacking_call_anchor not in simulation_text:
