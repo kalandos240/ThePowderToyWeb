@@ -325,6 +325,8 @@ jobs:
           set -euo pipefail
           SIM="upstream/src/simulation/Simulation.cpp"
           SIM_H="upstream/src/simulation/Simulation.h"
+          EDITING="upstream/src/simulation/Editing.cpp"
+          LUA_SIM="upstream/src/lua/LuaSimulation.cpp"
           AIR="upstream/src/simulation/Air.cpp"
           RENDERER="upstream/src/graphics/Renderer.cpp"
           RENDERER_H="upstream/src/graphics/Renderer.h"
@@ -335,6 +337,7 @@ jobs:
           grep -Fn 'bool yandexWebNeedsFlatten = false;' "$SIM"
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
           grep -Fn 'bool yandexWebStackingCandidate = false;' "$SIM_H"
+          grep -Fn 'bool yandexWebWallsMayExist = true;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebStackingCells;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebCountedCells;' "$SIM_H"
           grep -Fn 'void RebuildStackingCounts();' "$SIM_H"
@@ -355,6 +358,16 @@ jobs:
           grep -Fn 'for (int i = 0; i < parts.active; ++i)' "$SIM"
           grep -Fn 'ID(r) == i' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
+          grep -Fn 'bool yandexWebWallsPresent = false;' "$SIM"
+          grep -Fn 'yandexWebWallsMayExist = yandexWebWallsPresent;' "$SIM"
+          grep -Fn 'yandexWebWallsMayExist = false;' "$SIM"
+          grep -Fn 'yandexWebWallsMayExist = true;' "$EDITING"
+          grep -Fn 'yandexWebWallsMayExist = true;' "$LUA_SIM"
+          grep -Fn 'if (!sim->yandexWebWallsMayExist)' "$RENDERER"
+          if [ "$(grep -Fc 'yandexWebWallsMayExist = false;' "$SIM")" -ne 1 ]; then
+            echo "Wall renderer hint has an unsafe extra false-assignment."
+            exit 1
+          fi
           grep -Fn 'if (sim.parts.active == 0 &&' "$AIR"
           grep -Fn 'bool yandexWebAirIsZero = true;' "$AIR"
           grep -Fn 'bmap[y][x] == WL_FAN' "$AIR"
@@ -431,6 +444,12 @@ jobs:
               )
           if "RebuildStackingCounts();" not in before_sim:
               raise SystemExit("On-demand stacking-count rebuild missing")
+          wall_mark = "bool yandexWebWallsPresent = false;"
+          wall_publish = "yandexWebWallsMayExist = yandexWebWallsPresent;"
+          if wall_mark not in before_sim or wall_publish not in before_sim:
+              raise SystemExit("BeforeSim wall-presence scan/publish missing")
+          if before_sim.find(wall_mark) > before_sim.find(wall_publish):
+              raise SystemExit("Wall-presence state published before it is scanned")
           if before_sim.find("RebuildStackingCounts();") > before_sim.find("CheckStacking();"):
               raise SystemExit("Stacking counts must rebuild before CheckStacking")
 
