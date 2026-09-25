@@ -754,9 +754,16 @@ async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
       adWarningCountdown.textContent = String(seconds);
       await sleep(1000);
 
-      if (document.hidden || fatalShown) {
+      if (!canBeginFullscreenAdCycle()) {
         return false;
       }
+    }
+
+    // A blocker can arrive between the final countdown tick and the SDK call
+    // (for example a modal opened by the last pointer event). Never launch an
+    // ad over a newly blocked gameplay state.
+    if (!canBeginFullscreenAdCycle()) {
+      return false;
     }
 
     adWarning.hidden = true;
