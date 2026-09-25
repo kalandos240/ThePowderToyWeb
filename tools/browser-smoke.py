@@ -1558,12 +1558,21 @@ def smoke_case(language: str, mobile: bool):
                     fullscreen_cycle,
                     fullscreen_state,
                 )
-                assert abs(
-                    fullscreen_state["width"] - fullscreen_state["expectedWidth"]
-                ) <= 2, (label, fullscreen_cycle, fullscreen_state)
-                assert abs(
-                    fullscreen_state["height"] - fullscreen_state["expectedHeight"]
-                ) <= 2, (label, fullscreen_cycle, fullscreen_state)
+                # Full-slot Yandex mode intentionally stretches the native
+                # framebuffer to the available player area instead of keeping
+                # the old aspect-fit/letterbox dimensions.
+                assert fullscreen_state["width"] >= fullscreen_state["appWidth"] - 8, (
+                    label,
+                    fullscreen_cycle,
+                    "fullscreen-cycle canvas does not fill available width",
+                    fullscreen_state,
+                )
+                assert fullscreen_state["height"] >= fullscreen_state["appHeight"] - 8, (
+                    label,
+                    fullscreen_cycle,
+                    "fullscreen-cycle canvas does not fill available height",
+                    fullscreen_state,
+                )
                 assert fullscreen_state["width"] <= fullscreen_state["appWidth"] + 1, (
                     label,
                     fullscreen_cycle,
