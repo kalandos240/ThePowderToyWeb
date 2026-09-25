@@ -145,10 +145,15 @@ jobs:
         run: |
           set -euo pipefail
           TOOL_BUTTON="upstream/src/gui/game/ToolButton.cpp"
+          TOOL_BUTTON_H="upstream/src/gui/game/ToolButton.h"
+          GAME_VIEW="upstream/src/gui/game/GameView.cpp"
           LOCALE="upstream/src/YandexWebLocale.h"
           grep -Fn 'const int yandexWebCaptionWidth = Size.X > 4 ? Size.X - 4 : 0;' "$TOOL_BUTTON"
           grep -Fn 'Graphics::TextSize(buttonDisplayText).X > yandexWebCaptionWidth' "$TOOL_BUTTON"
           grep -Fn 'buttonDisplayText.Substr(0, buttonDisplayText.size() - 1)' "$TOOL_BUTTON"
+          grep -Fn 'YandexWebDisplayTextForTest() const' "$TOOL_BUTTON_H"
+          grep -Fn 'YandexWeb_TestDustButtonTextWidth' "$GAME_VIEW"
+          grep -Fn 'YandexWeb_TestDustButtonWidth' "$GAME_VIEW"
           if grep -Fn 'maxVisibleCharacters' "$LOCALE"; then
             echo "Russian tool labels are being truncated by character count again."
             exit 1
