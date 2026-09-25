@@ -2850,6 +2850,116 @@ def smoke_case(language: str, mobile: bool):
         driver.quit()
 
 
+def smoke_yandex_wide_slot():
+    label = "desktop-ru-yandex-wide-slot"
+    driver = make_driver(mobile=False, browser_language="ru-RU")
+    try:
+        driver.set_window_size(1920, 501)
+        driver.set_page_load_timeout(45)
+        driver.get(f"{BASE_URL}/?lang=ru&device=desktop")
+
+        wait = WebDriverWait(driver, 45)
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                return Boolean(
+                    canvas &&
+                    canvas.style.display === 'block' &&
+                    document.getElementById('loader').hidden &&
+                    window.__yandexLoadingReady === true
+                );
+                """
+            )
+        )
+
+        # Match the actual Yandex draft slot reported by the user's browser:
+        # 1920x358 CSS pixels. Headless Chrome has browser-frame overhead, so
+        # compensate with the current outer/inner difference.
+        metrics = driver.execute_script(
+            """
+            return {
+                innerWidth: window.innerWidth,
+                innerHeight: window.innerHeight,
+                outerWidth: window.outerWidth,
+                outerHeight: window.outerHeight,
+            };
+            """
+        )
+        width_overhead = metrics["outerWidth"] - metrics["innerWidth"]
+        height_overhead = metrics["outerHeight"] - metrics["innerHeight"]
+        driver.set_window_size(1920 + width_overhead, 358 + height_overhead)
+
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return (
+                    Math.abs(window.innerWidth - 1920) <= 2 &&
+                    Math.abs(window.innerHeight - 358) <= 2
+                );
+                """
+            )
+        )
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const r = canvas.getBoundingClientRect();
+                return (
+                    Math.abs(r.width - window.innerWidth) <= 2 &&
+                    Math.abs(r.height - window.innerHeight) <= 2
+                );
+                """
+            )
+        )
+
+        state = driver.execute_script(
+            """
+            const canvas = document.getElementById('canvas');
+            const r = canvas.getBoundingClientRect();
+            return {
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+                canvasWidth: r.width,
+                canvasHeight: r.height,
+                scrollWidth: document.documentElement.scrollWidth,
+                scrollHeight: document.documentElement.scrollHeight,
+                imageRendering: getComputedStyle(canvas).imageRendering,
+                fit: window.__tptCanvasFit,
+                language: window.tptLanguage,
+                gameplay: window.__yandexGameplayStarted,
+            };
+            """
+        )
+
+        assert abs(state["viewportWidth"] - 1920) <= 2, (label, state)
+        assert abs(state["viewportHeight"] - 358) <= 2, (label, state)
+        assert abs(state["canvasWidth"] - state["viewportWidth"]) <= 2, (
+            label,
+            "canvas does not fill real Yandex slot width",
+            state,
+        )
+        assert abs(state["canvasHeight"] - state["viewportHeight"]) <= 2, (
+            label,
+            "canvas does not fill real Yandex slot height",
+            state,
+        )
+        assert state["scrollWidth"] <= state["viewportWidth"] + 1, (label, state)
+        assert state["scrollHeight"] <= state["viewportHeight"] + 1, (label, state)
+        assert state["language"] == "ru", (label, state)
+        assert state["gameplay"] is True, (label, state)
+        assert state["fit"] is not None, (label, state)
+        assert state["fit"]["displayWidth"] >= 1918, (label, state)
+        assert state["fit"]["displayHeight"] >= 356, (label, state)
+
+        screenshot_path = os.path.join(ARTIFACT_DIR, f"{label}.png")
+        driver.save_screenshot(screenshot_path)
+        network_events = assert_no_external_network(driver, label)
+        print(f"[smoke] {label}: OK {state}; network_events={len(network_events)}")
+    finally:
+        driver.quit()
+
+
 def smoke_sdk_script_failure():
     label = "desktop-sdk-script-failure"
     driver = make_driver(mobile=False, browser_language="ru-RU")
@@ -3223,6 +3333,7 @@ if __name__ == "__main__":
     smoke_case("ru", mobile=False)
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
+    smoke_yandex_wide_slot()
     smoke_sdk_script_failure()
     smoke_sdk_script_delay()
     smoke_sdk_late_recovery()
