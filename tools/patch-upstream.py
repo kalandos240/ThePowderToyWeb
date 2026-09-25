@@ -18,6 +18,7 @@ component_h = root / "upstream" / "src" / "gui" / "interface" / "Component.h"
 button_h = root / "upstream" / "src" / "gui" / "interface" / "Button.h"
 save_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "SaveButton.cpp"
 label_cpp = root / "upstream" / "src" / "gui" / "interface" / "Label.cpp"
+copy_text_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "CopyTextButton.cpp"
 locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
@@ -31,6 +32,7 @@ sign_tool_cpp = root / "upstream" / "src" / "gui" / "game" / "tool" / "SignTool.
 element_search_cpp = root / "upstream" / "src" / "gui" / "elementsearch" / "ElementSearchActivity.cpp"
 render_view_cpp = root / "upstream" / "src" / "gui" / "render" / "RenderView.cpp"
 file_browser_cpp = root / "upstream" / "src" / "gui" / "filebrowser" / "FileBrowserActivity.cpp"
+colour_picker_cpp = root / "upstream" / "src" / "gui" / "colourpicker" / "ColourPickerActivity.cpp"
 confirm_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ConfirmPrompt.cpp"
 error_message_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "ErrorMessage.cpp"
 text_prompt_cpp = root / "upstream" / "src" / "gui" / "dialogues" / "TextPrompt.cpp"
@@ -554,6 +556,7 @@ include_locale(local_browser_controller, '#include "Controller.h"\n')
 include_locale(engine_cpp, '#include "Config.h"\n')
 include_locale(save_button_cpp, '#include "SimulationConfig.h"\n')
 include_locale(label_cpp, '#include "graphics/FontReader.h"\n')
+include_locale(copy_text_button_cpp, '#include "Label.h"\n')
 include_locale(game_controller_cpp, '#include "Config.h"\n')
 include_locale(game_model_cpp, '#include "Config.h"\n')
 include_locale(quick_options_cpp, '#include "simulation/Simulation.h"\n')
@@ -563,6 +566,7 @@ include_locale(sign_tool_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(element_search_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(render_view_cpp, '#include "gui/game/GameView.h"\n')
 include_locale(file_browser_cpp, '#include "Config.h"\n')
+include_locale(colour_picker_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(confirm_prompt_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(error_message_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(text_prompt_cpp, '#include "graphics/Graphics.h"\n')
@@ -2193,6 +2197,23 @@ info_text = info_text.replace(
     'ui::Point(Size.X, 16), YandexWebText("Dismiss", "Закрыть"))'
 )
 information_message_cpp.write_text(info_text, encoding="utf-8")
+
+# Reachable local-only UI that bypasses the generic dialogue classes.
+colour_picker_text = colour_picker_cpp.read_text(encoding="utf-8")
+colour_done_anchor = 'ui::Button * doneButton = new ui::Button(ui::Point(Size.X-45, Size.Y-23), ui::Point(40, 17), "Done");'
+colour_done_patch = 'ui::Button * doneButton = new ui::Button(ui::Point(Size.X-45, Size.Y-23), ui::Point(40, 17), YandexWebText("Done", "Готово"));'
+if colour_done_anchor not in colour_picker_text:
+    raise SystemExit("ColourPickerActivity Done button anchor missing")
+colour_picker_text = colour_picker_text.replace(colour_done_anchor, colour_done_patch, 1)
+colour_picker_cpp.write_text(colour_picker_text, encoding="utf-8")
+
+copy_text_button_text = copy_text_button_cpp.read_text(encoding="utf-8")
+copied_anchor = 'copyTextLabel->SetText("Copied!");'
+copied_patch = 'copyTextLabel->SetText(YandexWebText("Copied!", "Скопировано!"));'
+if copied_anchor not in copy_text_button_text:
+    raise SystemExit("CopyTextButton copied-status anchor missing")
+copy_text_button_text = copy_text_button_text.replace(copied_anchor, copied_patch, 1)
+copy_text_button_cpp.write_text(copy_text_button_text, encoding="utf-8")
 
 
 # Native diagnostics used only by browser CI to prove that real touch input reaches TPT.
