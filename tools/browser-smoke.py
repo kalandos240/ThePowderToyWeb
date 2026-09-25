@@ -338,6 +338,112 @@ def make_driver(
     return webdriver.Chrome(options=options)
 
 
+def capture_startup_timeout(driver, label):
+    state = None
+    state_error = None
+    try:
+        state = driver.execute_script(
+            """
+            const canvas = document.getElementById('canvas');
+            const loader = document.getElementById('loader');
+            const fatal = document.getElementById('fatal');
+            const app = document.getElementById('app');
+            const canvasRect = canvas?.getBoundingClientRect();
+            return {
+                url: location.href,
+                documentReadyState: document.readyState,
+                createPowderType: typeof window.create_powder,
+                gameModulePresent: Boolean(window.__tptGameModule),
+                startupTiming: window.__tptStartupTiming
+                    ? {...window.__tptStartupTiming}
+                    : null,
+                ysdkPresent: Boolean(window.ysdk),
+                yaGamesType: typeof window.YaGames,
+                loadingReady: window.__yandexLoadingReady,
+                readyCount: window.__yandexReadyCount,
+                gameplayStarted: window.__yandexGameplayStarted,
+                sdkEvents: window.__yandexSdkEvents || null,
+                detectedLanguage: window.yandexDetectedLanguage,
+                activeLanguage: window.tptLanguage,
+                languageLocked: window.__tptLanguageLocked,
+                sdkMobilePlatform: window.__tptSdkMobilePlatform,
+                orientationBlocked: window.__tptOrientationBlocked,
+                runtimePaused: window.__tptRuntimePaused,
+                nativeModalBlocked: window.__tptNativeModalBlocked,
+                app: app ? {
+                    ariaBusy: app.getAttribute('aria-busy'),
+                    width: app.clientWidth,
+                    height: app.clientHeight,
+                } : null,
+                loader: loader ? {
+                    hidden: loader.hidden,
+                    display: getComputedStyle(loader).display,
+                    text: loader.textContent,
+                } : null,
+                fatal: fatal ? {
+                    hidden: fatal.hidden,
+                    display: getComputedStyle(fatal).display,
+                    text: fatal.textContent,
+                } : null,
+                canvas: canvas ? {
+                    inlineDisplay: canvas.style.display,
+                    computedDisplay: getComputedStyle(canvas).display,
+                    width: canvas.width,
+                    height: canvas.height,
+                    rect: canvasRect ? {
+                        x: canvasRect.x,
+                        y: canvasRect.y,
+                        width: canvasRect.width,
+                        height: canvasRect.height,
+                    } : null,
+                } : null,
+                resources: performance.getEntriesByType('resource')
+                    .filter((entry) =>
+                        entry.name.includes('/game/powder') ||
+                        entry.name.endsWith('/sdk.js')
+                    )
+                    .map((entry) => ({
+                        name: entry.name,
+                        initiatorType: entry.initiatorType,
+                        duration: entry.duration,
+                        transferSize: entry.transferSize,
+                        encodedBodySize: entry.encodedBodySize,
+                        decodedBodySize: entry.decodedBodySize,
+                    })),
+            };
+            """
+        )
+    except Exception as error:
+        state_error = repr(error)
+
+    try:
+        driver.save_screenshot(
+            os.path.join(ARTIFACT_DIR, f"{label}-startup-timeout.png")
+        )
+    except Exception as error:
+        if state_error is None:
+            state_error = f"screenshot: {error!r}"
+
+    try:
+        browser_logs = driver.get_log("browser")
+    except Exception as error:
+        browser_logs = [{"diagnosticError": repr(error)}]
+
+    report = {
+        "label": label,
+        "state": state,
+        "diagnosticError": state_error,
+        "browserLogs": browser_logs,
+    }
+    report_path = os.path.join(
+        ARTIFACT_DIR, f"{label}-startup-timeout.json"
+    )
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2)
+
+    print(f"[startup-timeout] {label}: {report}")
+
+
 def smoke_case(language: str, mobile: bool):
     label = f"{'mobile' if mobile else 'desktop'}-{language}"
     driver = make_driver(mobile)
@@ -347,28 +453,32 @@ def smoke_case(language: str, mobile: bool):
         driver.get(f"{BASE_URL}/?lang={language}&device={device_type}")
 
         wait = WebDriverWait(driver, 45)
-        wait.until(
-            lambda d: d.execute_script(
-                """
-                const canvas = document.getElementById('canvas');
-                const fatal = document.getElementById('fatal');
-                const loader = document.getElementById('loader');
-                return Boolean(
-                    canvas &&
-                    canvas.style.display === 'block' &&
-                    fatal && fatal.hidden &&
-                    loader && loader.hidden &&
-                    getComputedStyle(loader).display === 'none' &&
-                    window.__yandexLoadingReady === true &&
-                    (
-                        window.__tptOrientationBlocked === true
-                            ? window.__yandexGameplayStarted === false
-                            : window.__yandexGameplayStarted === true
-                    )
-                );
-                """
+        try:
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const canvas = document.getElementById('canvas');
+                    const fatal = document.getElementById('fatal');
+                    const loader = document.getElementById('loader');
+                    return Boolean(
+                        canvas &&
+                        canvas.style.display === 'block' &&
+                        fatal && fatal.hidden &&
+                        loader && loader.hidden &&
+                        getComputedStyle(loader).display === 'none' &&
+                        window.__yandexLoadingReady === true &&
+                        (
+                            window.__tptOrientationBlocked === true
+                                ? window.__yandexGameplayStarted === false
+                                : window.__yandexGameplayStarted === true
+                        )
+                    );
+                    """
+                )
             )
-        )
+        except TimeoutException:
+            capture_startup_timeout(driver, label)
+            raise
 
         startup_performance = record_startup_metric(driver, label)
         if language == "en" and not mobile:
