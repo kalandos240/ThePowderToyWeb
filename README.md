@@ -25,7 +25,7 @@ This repository intentionally keeps platform glue separate from upstream game so
 - `tools/browser-compat-smoke.py` — runs the exact release ZIP in Firefox and WebKit, including WebKit mobile viewport/orientation checks.
 - `.github/workflows/build-yandex.yml` — builds the official upstream Emscripten target, disables upstream HTTP features, verifies the browser runtime, and produces a Yandex ZIP artifact.
 
-The build does **not** call Yandex SDK methods before `YaGames.init()` resolves. `LoadingAPI.ready()` is sent only after the native game calls `window.mark_presentable()`.
+The build does **not** call Yandex SDK methods before `YaGames.init()` resolves. `LoadingAPI.ready()` is sent only after the native game calls `window.mark_presentable()`. A stalled SDK cannot hold the loader forever: startup falls back after 8 seconds using the browser locale, while the original SDK initialization remains alive. If it resolves later, Yandex gameplay/device state is reconciled without reloading; the native UI keeps one language for the active session to avoid mixed RU/EN controls.
 
 ## Build
 
