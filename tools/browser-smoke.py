@@ -1998,6 +1998,97 @@ def smoke_case(language: str, mobile: bool):
                     fullscreen_state,
                 )
 
+            # Safe-area insets may change across repeated mobile fullscreen
+            # transitions even when the outer viewport dimensions stay the
+            # same. Simulate that condition with padding on the app container
+            # and require fitCanvas() to re-read computed padding.
+            safe_area_state = driver.execute_script(
+                """
+                const app = document.getElementById('app');
+                app.style.paddingBottom = '24px';
+                document.dispatchEvent(new Event('fullscreenchange'));
+                return true;
+                """
+            )
+            assert safe_area_state is True, label
+            time.sleep(0.25)
+            safe_area_applied = driver.execute_script(
+                """
+                const app = document.getElementById('app');
+                const canvas = document.getElementById('canvas');
+                const style = getComputedStyle(app);
+                const rect = canvas.getBoundingClientRect();
+                const expectedHeight = Math.max(
+                    1,
+                    Math.round(
+                        app.clientHeight
+                        - parseFloat(style.paddingTop)
+                        - parseFloat(style.paddingBottom)
+                    )
+                );
+                return {
+                    canvasHeight: rect.height,
+                    expectedHeight,
+                    paddingBottom: parseFloat(style.paddingBottom),
+                    fit: window.__tptCanvasFit,
+                };
+                """
+            )
+            assert safe_area_applied["paddingBottom"] >= 23.5, (
+                label,
+                safe_area_applied,
+            )
+            assert abs(
+                safe_area_applied["canvasHeight"]
+                - safe_area_applied["expectedHeight"]
+            ) <= 2, (
+                label,
+                "canvas ignored updated safe-area padding",
+                safe_area_applied,
+            )
+            assert safe_area_applied["fit"]["displayHeight"] == safe_area_applied["expectedHeight"], (
+                label,
+                safe_area_applied,
+            )
+
+            driver.execute_script(
+                """
+                const app = document.getElementById('app');
+                app.style.paddingBottom = '';
+                document.dispatchEvent(new Event('fullscreenchange'));
+                """
+            )
+            time.sleep(0.25)
+            safe_area_restored = driver.execute_script(
+                """
+                const app = document.getElementById('app');
+                const canvas = document.getElementById('canvas');
+                const style = getComputedStyle(app);
+                const rect = canvas.getBoundingClientRect();
+                const expectedHeight = Math.max(
+                    1,
+                    Math.round(
+                        app.clientHeight
+                        - parseFloat(style.paddingTop)
+                        - parseFloat(style.paddingBottom)
+                    )
+                );
+                return {
+                    canvasHeight: rect.height,
+                    expectedHeight,
+                    paddingBottom: parseFloat(style.paddingBottom),
+                };
+                """
+            )
+            assert abs(
+                safe_area_restored["canvasHeight"]
+                - safe_area_restored["expectedHeight"]
+            ) <= 2, (
+                label,
+                "canvas did not recover after safe-area padding cleared",
+                safe_area_restored,
+            )
+
             driver.save_screenshot(
                 os.path.join(ARTIFACT_DIR, f"{label}-fullscreen-cycle-final.png")
             )
