@@ -128,10 +128,22 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     ordered = sorted(samples)
     median_ms = statistics.median(ordered)
     p95_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
+    p99_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.99))]
+    max_ms = ordered[-1]
     average_ms = statistics.fmean(ordered)
     engine_fps = float(
         driver.execute_script(
             "return window.__tptGameModule.ccall('YandexWeb_TestEngineFps', 'number', [], [])"
+        )
+    )
+    wasm_memory_bytes = int(
+        driver.execute_script(
+            """
+            const module = window.__tptGameModule;
+            if (!module) return 0;
+            const heap = module.HEAPU8 || module.HEAP8;
+            return heap?.buffer?.byteLength || 0;
+            """
         )
     )
 
@@ -143,8 +155,13 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
         "average_frame_ms": round(average_ms, 3),
         "median_frame_ms": round(median_ms, 3),
         "p95_frame_ms": round(p95_ms, 3),
+        "p99_frame_ms": round(p99_ms, 3),
+        "max_frame_ms": round(max_ms, 3),
+        "frames_over_25ms": sum(1 for value in samples if value > 25.0),
+        "frames_over_50ms": sum(1 for value in samples if value > 50.0),
         "median_fps": round(1000.0 / median_ms, 2) if median_ms > 0 else None,
         "engine_fps": round(engine_fps, 2),
+        "wasm_memory_bytes": wasm_memory_bytes,
     }
 
     # Keep this deliberately loose: GitHub runners are noisy and these are
