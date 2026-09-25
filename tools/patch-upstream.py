@@ -1572,12 +1572,12 @@ inline String YandexWebTranslateUi(const String &source)
 	YW_UI("Basic rendering, without this, most things will be invisible", "Базовая отрисовка, без неё большинство элементов невидимо");
 	YW_UI("Glow effect on sparks", "Свечение искр");
 	YW_UI("Displays pressure as red and blue, and velocity as white", "Давление красным и синим, скорость белым");
-	YW_UI("Displays pressure, red is positive and blue is negative", "Давление: красный — положительное, синий — отрицательное");
+	YW_UI("Displays pressure, red is positive and blue is negative", "Давление: красный - положительное, синий - отрицательное");
 	YW_UI("Displays the temperature of the air like heat display does", "Показывает температуру воздуха");
-	YW_UI("Displays vorticity, red is clockwise and blue is anticlockwise", "Показывает завихрения: красный — по часовой, синий — против");
+	YW_UI("Displays vorticity, red is clockwise and blue is anticlockwise", "Показывает завихрения: красный - по часовой, синий - против");
 	YW_UI("Gravity lensing, Newtonian Gravity bends light with this on", "Гравитационное линзирование при ньютоновской гравитации");
 	YW_UI("Element paths persist on the screen for a while", "Следы элементов некоторое время остаются на экране");
-	YW_UI("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: тёмно-синий — холод, розовый — жар");
+	YW_UI("Displays temperatures of the elements, dark blue is coldest, pink is hottest", "Температура элементов: тёмно-синий - холод, розовый - жар");
 	YW_UI("Displays the life value of elements in greyscale gradients", "Показывает значение жизни элементов оттенками серого");
 	YW_UI("Changes colors of elements slightly to show heat diffusing through them", "Изменяет цвета элементов, показывая распространение тепла");
 	YW_UI("No special effects at all for anything, overrides all other options and deco", "Отключает специальные эффекты и декорации");
