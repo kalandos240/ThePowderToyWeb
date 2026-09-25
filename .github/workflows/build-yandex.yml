@@ -239,20 +239,94 @@ jobs:
       - name: Check Web hot-path optimizations
         run: |
           set -euo pipefail
-          grep -Fn 'bool yandexWebNeedsFlatten = false;' upstream/src/simulation/Simulation.cpp
-          grep -Fn 'if (yandexWebNeedsFlatten)' upstream/src/simulation/Simulation.cpp
+          SIM="upstream/src/simulation/Simulation.cpp"
+          SIM_H="upstream/src/simulation/Simulation.h"
+          RENDERER="upstream/src/graphics/Renderer.cpp"
+          MESON="upstream/meson.build"
+          BUILD_SH="upstream/.github/build.sh"
+
+          grep -Fn 'bool yandexWebNeedsFlatten = false;' "$SIM"
+          grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
+          grep -Fn 'bool yandexWebStackingCandidate = false;' "$SIM_H"
+          grep -Fn 'yandexWebStackingCandidate = false;' "$SIM"
+          grep -Fn 'if (cellCount > 5)' "$SIM"
+          grep -Fn 'if (!yandexWebStackingCandidate)' "$SIM"
+          grep -Fn 'for (int i = 0; i < parts.active; ++i)' "$SIM"
+          grep -Fn 'ID(r) == i' "$SIM"
+          grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
+          grep -Fn 'bool yandexWebHasFire = false;' "$RENDERER"
+          grep -Fn 'if (!yandexWebHasFire)' "$RENDERER"
+
           python3 - <<'PY'
           from pathlib import Path
-          text = Path("upstream/src/simulation/Simulation.cpp").read_text(encoding="utf-8")
-          start = text.find("void Simulation::RecalcFreeParticles")
-          first = text.find("yandexWebNeedsFlatten")
-          if start < 0 or first < start:
-              raise SystemExit("Recalc flatten guard leaked outside RecalcFreeParticles")
-          print("RecalcFreeParticles optimization scope: OK")
+
+          text = Path("upstream/src/simulation/Simulation.cpp").read_text(
+              encoding="utf-8"
+          )
+
+          recalc_start = text.find("void Simulation::RecalcFreeParticles")
+          recalc_end = text.find("\nvoid Parts::Flatten()", recalc_start)
+          recalc = text[recalc_start:recalc_end]
+          required_recalc = (
+              "bool yandexWebNeedsFlatten = false;",
+              "yandexWebStackingCandidate = false;",
+              "if (cellCount > 5)",
+              "yandexWebStackingCandidate = true;",
+          )
+          if recalc_start < 0 or recalc_end < 0:
+              raise SystemExit("RecalcFreeParticles bounds missing")
+          for marker in required_recalc:
+              if marker not in recalc:
+                  raise SystemExit(
+                      f"RecalcFreeParticles optimization missing: {marker}"
+                  )
+
+          stacking_start = text.find("void Simulation::CheckStacking()")
+          stacking_end = text.find(
+              "\nvoid Simulation::UpdateGravityMask()", stacking_start
+          )
+          stacking = text[stacking_start:stacking_end]
+          if "if (!yandexWebStackingCandidate)" not in stacking:
+              raise SystemExit("CheckStacking candidate early-out missing")
+
+          before_start = text.find("void Simulation::BeforeSim(bool willUpdate)")
+          before_end = text.find("\nvoid Simulation::AfterSim()", before_start)
+          before = text[before_start:before_end]
+          if "for (int nx = 0; nx < XRES; nx++)" in before:
+              raise SystemExit("WIRE still scans the complete simulation grid")
+          if "for (int i = 0; i < parts.active; ++i)" not in before:
+              raise SystemExit("WIRE active-particle scan missing")
+          if "ID(r) == i" not in before:
+              raise SystemExit("WIRE pmap-visibility guard missing")
+
+          save_start = text.find("std::unique_ptr<GameSave> Simulation::Save")
+          save_end = text.find("\nvoid Simulation::SaveSimOptions", save_start)
+          save = text[save_start:save_end]
+          if "for (int i = 0; i < NPART; i++)" in save:
+              raise SystemExit("Simulation::Save still scans all NPART slots")
+          if "for (int i = 0; i < parts.active; i++)" not in save:
+              raise SystemExit("Simulation::Save active-range scan missing")
+
+          print("Simulation Web hot-path scope: OK")
           PY
-          grep -Fn 'bool yandexWebHasFire = false;' upstream/src/graphics/Renderer.cpp
-          grep -Fn 'if (!yandexWebHasFire)' upstream/src/graphics/Renderer.cpp
-          echo "Profile-driven Web hot-path guards: OK"
+
+          if grep -Fn "'FS_DEBUG'" "$MESON"; then
+            echo "Emscripten FS_DEBUG remains enabled in production."
+            exit 1
+          fi
+          if grep -Fn "'-gsource-map'" "$MESON"; then
+            echo "Emscripten source-map debug instrumentation remains enabled."
+            exit 1
+          fi
+          if grep -Fn "'--source-map-base=./'" "$MESON"; then
+            echo "Emscripten source-map base remains in the production build."
+            exit 1
+          fi
+
+          grep -Fn "BSH_HOST_PLATFORM == emscripten" "$BUILD_SH"
+          grep -Fn -- "-Dbuildtype=release" "$BUILD_SH"
+
+          echo "Web hot paths and production build profile: OK"
 
       - name: Check reachable local UI localization
         run: |
