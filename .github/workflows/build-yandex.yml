@@ -170,12 +170,14 @@ jobs:
           text = Path("upstream/src/gui/game/GameController.cpp").read_text(
               encoding="utf-8"
           )
-          required = '''void GameController::Install()
-{
-#if defined(__EMSCRIPTEN__)
-	// Yandex Web: desktop OS installation is not applicable in a browser.
-	return;
-#else'''
+          required = (
+              "void GameController::Install()\n"
+              "{\n"
+              "#if defined(__EMSCRIPTEN__)\n"
+              "\t// Yandex Web: desktop OS installation is not applicable in a browser.\n"
+              "\treturn;\n"
+              "#else"
+          )
           if required not in text:
               raise SystemExit(
                   "Browser GameController::Install() is not guarded from desktop dialogs"
