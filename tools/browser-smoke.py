@@ -3434,6 +3434,9 @@ def smoke_sdk_script_delay():
                 sdkScriptPath: script?.getAttribute('src') || '',
                 loaderHidden: document.getElementById('loader').hidden,
                 canvasDisplay: document.getElementById('canvas').style.display,
+                startupTiming: window.__tptStartupTiming
+                    ? {...window.__tptStartupTiming}
+                    : null,
             };
             """
         )
@@ -3453,6 +3456,13 @@ def smoke_sdk_script_delay():
         assert fallback["sdkScriptPath"] == "/sdk.js", (label, fallback)
         assert fallback["loaderHidden"] is True, (label, fallback)
         assert fallback["canvasDisplay"] == "block", (label, fallback)
+        assert fallback["startupTiming"], (label, fallback)
+        assert fallback["startupTiming"]["readyMs"] is not None, (label, fallback)
+        assert fallback["startupTiming"]["readyMs"] < 8000.0, (
+            label,
+            "game-ready path waited for the SDK timeout",
+            fallback,
+        )
 
         # When the delayed script finally arrives, it must initialize and
         # reconcile the already-presentable game without a reload.
