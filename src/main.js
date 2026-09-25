@@ -696,19 +696,23 @@ function scheduleNextAd(delay = AD_INTERVAL_MS) {
   }, Math.max(1000, delay));
 }
 
+function canBeginFullscreenAdCycle() {
+  return Boolean(
+    presentable &&
+    !fatalShown &&
+    !document.hidden &&
+    !platformPauseRequested &&
+    !orientationBlocked &&
+    !nativeModalBlocked
+  );
+}
+
 async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
   if (adCycleActive) {
     return false;
   }
 
-  if (
-    !presentable ||
-    fatalShown ||
-    document.hidden ||
-    platformPauseRequested ||
-    orientationBlocked ||
-    nativeModalBlocked
-  ) {
+  if (!canBeginFullscreenAdCycle()) {
     if (scheduleNext) {
       scheduleNextAd(15000);
     }
@@ -718,6 +722,17 @@ async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
   if (!(await canShowFullscreenAd())) {
     if (scheduleNext) {
       scheduleNextAd();
+    }
+    return false;
+  }
+
+  // SDK availability can take time to resolve. The page may have become
+  // hidden, rotated to portrait, entered a native modal, or received a
+  // platform pause while we were awaiting it. Revalidate immediately before
+  // taking gameplay ownership for the ad cycle.
+  if (!canBeginFullscreenAdCycle()) {
+    if (scheduleNext) {
+      scheduleNextAd(15000);
     }
     return false;
   }
