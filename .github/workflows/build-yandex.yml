@@ -257,6 +257,10 @@ jobs:
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
           grep -Fn 'ButtonText(YandexWebTranslateUi(buttonText))' upstream/src/gui/interface/Button.cpp
           grep -Fn 'toolTip(YandexWebTranslateUi(toolTip))' upstream/src/gui/interface/Button.cpp
+          grep -Fn 'text(YandexWebTranslateUi(text))' upstream/src/gui/interface/Checkbox.cpp
+          grep -Fn 'this->text = YandexWebTranslateUi(text);' upstream/src/gui/interface/Checkbox.cpp
+          grep -Fn 'TextPosition(YandexWebTranslateUi(options[optionIndex].first))' upstream/src/gui/interface/DropDown.cpp
+          grep -Fn 'BlendText(Position + textPosition, YandexWebTranslateUi(options[optionIndex].first)' upstream/src/gui/interface/DropDown.cpp
           grep -Fn 'YandexWebTranslateUi(newToolTip)' upstream/src/gui/interface/Button.h
           grep -Fn 'Text(YandexWebTranslateUi(text))' upstream/src/gui/interface/ContextMenu.h
           grep -Fn 'SetText(YandexWebTranslateUi(labelText))' upstream/src/gui/interface/Label.cpp
@@ -286,6 +290,9 @@ jobs:
           grep -Fn 'YandexWebText("Dropped save file could not be loaded: ", "Не удалось загрузить перетащенное сохранение: ")' upstream/src/gui/game/GameView.cpp
           grep -Fn 'YandexWebText("Could not create stamp", "Не удалось создать штамп")' upstream/src/gui/game/GameController.cpp
           grep -Fn 'YandexWebText(" Total:", " Модуль:")' upstream/src/gui/options/OptionsView.cpp
+          grep -Fn 'const AD_INTERVAL_MS = 120000;' src/main.js
+          grep -Fn 'const AD_WARNING_SECONDS = 2;' src/main.js
+          grep -Fn 'showFullscreenAdv' src/yandex.js
           echo "Reachable local UI localization audit: OK"
 
       - name: Build upstream Emscripten target without external HTTP features
