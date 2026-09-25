@@ -511,6 +511,16 @@ def smoke_case(language: str, mobile: bool):
         assert state["loaderDisplay"] == "none", (label, state)
         assert state["canvasDisplay"] == "block", (label, state)
         assert state["canvasWidth"] > 0 and state["canvasHeight"] > 0, (label, state)
+        assert state["canvasWidth"] >= state["viewportWidth"] - 8, (
+            label,
+            "canvas does not fill available width",
+            state,
+        )
+        assert state["canvasHeight"] >= state["viewportHeight"] - 8, (
+            label,
+            "canvas does not fill available height",
+            state,
+        )
         assert state["canvasWidth"] <= state["viewportWidth"] + 1, (label, state)
         assert state["canvasHeight"] <= state["viewportHeight"] + 1, (label, state)
         assert state["ready"] is True, (label, state)
@@ -753,9 +763,64 @@ def smoke_case(language: str, mobile: bool):
         assert resized["width"] > 0 and resized["height"] > 0, (label, resized)
         assert resized["width"] <= resized["viewportWidth"] + 1, (label, resized)
         assert resized["height"] <= resized["viewportHeight"] + 1, (label, resized)
+        assert resized["width"] >= resized["viewportWidth"] - 8, (
+            label,
+            "resized canvas does not fill available width",
+            resized,
+        )
+        assert resized["height"] >= resized["viewportHeight"] - 8, (
+            label,
+            "resized canvas does not fill available height",
+            resized,
+        )
         assert resized["orientationBlocked"] is False, (label, resized)
         assert resized["orientationDisplay"] == "none", (label, resized)
         assert resized["gameplay"] is True, (label, resized)
+
+        if not mobile and language == "ru":
+            driver.execute_script("void window.__tptTriggerAdForTest()")
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const warning = document.getElementById('ad-warning');
+                    return (
+                        window.__tptAdWarningActive === true &&
+                        warning &&
+                        warning.hidden === false &&
+                        window.__tptRuntimePaused === true &&
+                        window.__yandexGameplayStarted === false
+                    );
+                    """
+                )
+            )
+            warning_state = driver.execute_script(
+                """
+                return {
+                    title: document.getElementById('ad-warning-title').textContent,
+                    message: document.getElementById('ad-warning-message').textContent,
+                    countdown: document.getElementById('ad-warning-countdown').textContent,
+                };
+                """
+            )
+            assert warning_state["title"] == "Реклама через", (label, warning_state)
+            assert warning_state["message"] == "Игра поставлена на паузу.", (
+                label,
+                warning_state,
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    return (
+                        window.__yandexAdOpenCount === 1 &&
+                        window.__yandexAdCloseCount === 1 &&
+                        window.__tptAdCycleActive === false &&
+                        window.__tptRuntimePaused === false &&
+                        window.__yandexGameplayStarted === true &&
+                        document.getElementById('ad-warning').hidden === true
+                    );
+                    """
+                )
+            )
 
         if not mobile:
             # Prove desktop mouse input can select a real UI element and draw.
