@@ -95,6 +95,27 @@ jobs:
           fi
           echo "Yandex UI external-link audit: OK"
 
+      - name: Check browser external navigation is disabled
+        run: |
+          set -euo pipefail
+          PLATFORM_FILE="upstream/src/common/platform/Emscripten.cpp"
+
+          grep -Fn 'Yandex Web: external URI navigation is disabled.' "$PLATFORM_FILE"
+          grep -Fn '(void)uri;' "$PLATFORM_FILE"
+          grep -Fn 'External URI blocked in Yandex build.' "$PLATFORM_FILE"
+
+          if grep -Fn 'open(UTF8ToString($0))' "$PLATFORM_FILE"; then
+            echo "Emscripten Platform::OpenURI can still navigate the browser."
+            exit 1
+          fi
+
+          if grep -En 'window\.(open|location)|location\.(assign|replace)|document\.location' upstream/src/common/platform/Emscripten.cpp; then
+            echo "Browser navigation primitive remains in the Emscripten platform sink."
+            exit 1
+          fi
+
+          echo "Browser external-navigation sink: disabled"
+
       - name: Check reachable local UI localization
         run: |
           set -euo pipefail
