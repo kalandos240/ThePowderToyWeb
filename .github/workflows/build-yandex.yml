@@ -223,6 +223,8 @@ jobs:
           print("Yandex archive release-file whitelist: OK")
           PY
 
+          python3 tools/check-runtime-network.py dist
+
           ROOT_INDEX_COUNT="$(find dist -maxdepth 1 -type f -name 'index.html' | wc -l)"
           ALL_INDEX_COUNT="$(find dist -type f -name 'index.html' | wc -l)"
           echo "Root index.html count: $ROOT_INDEX_COUNT"
