@@ -343,7 +343,12 @@ jobs:
           };
           EOF
 
-          python3 -m http.server 8765 --bind 127.0.0.1 --directory dist > /tmp/tpt-http.log 2>&1 &
+          python3 tools/smoke-http-server.py \
+            --port 8765 \
+            --bind 127.0.0.1 \
+            --directory dist \
+            --sdk-delay-seconds 15 \
+            > /tmp/tpt-http.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           sleep 1
