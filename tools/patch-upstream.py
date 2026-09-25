@@ -570,6 +570,11 @@ platform_text = emscripten_platform.read_text(encoding="utf-8")
 # filesystem dirty flag is only read/written on the browser main thread.
 # Avoid an atomic exchange on every animation frame and suppress the
 # per-sync stderr bridge into JavaScript.
+atomic_include = "#include <atomic>\n"
+if atomic_include not in platform_text:
+    raise SystemExit("Emscripten.cpp atomic include anchor missing")
+platform_text = platform_text.replace(atomic_include, "", 1)
+
 sync_flag_anchor = """static std::atomic<bool> shouldSyncFs = false;
 static bool syncFsInFlight = false;"""
 sync_flag_patch = """static bool shouldSyncFs = false;
