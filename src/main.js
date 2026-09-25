@@ -737,6 +737,14 @@ async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
     return false;
   }
 
+  const restoreMobileTextInputFocus =
+    document.activeElement === mobileTextInput;
+
+  if (restoreMobileTextInputFocus) {
+    mobileTextInput.blur();
+    window.__tptMobileTextInputFocused = false;
+  }
+
   adCycleActive = true;
   adPauseRequested = true;
   window.__tptAdCycleActive = true;
@@ -777,6 +785,17 @@ async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
     window.__tptAdCycleActive = false;
     updateGameplayBlockState();
     applyRuntimePauseState();
+
+    if (
+      restoreMobileTextInputFocus &&
+      mobileTextInputActive &&
+      !document.hidden &&
+      !platformPauseRequested &&
+      !orientationBlocked &&
+      !nativeModalBlocked
+    ) {
+      focusMobileTextInput();
+    }
 
     if (scheduleNext && !fatalShown) {
       scheduleNextAd();
