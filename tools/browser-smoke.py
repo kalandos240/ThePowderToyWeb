@@ -110,12 +110,22 @@ def measure_animation_frames(driver, sample_count=90):
 
 
 def record_performance_metric(driver, label, scene, hook, target_particles):
-    actual_particles = driver.execute_script(
-        "return window.__tptGameModule.ccall("
-        "arguments[0], 'number', ['number'], [arguments[1]])",
+    setup = driver.execute_script(
+        """
+        const started = performance.now();
+        const particles = window.__tptGameModule.ccall(
+            arguments[0], 'number', ['number'], [arguments[1]]
+        );
+        return {
+            particles,
+            setupMs: performance.now() - started,
+        };
+        """,
         hook,
         target_particles,
     )
+    actual_particles = int(setup["particles"])
+    setup_ms = float(setup["setupMs"])
     assert actual_particles >= target_particles, (
         label,
         scene,
@@ -151,6 +161,7 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
         "label": label,
         "scene": scene,
         "particles": int(actual_particles),
+        "scene_setup_ms": round(setup_ms, 3),
         "samples": len(samples),
         "average_frame_ms": round(average_ms, 3),
         "median_frame_ms": round(median_ms, 3),
