@@ -322,6 +322,8 @@ jobs:
           print("Simulation Web hot-path scope: OK")
           PY
 
+          grep -Fn "'ENVIRONMENT=web'" "$MESON"
+
           if grep -Fn "'FS_DEBUG'" "$MESON"; then
             echo "Emscripten FS_DEBUG remains enabled in production."
             exit 1
