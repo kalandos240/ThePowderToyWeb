@@ -154,6 +154,7 @@ jobs:
           grep -Fn 'YandexWebDisplayTextForTest() const' "$TOOL_BUTTON_H"
           grep -Fn 'YandexWeb_TestDustButtonTextWidth' "$GAME_VIEW"
           grep -Fn 'YandexWeb_TestDustButtonWidth' "$GAME_VIEW"
+          grep -Fn 'YandexWeb_TestMaxToolButtonOverflow' "$GAME_VIEW"
           if grep -Fn 'maxVisibleCharacters' "$LOCALE"; then
             echo "Russian tool labels are being truncated by character count again."
             exit 1
