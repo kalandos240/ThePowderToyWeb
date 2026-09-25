@@ -2311,6 +2311,59 @@ def smoke_case(language: str, mobile: bool):
                     )
                 )
 
+                # Backgrounding while a native textbox owns the mobile input
+                # must dismiss the keyboard, then restore focus when the page
+                # becomes visible again without closing the modal.
+                driver.execute_script(
+                    """
+                    window.__tptSyntheticHidden = true;
+                    Object.defineProperty(document, 'hidden', {
+                        configurable: true,
+                        get() { return window.__tptSyntheticHidden; }
+                    });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                    """
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return document.hidden === true &&
+                               window.__tptRuntimePaused === true &&
+                               window.__tptMobileTextInputActive === true &&
+                               window.__tptMobileTextInputFocused === false &&
+                               window.__tptGameModule.ccall(
+                                   'YandexWeb_TestLocalSaveOpen', 'number', [], []
+                               ) === 1;
+                        """
+                    )
+                )
+
+                driver.execute_script(
+                    """
+                    window.__tptSyntheticHidden = false;
+                    document.dispatchEvent(new Event('visibilitychange'));
+                    """
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return document.hidden === false &&
+                               window.__tptRuntimePaused === false &&
+                               window.__tptMobileTextInputActive === true &&
+                               window.__tptMobileTextInputFocused === true &&
+                               window.__tptGameModule.ccall(
+                                   'YandexWeb_TestLocalSaveOpen', 'number', [], []
+                               ) === 1;
+                        """
+                    )
+                )
+                driver.execute_script(
+                    """
+                    delete document.hidden;
+                    delete window.__tptSyntheticHidden;
+                    """
+                )
+
                 mobile_input = driver.find_element(By.ID, "mobile-text-input")
                 if language == "ru":
                     first_character = save_name[0]
