@@ -54,6 +54,19 @@ jobs:
           grep -Fn 'loadYandexSDKScript().then' src/yandex.js
           echo "Yandex SDK async loader audit: OK"
 
+      - name: Check local engine preload hints
+        run: |
+          set -euo pipefail
+          grep -Fn 'href="./game/powder.js" as="script"' index.html
+          grep -Fn 'href="./game/powder.wasm"' index.html
+          grep -Fn 'type="application/wasm"' index.html
+          grep -Fn 'crossorigin="anonymous"' index.html
+          if grep -En '<link[^>]+rel="preload"[^>]+https?://' index.html; then
+            echo "External preload URL found in Yandex wrapper."
+            exit 1
+          fi
+          echo "Local JS/WASM preload audit: OK"
+
       - name: Check Russian font coverage
         run: |
           python3 tools/check-font.py
@@ -610,8 +623,29 @@ jobs:
 
           test -f dist/index.html
           SIZE_BYTES="$(du -sb dist | cut -f1)"
+          JS_BYTES="$(stat -c%s dist/game/powder.js)"
+          WASM_BYTES="$(stat -c%s dist/game/powder.wasm)"
           echo "Uncompressed package size: $SIZE_BYTES bytes"
+          echo "powder.js size: $JS_BYTES bytes"
+          echo "powder.wasm size: $WASM_BYTES bytes"
           test "$SIZE_BYTES" -le 100000000
+
+          mkdir -p test-artifacts
+          python3 - <<PY
+          import json
+          from pathlib import Path
+
+          report = {
+              "package_uncompressed_bytes": int("$SIZE_BYTES"),
+              "powder_js_bytes": int("$JS_BYTES"),
+              "powder_wasm_bytes": int("$WASM_BYTES"),
+          }
+          Path("test-artifacts/payload-size.json").write_text(
+              json.dumps(report, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print("Release payload:", report)
+          PY
 
           python3 - <<'PY'
           from pathlib import Path
@@ -823,7 +857,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ThePowderToy-Performance
-          path: test-artifacts/performance.json
+          path: |
+            test-artifacts/performance.json
+            test-artifacts/startup-performance.json
+            test-artifacts/payload-size.json
           if-no-files-found: warn
           retention-days: 14
 
