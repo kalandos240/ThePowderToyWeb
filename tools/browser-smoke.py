@@ -176,6 +176,80 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     return metric
 
 
+def record_startup_metric(driver, label):
+    timing = driver.execute_script(
+        "return window.__tptStartupTiming ? {...window.__tptStartupTiming} : null"
+    )
+    assert timing, (label, "startup timing object missing")
+    required = (
+        "moduleReadyMs",
+        "engineFactoryStartMs",
+        "nativePresentableMs",
+        "readyMs",
+    )
+    for key in required:
+        value = timing.get(key)
+        assert isinstance(value, (int, float)) and value >= 0, (
+            label,
+            f"invalid startup timing {key}",
+            timing,
+        )
+
+    assert timing["moduleReadyMs"] <= timing["engineFactoryStartMs"], (
+        label,
+        "engine factory started before wrapper module initialization",
+        timing,
+    )
+    assert timing["engineFactoryStartMs"] <= timing["nativePresentableMs"], (
+        label,
+        "native presentable mark preceded engine startup",
+        timing,
+    )
+    assert timing["nativePresentableMs"] <= timing["readyMs"], (
+        label,
+        "Yandex ready completed before native presentable state",
+        timing,
+    )
+
+    metric = {
+        "label": label,
+        "module_ready_ms": round(float(timing["moduleReadyMs"]), 3),
+        "engine_factory_start_ms": round(
+            float(timing["engineFactoryStartMs"]), 3
+        ),
+        "native_presentable_ms": round(
+            float(timing["nativePresentableMs"]), 3
+        ),
+        "ready_ms": round(float(timing["readyMs"]), 3),
+        "engine_to_presentable_ms": round(
+            float(timing["nativePresentableMs"])
+            - float(timing["engineFactoryStartMs"]),
+            3,
+        ),
+    }
+
+    # This is a catastrophic-regression guard, not a target for real devices.
+    # The fake SDK used in smoke cases resolves immediately; a 20 second
+    # navigation-to-ready time means loading/compilation regressed badly.
+    assert metric["ready_ms"] <= 20000.0, (
+        label,
+        "catastrophic startup regression",
+        metric,
+    )
+
+    report_path = os.path.join(ARTIFACT_DIR, "startup-performance.json")
+    report = []
+    if os.path.exists(report_path):
+        with open(report_path, "r", encoding="utf-8") as handle:
+            report = json.load(handle)
+    report.append(metric)
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2)
+
+    print(f"[startup] {metric}")
+    return metric
+
+
 def make_driver(
     mobile: bool,
     browser_language: str | None = None,
@@ -250,6 +324,8 @@ def smoke_case(language: str, mobile: bool):
                 """
             )
         )
+
+        startup_performance = record_startup_metric(driver, label)
 
         sdk_mobile_platform = driver.execute_script(
             "return window.__tptSdkMobilePlatform"
