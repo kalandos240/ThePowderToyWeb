@@ -342,6 +342,7 @@ jobs:
           MESON="upstream/meson.build"
           BUILD_SH="upstream/.github/build.sh"
           EMSCRIPTEN_PLATFORM="upstream/src/common/platform/Emscripten.cpp"
+          GRAVITY_FFT="upstream/src/simulation/gravity/Fft.cpp"
 
           grep -Fn 'bool yandexWebNeedsFlatten = false;' "$SIM"
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
@@ -402,6 +403,12 @@ jobs:
           grep -Fn 'yandexWebFireActive = false;' "$RENDERER"
           test "$(grep -Fc 'yandexWebFireActive = true;' "$RENDERER")" -ge 4
           grep -Fn 'const auto &signs = sim->signs;' "$RENDERER"
+          grep -Fn 'bool yandexWebHasEffectiveMass = false;' "$GRAVITY_FFT"
+          grep -Fn 'if (!yandexWebHasEffectiveMass)' "$GRAVITY_FFT"
+          grep -Fn 'fftGravity->gravIn.mass = gravIn.mass;' "$GRAVITY_FFT"
+          grep -Fn 'fftGravity->gravIn.mask = gravIn.mask;' "$GRAVITY_FFT"
+          grep -Fn 'gravOut.forceX[p] = 0.0f;' "$GRAVITY_FFT"
+          grep -Fn 'gravOut.forceY[p] = 0.0f;' "$GRAVITY_FFT"
           grep -Fn 'static bool shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
           grep -Fn 'if (!syncFsInFlight && shouldSyncFs)' "$EMSCRIPTEN_PLATFORM"
           grep -Fn 'shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
@@ -594,6 +601,59 @@ jobs:
                   "Renderer::DrawWalls gained an unexpected full-grid pass"
               )
           print("Renderer sparse wall cache/fallback: OK")
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          text = Path("upstream/src/simulation/gravity/Fft.cpp").read_text(
+              encoding="utf-8"
+          )
+          exchange_start = text.find("void Gravity::Exchange(")
+          create_start = text.find("\nGravityPtr Gravity::Create()", exchange_start)
+          exchange = text[exchange_start:create_start]
+          work_start = text.find("void GravityImpl::Work()")
+          work_end = text.find("\nvoid GravityImpl::Init()", work_start)
+          work = text[work_start:work_end]
+          if exchange_start < 0 or create_start < 0:
+              raise SystemExit("Gravity::Exchange bounds missing")
+          if work_start < 0 or work_end < 0:
+              raise SystemExit("GravityImpl::Work bounds missing")
+          required_exchange = (
+              "#if defined(__EMSCRIPTEN__)",
+              "if (!fftGravity->initDone)",
+              "bool yandexWebHasEffectiveMass = false;",
+              "gravIn.mask[p] && gravIn.mass[p] != 0.0f",
+              "fftGravity->gravIn.mass = gravIn.mass;",
+              "fftGravity->gravIn.mask = gravIn.mask;",
+              "return;",
+          )
+          for marker in required_exchange:
+              if marker not in exchange:
+                  raise SystemExit(
+                      f"Web zero-mass lazy gravity marker missing: {marker}"
+                  )
+          required_work = (
+              "auto value = gravIn.mask[p] ? gravIn.mass[p] : 0.f;",
+              "yandexWebHasEffectiveMass |= value != 0.0f;",
+              "if (!yandexWebHasEffectiveMass)",
+              "gravOut.forceX[p] = 0.0f;",
+              "gravOut.forceY[p] = 0.0f;",
+              "return;",
+              "fftwf_execute(massForward.get());",
+          )
+          for marker in required_work:
+              if marker not in work:
+                  raise SystemExit(
+                      f"Web zero-mass FFT fast path missing: {marker}"
+                  )
+          if work.find("if (!yandexWebHasEffectiveMass)") > work.find(
+              "fftwf_execute(massForward.get());"
+          ):
+              raise SystemExit(
+                  "zero-mass gravity early-out occurs after the FFT"
+              )
+          print("Web zero-mass Newtonian gravity fast paths: OK")
           PY
 
           python3 - <<'PY'
