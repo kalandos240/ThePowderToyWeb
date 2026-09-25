@@ -224,6 +224,18 @@ jobs:
 
           echo "Player-facing technical-message audit: OK"
 
+      - name: Check production engine stdout is quiet
+        run: |
+          set -euo pipefail
+          grep -Fn 'const ENGINE_STDOUT_DEBUG =' src/main.js
+          grep -Fn 'get("tpt-debug") === "1"' src/main.js
+          grep -Fn 'print: (...args) => logEngineStdout(...args)' src/main.js
+          if grep -Fn 'print: (...args) => console.log("[TPT]", ...args)' src/main.js; then
+            echo "Production Emscripten stdout is still unconditionally mirrored to the browser console."
+            exit 1
+          fi
+          echo "Production engine stdout audit: OK"
+
       - name: Check Web hot-path optimizations
         run: |
           set -euo pipefail
