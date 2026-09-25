@@ -2735,6 +2735,139 @@ def smoke_sdk_script_failure():
         driver.quit()
 
 
+def smoke_sdk_script_delay():
+    label = "desktop-sdk-script-delay"
+    driver = make_driver(mobile=False, browser_language="ru-RU")
+    started = time.monotonic()
+    try:
+        driver.set_page_load_timeout(45)
+        driver.get(
+            f"{BASE_URL}/?lang=ru&device=desktop&sdkScript=delay"
+        )
+        wait = WebDriverWait(driver, 25)
+
+        # /sdk.js is delayed by the threaded smoke server for 15 seconds.
+        # The 8-second SDK fallback must let the native game become playable
+        # while that request is still in flight.
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                const canvas = document.getElementById('canvas');
+                const fatal = document.getElementById('fatal');
+                const loader = document.getElementById('loader');
+                return Boolean(
+                    canvas &&
+                    canvas.style.display === 'block' &&
+                    fatal && fatal.hidden &&
+                    loader && loader.hidden &&
+                    window.__tptGameModule
+                );
+                """
+            )
+        )
+
+        fallback_elapsed = time.monotonic() - started
+        fallback = driver.execute_script(
+            """
+            const script = document.getElementById('yandex-games-sdk');
+            return {
+                sdkMissing: window.ysdk === undefined,
+                yaGamesMissing: window.YaGames === undefined,
+                language: window.tptLanguage,
+                lockedLanguage: window.__tptLanguageLocked,
+                sdkScriptPresent: Boolean(script),
+                sdkScriptAsync: script?.async === true,
+                sdkScriptPath: script?.getAttribute('src') || '',
+                loaderHidden: document.getElementById('loader').hidden,
+                canvasDisplay: document.getElementById('canvas').style.display,
+            };
+            """
+        )
+
+        assert fallback_elapsed < 13.0, (
+            label,
+            "slow /sdk.js blocked game startup past the SDK timeout",
+            fallback_elapsed,
+            fallback,
+        )
+        assert fallback["sdkMissing"] is True, (label, fallback)
+        assert fallback["yaGamesMissing"] is True, (label, fallback)
+        assert fallback["language"] == "ru", (label, fallback)
+        assert fallback["lockedLanguage"] == "ru", (label, fallback)
+        assert fallback["sdkScriptPresent"] is True, (label, fallback)
+        assert fallback["sdkScriptAsync"] is True, (label, fallback)
+        assert fallback["sdkScriptPath"] == "/sdk.js", (label, fallback)
+        assert fallback["loaderHidden"] is True, (label, fallback)
+        assert fallback["canvasDisplay"] == "block", (label, fallback)
+
+        # When the delayed script finally arrives, it must initialize and
+        # reconcile the already-presentable game without a reload.
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return Boolean(
+                    window.ysdk &&
+                    window.__yandexReadyCount === 1 &&
+                    window.__yandexLoadingReady === true &&
+                    window.__yandexGameplayStarted === true
+                );
+                """
+            )
+        )
+
+        recovered = driver.execute_script(
+            """
+            const events = window.__yandexSdkEvents || [];
+            return {
+                readyCount: window.__yandexReadyCount || 0,
+                readyIndex: events.indexOf('ready'),
+                gameplayStartIndex: events.indexOf('gameplay-start'),
+                language: window.tptLanguage,
+                detectedLanguage: window.yandexDetectedLanguage,
+                lockedLanguage: window.__tptLanguageLocked,
+                sdkMobilePlatform: window.__tptSdkMobilePlatform,
+                loaderHidden: document.getElementById('loader').hidden,
+                canvasDisplay: document.getElementById('canvas').style.display,
+            };
+            """
+        )
+
+        assert recovered["readyCount"] == 1, (label, recovered)
+        assert recovered["readyIndex"] >= 0, (label, recovered)
+        assert recovered["gameplayStartIndex"] > recovered["readyIndex"], (
+            label,
+            "delayed SDK script recovery did not preserve Ready -> Gameplay ordering",
+            recovered,
+        )
+        assert recovered["language"] == "ru", (label, recovered)
+        assert recovered["detectedLanguage"] == "ru", (label, recovered)
+        assert recovered["lockedLanguage"] == "ru", (label, recovered)
+        assert recovered["sdkMobilePlatform"] is False, (label, recovered)
+        assert recovered["loaderHidden"] is True, (label, recovered)
+        assert recovered["canvasDisplay"] == "block", (label, recovered)
+
+        browser_logs = driver.get_log("browser")
+        unexpected_severe_logs = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "favicon.ico" not in entry.get("message", "")
+        ]
+        assert not unexpected_severe_logs, (
+            label,
+            "unexpected severe browser console entries",
+            unexpected_severe_logs,
+        )
+
+        total_elapsed = time.monotonic() - started
+        print(
+            f"[smoke] {label}: OK fallback={fallback_elapsed:.2f}s "
+            f"recovered={total_elapsed:.2f}s"
+        )
+    finally:
+        driver.quit()
+
+
 def smoke_sdk_late_recovery():
     label = "desktop-sdk-late-recovery"
     driver = make_driver(mobile=False, browser_language="ru-RU")
@@ -2877,4 +3010,5 @@ if __name__ == "__main__":
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
     smoke_sdk_script_failure()
+    smoke_sdk_script_delay()
     smoke_sdk_late_recovery()
