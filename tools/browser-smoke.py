@@ -830,6 +830,27 @@ def smoke_case(language: str, mobile: bool):
                 dust_button_russian,
             )
 
+        dust_caption = driver.execute_script(
+            """
+            const m = window.__tptGameModule;
+            return {
+                textWidth: m.ccall(
+                    'YandexWeb_TestDustButtonTextWidth', 'number', [], []
+                ),
+                buttonWidth: m.ccall(
+                    'YandexWeb_TestDustButtonWidth', 'number', [], []
+                ),
+            };
+            """
+        )
+        assert dust_caption["textWidth"] >= 0, (label, dust_caption)
+        assert dust_caption["buttonWidth"] > 4, (label, dust_caption)
+        assert dust_caption["textWidth"] <= dust_caption["buttonWidth"] - 4, (
+            label,
+            "visible tool caption exceeds the native button content width",
+            dust_caption,
+        )
+
         native_fullscreen = driver.execute_script(
             """
             const before = Boolean(document.fullscreenElement);
