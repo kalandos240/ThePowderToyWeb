@@ -32,6 +32,8 @@ task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
 simulation_cpp = root / "upstream" / "src" / "simulation" / "Simulation.cpp"
 simulation_h = root / "upstream" / "src" / "simulation" / "Simulation.h"
+editing_cpp = root / "upstream" / "src" / "simulation" / "Editing.cpp"
+lua_simulation_cpp = root / "upstream" / "src" / "lua" / "LuaSimulation.cpp"
 air_cpp = root / "upstream" / "src" / "simulation" / "Air.cpp"
 renderer_cpp = root / "upstream" / "src" / "graphics" / "Renderer.cpp"
 renderer_h = root / "upstream" / "src" / "graphics" / "Renderer.h"
@@ -870,6 +872,24 @@ game_view.write_text(game_view_text, encoding="utf-8")
 # any cell that can possibly trigger CheckStacking. This lets the Web build
 # skip a full XRES*YRES scan on normal non-stacked frames.
 simulation_h_text = simulation_h.read_text(encoding="utf-8")
+wall_state_anchor = """	unsigned char bmap[YCELLS][XCELLS];
+	unsigned char emap[YCELLS][XCELLS];
+
+	Parts parts;"""
+wall_state_patch = """	unsigned char bmap[YCELLS][XCELLS];
+	unsigned char emap[YCELLS][XCELLS];
+
+	// Yandex Web renderer hint. False is set only after an authoritative
+	// clear/full scan; wall mutation paths conservatively set it true.
+	bool yandexWebWallsMayExist = true;
+
+	Parts parts;"""
+if wall_state_anchor not in simulation_h_text:
+    raise SystemExit("Simulation.h wall-presence state anchor missing")
+simulation_h_text = simulation_h_text.replace(
+    wall_state_anchor, wall_state_patch, 1
+)
+
 stacking_member_anchor = "\tbool force_stacking_check = false;\n"
 stacking_member_patch = (
     "\tbool force_stacking_check = false;\n"
