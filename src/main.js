@@ -115,6 +115,9 @@ let nativeModalBlocked = false;
 let sdkMobilePlatform = null;
 let nativeLanguageLocked = false;
 let viewportUpdateScheduled = false;
+let lastCanvasStyleWidth = "";
+let lastCanvasStyleHeight = "";
+let lastCanvasImageRendering = "";
 let adTimerId = null;
 let adCycleActive = false;
 const AD_INTERVAL_MS = 120000;
@@ -471,8 +474,15 @@ function updateOrientationGate() {
     isMobilePlatform() &&
     window.innerHeight > window.innerWidth
   );
-  const wasBlocked = orientationBlocked;
 
+  // ResizeObserver + visualViewport can emit several events for the same
+  // geometry. Avoid repeating DOM writes and gameplay-state reconciliation
+  // when the orientation gate itself did not change.
+  if (nextBlocked === orientationBlocked) {
+    return;
+  }
+
+  const wasBlocked = orientationBlocked;
   orientationBlocked = nextBlocked;
   orientationGate.hidden = !orientationBlocked;
   orientationPauseRequested = orientationBlocked;
@@ -523,8 +533,8 @@ function fitCanvas() {
   // rather than letterboxing the fixed TPT logical framebuffer. For exact
   // integer scaling keep hard pixel edges; otherwise browser interpolation
   // keeps text and UI lines substantially cleaner than uneven pixel stepping.
-  canvas.style.width = `${displayWidth}px`;
-  canvas.style.height = `${displayHeight}px`;
+  const nextStyleWidth = `${displayWidth}px`;
+  const nextStyleHeight = `${displayHeight}px`;
 
   // The native TPT framebuffer is intentionally compact. Yandex desktop
   // slots can be much wider than it, so browser interpolation makes text and
@@ -532,7 +542,23 @@ function fitCanvas() {
   // framebuffer is being enlarged on either axis; keep normal filtering only
   // for pure downscaling.
   const crispUpscale = scaleX > 1.02 || scaleY > 1.02;
-  canvas.style.imageRendering = crispUpscale ? "pixelated" : "auto";
+  const nextImageRendering = crispUpscale ? "pixelated" : "auto";
+
+  // visualViewport scroll/resize bursts frequently repeat identical geometry,
+  // especially around mobile browser chrome and the virtual keyboard. Avoid
+  // invalidating layout/style when the target canvas presentation is unchanged.
+  if (lastCanvasStyleWidth !== nextStyleWidth) {
+    canvas.style.width = nextStyleWidth;
+    lastCanvasStyleWidth = nextStyleWidth;
+  }
+  if (lastCanvasStyleHeight !== nextStyleHeight) {
+    canvas.style.height = nextStyleHeight;
+    lastCanvasStyleHeight = nextStyleHeight;
+  }
+  if (lastCanvasImageRendering !== nextImageRendering) {
+    canvas.style.imageRendering = nextImageRendering;
+    lastCanvasImageRendering = nextImageRendering;
+  }
 
   window.__tptCanvasFit = {
     logicalWidth,
