@@ -19,6 +19,7 @@ window_cpp = root / "upstream" / "src" / "gui" / "interface" / "Window.cpp"
 component_h = root / "upstream" / "src" / "gui" / "interface" / "Component.h"
 button_h = root / "upstream" / "src" / "gui" / "interface" / "Button.h"
 button_cpp = root / "upstream" / "src" / "gui" / "interface" / "Button.cpp"
+checkbox_cpp = root / "upstream" / "src" / "gui" / "interface" / "Checkbox.cpp"
 context_menu_h = root / "upstream" / "src" / "gui" / "interface" / "ContextMenu.h"
 textbox_cpp = root / "upstream" / "src" / "gui" / "interface" / "Textbox.cpp"
 save_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "SaveButton.cpp"
@@ -1009,6 +1010,7 @@ include_locale(simulation_data, '#include "simulation/elements/PIPE.h"\n')
 include_locale(local_browser_controller, '#include "Controller.h"\n')
 include_locale(engine_cpp, '#include "Config.h"\n')
 include_locale(button_cpp, '#include "gui/interface/Button.h"\n')
+include_locale(checkbox_cpp, '#include "Checkbox.h"\n')
 include_locale(button_h, '#include "common/String.h"\n')
 include_locale(textbox_cpp, '#include "Textbox.h"\n')
 include_locale(save_button_cpp, '#include "SimulationConfig.h"\n')
@@ -1063,6 +1065,39 @@ if button_set_anchor not in button_text:
     raise SystemExit("Button::SetText localization anchor missing")
 button_text = button_text.replace(button_set_anchor, button_set_patch, 1)
 button_cpp.write_text(button_text, encoding="utf-8")
+
+checkbox_text = checkbox_cpp.read_text(encoding="utf-8")
+checkbox_ctor_anchor = """Checkbox::Checkbox(ui::Point position, ui::Point size, String text, String toolTip):
+	Component(position, size),
+	text(text),
+	toolTip(toolTip),"""
+checkbox_ctor_patch = """Checkbox::Checkbox(ui::Point position, ui::Point size, String text, String toolTip):
+	Component(position, size),
+	text(YandexWebTranslateUi(text)),
+	toolTip(YandexWebTranslateUi(toolTip)),"""
+if checkbox_ctor_anchor not in checkbox_text:
+    raise SystemExit("Checkbox constructor localization anchor missing")
+checkbox_text = checkbox_text.replace(
+    checkbox_ctor_anchor,
+    checkbox_ctor_patch,
+    1,
+)
+checkbox_set_anchor = """void Checkbox::SetText(String text)
+{
+	this->text = text;
+}"""
+checkbox_set_patch = """void Checkbox::SetText(String text)
+{
+	this->text = YandexWebTranslateUi(text);
+}"""
+if checkbox_set_anchor not in checkbox_text:
+    raise SystemExit("Checkbox::SetText localization anchor missing")
+checkbox_text = checkbox_text.replace(
+    checkbox_set_anchor,
+    checkbox_set_patch,
+    1,
+)
+checkbox_cpp.write_text(checkbox_text, encoding="utf-8")
 
 button_h_text = button_h.read_text(encoding="utf-8")
 button_tooltip_anchor = "void SetToolTip(String newToolTip) { toolTip = newToolTip; }"
@@ -1238,6 +1273,8 @@ game_replacements = [
      '"", YandexWebText("Reload the simulation", "Перезагрузить симуляцию"))'),
     ('"[untitled simulation]", "", "", 19)',
      'YandexWebText("[untitled simulation]", "[без названия]"), "", "", 19)'),
+    ('saveSimulationButton->SetText("[untitled simulation]");',
+     'saveSimulationButton->SetText(YandexWebText("[untitled simulation]", "[без названия]"));'),
     ('"", "Erase everything")',
      '"", YandexWebText("Erase everything", "Очистить всё"))'),
     ('"", "Settings")',
