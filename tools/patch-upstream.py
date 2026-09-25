@@ -27,6 +27,8 @@ copy_text_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "CopyTe
 locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
+simulation_cpp = root / "upstream" / "src" / "simulation" / "Simulation.cpp"
+renderer_cpp = root / "upstream" / "src" / "graphics" / "Renderer.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
@@ -775,6 +777,102 @@ game_view_text = game_view_text.replace(
 )
 
 game_view.write_text(game_view_text, encoding="utf-8")
+
+
+# Browser performance: avoid a second full particle-array scan when
+# RecalcFreeParticles observed no holes/deaths. Parts::Flatten() only rebuilds
+# the free list and trims the active tail, so it is a no-op for a dense array.
+simulation_text = simulation_cpp.read_text(encoding="utf-8")
+recalc_start = """void Simulation::RecalcFreeParticles(bool do_life_dec)
+{
+	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
+	memset(pmap, 0, sizeof(pmap));"""
+recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
+{
+	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
+	bool yandexWebNeedsFlatten = false;
+	memset(pmap, 0, sizeof(pmap));"""
+if recalc_start not in simulation_text:
+    raise SystemExit("RecalcFreeParticles start anchor missing")
+simulation_text = simulation_text.replace(recalc_start, recalc_start_patch, 1)
+
+empty_anchor = """		if (!parts[i].type)
+		{
+			continue;
+		}"""
+empty_patch = """		if (!parts[i].type)
+		{
+			yandexWebNeedsFlatten = true;
+			continue;
+		}"""
+if empty_anchor not in simulation_text:
+    raise SystemExit("RecalcFreeParticles empty-particle anchor missing")
+simulation_text = simulation_text.replace(empty_anchor, empty_patch, 1)
+
+for kill_anchor in [
+    """				kill_part(i);
+				continue;""",
+]:
+    # Both life-expiry branches use the same sequence. Mark each occurrence
+    # inside this function before continuing.
+    recalc_pos = simulation_text.find("void Simulation::RecalcFreeParticles")
+    recalc_end = simulation_text.find("\nvoid Parts::Flatten()", recalc_pos)
+    segment = simulation_text[recalc_pos:recalc_end]
+    count = segment.count(kill_anchor)
+    if count < 2:
+        raise SystemExit(
+            f"Expected at least two RecalcFreeParticles kill anchors, found {count}"
+        )
+    segment = segment.replace(
+        kill_anchor,
+        """				yandexWebNeedsFlatten = true;
+				kill_part(i);
+				continue;"""
+    )
+    simulation_text = (
+        simulation_text[:recalc_pos] + segment + simulation_text[recalc_end:]
+    )
+
+flatten_anchor = """	parts.Flatten();
+	if (elementRecount)"""
+flatten_patch = """	if (yandexWebNeedsFlatten)
+		parts.Flatten();
+	if (elementRecount)"""
+if flatten_anchor not in simulation_text:
+    raise SystemExit("RecalcFreeParticles Flatten anchor missing")
+simulation_text = simulation_text.replace(flatten_anchor, flatten_patch, 1)
+simulation_cpp.write_text(simulation_text, encoding="utf-8")
+
+# Browser performance: FIREMODE is part of the default renderer, but most
+# scenes have no active fire/glow accumulation. Avoid the expensive blur/
+# decay neighbourhood pass when all fire buffers are already zero.
+renderer_text = renderer_cpp.read_text(encoding="utf-8")
+fire_anchor = """void Renderer::render_fire()
+{
+	if(!(renderMode & FIREMODE))
+		return;
+	int i,j,x,y,r,g,b,a;"""
+fire_patch = """void Renderer::render_fire()
+{
+	if(!(renderMode & FIREMODE))
+		return;
+
+	bool yandexWebHasFire = false;
+	for (int j = 0; j < YCELLS && !yandexWebHasFire; ++j)
+		for (int i = 0; i < XCELLS; ++i)
+			if (fire_r[j][i] || fire_g[j][i] || fire_b[j][i])
+			{
+				yandexWebHasFire = true;
+				break;
+			}
+	if (!yandexWebHasFire)
+		return;
+
+	int i,j,x,y,r,g,b,a;"""
+if fire_anchor not in renderer_text:
+    raise SystemExit("Renderer::render_fire fast-path anchor missing")
+renderer_text = renderer_text.replace(fire_anchor, fire_patch, 1)
+renderer_cpp.write_text(renderer_text, encoding="utf-8")
 
 
 # Yandex Web RU/EN localisation layer.
