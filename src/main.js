@@ -756,11 +756,10 @@ function scheduleViewportUpdate() {
   });
 }
 
-onYandexSDKReady((currentSDK, { late } = {}) => {
-  if (!late) {
-    return;
-  }
-
+onYandexSDKReady((currentSDK) => {
+  // Engine bootstrap no longer waits for YaGames.init(). Reconcile every SDK
+  // arrival, not only the >timeout "late" path: the SDK may legitimately
+  // resolve after powder.js but before the 8 second timeout.
   void (async () => {
     await applyPlatformDevice(currentSDK);
 
@@ -771,7 +770,7 @@ onYandexSDKReady((currentSDK, { late } = {}) => {
       applyPlatformLanguage(currentSDK);
     } else if (detectedLanguage !== uiLanguage) {
       console.warn(
-        `[Yandex] Late SDK language ${detectedLanguage} differs from active ${uiLanguage}; keeping the current native UI language for this session.`
+        `[Yandex] SDK language ${detectedLanguage} differs from active ${uiLanguage}; keeping the current native UI language for this session.`
       );
     }
 
