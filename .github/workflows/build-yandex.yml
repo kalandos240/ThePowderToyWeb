@@ -229,6 +229,15 @@ jobs:
           set -euo pipefail
           grep -Fn 'bool yandexWebNeedsFlatten = false;' upstream/src/simulation/Simulation.cpp
           grep -Fn 'if (yandexWebNeedsFlatten)' upstream/src/simulation/Simulation.cpp
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("upstream/src/simulation/Simulation.cpp").read_text(encoding="utf-8")
+          start = text.find("void Simulation::RecalcFreeParticles")
+          first = text.find("yandexWebNeedsFlatten")
+          if start < 0 or first < start:
+              raise SystemExit("Recalc flatten guard leaked outside RecalcFreeParticles")
+          print("RecalcFreeParticles optimization scope: OK")
+          PY
           grep -Fn 'bool yandexWebHasFire = false;' upstream/src/graphics/Renderer.cpp
           grep -Fn 'if (!yandexWebHasFire)' upstream/src/graphics/Renderer.cpp
           echo "Profile-driven Web hot-path guards: OK"
@@ -255,6 +264,9 @@ jobs:
           grep -Fn 'YW_UI("Save", "Сохранить")' upstream/src/YandexWebLocale.h
           grep -Fn 'YW_UI("Open", "Открыть")' upstream/src/YandexWebLocale.h
           grep -Fn 'YW_UI("Cancel", "Отмена")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Fancy Display", "Эффекты")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Pressure Display", "Давление")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Vorticity Display", "Завихренность")' upstream/src/YandexWebLocale.h
           if grep -Fn 'new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());' upstream/src/gui/game/GameView.cpp; then
             echo "Dropped-save error is still English-only."
             exit 1
