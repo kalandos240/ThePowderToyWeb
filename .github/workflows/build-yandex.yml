@@ -237,6 +237,15 @@ jobs:
           fi
           grep -Fn 'YandexWebText("Done", "Готово")' upstream/src/gui/colourpicker/ColourPickerActivity.cpp
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
+          grep -Fn 'ButtonText(YandexWebTranslateUi(buttonText))' upstream/src/gui/interface/Button.cpp
+          grep -Fn 'toolTip(YandexWebTranslateUi(toolTip))' upstream/src/gui/interface/Button.cpp
+          grep -Fn 'YandexWebTranslateUi(newToolTip)' upstream/src/gui/interface/Button.h
+          grep -Fn 'Text(YandexWebTranslateUi(text))' upstream/src/gui/interface/ContextMenu.h
+          grep -Fn 'SetText(YandexWebTranslateUi(labelText))' upstream/src/gui/interface/Label.cpp
+          grep -Fn 'placeHolder = YandexWebTranslateUi(textboxPlaceholder);' upstream/src/gui/interface/Textbox.cpp
+          grep -Fn 'YW_UI("Save", "Сохранить")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Open", "Открыть")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Cancel", "Отмена")' upstream/src/YandexWebLocale.h
           if grep -Fn 'new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());' upstream/src/gui/game/GameView.cpp; then
             echo "Dropped-save error is still English-only."
             exit 1
