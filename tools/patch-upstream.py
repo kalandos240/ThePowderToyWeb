@@ -1408,6 +1408,19 @@ renderer_h_text = renderer_h_text.replace(
 renderer_h.write_text(renderer_h_text, encoding="utf-8")
 
 renderer_text = renderer_cpp.read_text(encoding="utf-8")
+walls_anchor = """void Renderer::DrawWalls()
+{
+	auto &sd = SimulationData::CRef();"""
+walls_patch = """void Renderer::DrawWalls()
+{
+	if (!sim->yandexWebWallsMayExist)
+		return;
+
+	auto &sd = SimulationData::CRef();"""
+if walls_anchor not in renderer_text:
+    raise SystemExit("Renderer::DrawWalls wall-presence fast-path anchor missing")
+renderer_text = renderer_text.replace(walls_anchor, walls_patch, 1)
+
 signs_anchor = """	std::vector<sign> signs = sim->signs;
 	for (auto &currentSign : signs)"""
 signs_patch = """	const auto &signs = sim->signs;
