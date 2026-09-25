@@ -8,6 +8,7 @@ let sdkGameplayActive = false;
 let platformPauseActive = false;
 let gameplayBlocked = false;
 let sdkListenersInstalled = false;
+let fullscreenAdRequestActive = false;
 let pauseRuntimeCallback = () => {};
 let resumeRuntimeCallback = () => {};
 const sdkReadySubscribers = new Set();
@@ -293,6 +294,62 @@ export async function gameplayStop() {
   const currentSDK = await initYandexSDK();
   gameplayActive = false;
   stopGameplayOnSDK(currentSDK);
+}
+
+export async function canShowFullscreenAd() {
+  const currentSDK = await initYandexSDK();
+  return typeof currentSDK?.adv?.showFullscreenAdv === "function";
+}
+
+export async function showFullscreenAd() {
+  if (fullscreenAdRequestActive) {
+    return false;
+  }
+
+  const currentSDK = await initYandexSDK();
+  const show = currentSDK?.adv?.showFullscreenAdv;
+  if (typeof show !== "function") {
+    console.info("[Yandex] Fullscreen advertising is unavailable.");
+    return false;
+  }
+
+  fullscreenAdRequestActive = true;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (wasShown) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      fullscreenAdRequestActive = false;
+      resolve(Boolean(wasShown));
+    };
+
+    try {
+      show.call(currentSDK.adv, {
+        callbacks: {
+          onOpen() {
+            console.info("[Yandex] Fullscreen ad opened.");
+          },
+          onClose(wasShown) {
+            console.info("[Yandex] Fullscreen ad closed.", { wasShown });
+            finish(wasShown);
+          },
+          onError(error) {
+            console.error("[Yandex] Fullscreen ad failed.", error);
+            finish(false);
+          },
+          onOffline() {
+            console.info("[Yandex] Fullscreen ad skipped while offline.");
+            finish(false);
+          }
+        }
+      });
+    } catch (error) {
+      console.error("[Yandex] Fullscreen ad call failed.", error);
+      finish(false);
+    }
+  });
 }
 
 export function setGameplayBlocked(blocked) {

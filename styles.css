@@ -31,7 +31,7 @@ body {
   position: fixed;
   inset: 0;
   display: grid;
-  place-items: center;
+  place-items: stretch;
   padding:
     env(safe-area-inset-top)
     env(safe-area-inset-right)
@@ -41,12 +41,12 @@ body {
 
 #canvas {
   display: none;
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
   outline: none;
-  image-rendering: pixelated;
+  image-rendering: auto;
   touch-action: none;
 }
 
@@ -75,6 +75,7 @@ body {
 
 #loader,
 #orientation-gate,
+#ad-warning,
 #fatal {
   position: absolute;
   inset: 0;
@@ -91,12 +92,46 @@ body {
 
 #loader[hidden],
 #orientation-gate[hidden],
+#ad-warning[hidden],
 #fatal[hidden] {
   display: none;
 }
 
 #orientation-gate {
   z-index: 9;
+}
+
+#ad-warning {
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.9);
+  pointer-events: auto;
+}
+
+.ad-warning-card {
+  min-width: min(360px, calc(100vw - 32px));
+  padding: 22px 28px;
+  border: 1px solid #666;
+  border-radius: 10px;
+  background: #111;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+}
+
+#ad-warning-title {
+  font-size: clamp(18px, 4vw, 26px);
+  font-weight: 700;
+}
+
+#ad-warning-countdown {
+  margin: 8px 0;
+  font-size: clamp(42px, 11vw, 72px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+#ad-warning-message {
+  color: #c8c8c8;
+  font-size: clamp(14px, 3.5vw, 18px);
 }
 
 #orientation-gate h1,

@@ -224,6 +224,15 @@ jobs:
 
           echo "Player-facing technical-message audit: OK"
 
+      - name: Check Web hot-path optimizations
+        run: |
+          set -euo pipefail
+          grep -Fn 'bool yandexWebNeedsFlatten = false;' upstream/src/simulation/Simulation.cpp
+          grep -Fn 'if (yandexWebNeedsFlatten)' upstream/src/simulation/Simulation.cpp
+          grep -Fn 'bool yandexWebHasFire = false;' upstream/src/graphics/Renderer.cpp
+          grep -Fn 'if (!yandexWebHasFire)' upstream/src/graphics/Renderer.cpp
+          echo "Profile-driven Web hot-path guards: OK"
+
       - name: Check reachable local UI localization
         run: |
           set -euo pipefail
@@ -237,6 +246,15 @@ jobs:
           fi
           grep -Fn 'YandexWebText("Done", "Готово")' upstream/src/gui/colourpicker/ColourPickerActivity.cpp
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
+          grep -Fn 'ButtonText(YandexWebTranslateUi(buttonText))' upstream/src/gui/interface/Button.cpp
+          grep -Fn 'toolTip(YandexWebTranslateUi(toolTip))' upstream/src/gui/interface/Button.cpp
+          grep -Fn 'YandexWebTranslateUi(newToolTip)' upstream/src/gui/interface/Button.h
+          grep -Fn 'Text(YandexWebTranslateUi(text))' upstream/src/gui/interface/ContextMenu.h
+          grep -Fn 'SetText(YandexWebTranslateUi(labelText))' upstream/src/gui/interface/Label.cpp
+          grep -Fn 'placeHolder = YandexWebTranslateUi(textboxPlaceholder);' upstream/src/gui/interface/Textbox.cpp
+          grep -Fn 'YW_UI("Save", "Сохранить")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Open", "Открыть")' upstream/src/YandexWebLocale.h
+          grep -Fn 'YW_UI("Cancel", "Отмена")' upstream/src/YandexWebLocale.h
           if grep -Fn 'new ErrorMessage("Error loading save", "Dropped save file could not be loaded: " + saveFile->GetError());' upstream/src/gui/game/GameView.cpp; then
             echo "Dropped-save error is still English-only."
             exit 1
@@ -488,6 +506,8 @@ jobs:
           window.__yandexReadyCount = 0;
           window.__yandexSdkEvents = [];
           window.__yandexReadySnapshot = null;
+          window.__yandexAdOpenCount = 0;
+          window.__yandexAdCloseCount = 0;
           window.YaGames = {
             init: async () => {
               const sdkMode = new URLSearchParams(location.search).get("sdk");
@@ -515,6 +535,19 @@ jobs:
                     return type === "tablet";
                   }
                 };
+              },
+              adv: {
+                showFullscreenAdv({ callbacks } = {}) {
+                  window.__yandexSdkEvents.push("ad-request");
+                  callbacks?.onOpen?.();
+                  window.__yandexAdOpenCount += 1;
+                  window.__yandexSdkEvents.push("ad-open");
+                  setTimeout(() => {
+                    window.__yandexAdCloseCount += 1;
+                    window.__yandexSdkEvents.push("ad-close");
+                    callbacks?.onClose?.(true);
+                  }, 80);
+                }
               },
               features: {
                 LoadingAPI: {

@@ -6,7 +6,9 @@ import {
   gameplayStop,
   getYandexLanguage,
   onYandexSDKReady,
-  setGameplayBlocked
+  setGameplayBlocked,
+  canShowFullscreenAd,
+  showFullscreenAd
 } from "./yandex.js";
 
 const app = document.getElementById("app");
@@ -17,6 +19,10 @@ const status = document.getElementById("status");
 const orientationGate = document.getElementById("orientation-gate");
 const orientationTitle = document.getElementById("orientation-title");
 const orientationMessage = document.getElementById("orientation-message");
+const adWarning = document.getElementById("ad-warning");
+const adWarningTitle = document.getElementById("ad-warning-title");
+const adWarningCountdown = document.getElementById("ad-warning-countdown");
+const adWarningMessage = document.getElementById("ad-warning-message");
 const fatal = document.getElementById("fatal");
 const fatalTitle = document.querySelector("#fatal h1");
 const fatalMessage = document.getElementById("fatal-message");
@@ -33,6 +39,8 @@ const MESSAGES = {
     rotateTitle: "Rotate your device",
     rotateMessage: "The Powder Toy is designed for landscape mode.",
     textInputLabel: "Game text input",
+    adWarningTitle: "Advertisement in",
+    adWarningMessage: "The game is paused.",
     unknown: "Unknown error",
     loadScript: (src) => `Failed to load ${src}`,
     missingFactory: "create_powder was not found in the Emscripten build."
@@ -47,6 +55,8 @@ const MESSAGES = {
     rotateTitle: "Поверните устройство",
     rotateMessage: "Для The Powder Toy используйте горизонтальный режим.",
     textInputLabel: "Ввод текста в игре",
+    adWarningTitle: "Реклама через",
+    adWarningMessage: "Игра поставлена на паузу.",
     unknown: "Неизвестная ошибка",
     loadScript: (src) => `Не удалось загрузить ${src}`,
     missingFactory: "Функция create_powder не найдена в Emscripten-сборке."
@@ -69,6 +79,12 @@ function applyPlatformLanguage(currentSDK) {
   orientationTitle.textContent = message("rotateTitle");
   orientationMessage.textContent = message("rotateMessage");
   mobileTextInput.setAttribute("aria-label", message("textInputLabel"));
+  if (adWarningTitle) {
+    adWarningTitle.textContent = message("adWarningTitle");
+  }
+  if (adWarningMessage) {
+    adWarningMessage.textContent = message("adWarningMessage");
+  }
 }
 
 function message(key, ...args) {
@@ -81,16 +97,26 @@ let fatalShown = false;
 let gameModule = null;
 let platformPauseRequested = document.hidden;
 let orientationPauseRequested = false;
+let adPauseRequested = false;
 let runtimePaused = false;
 let orientationBlocked = false;
 let nativeModalBlocked = false;
 let sdkMobilePlatform = null;
 let nativeLanguageLocked = false;
+let viewportUpdateScheduled = false;
+let adTimerId = null;
+let adCycleActive = false;
+const AD_INTERVAL_MS = 120000;
+const AD_WARNING_SECONDS = 2;
 window.__tptRuntimePaused = false;
 window.__tptOrientationBlocked = false;
 window.__tptNativeModalBlocked = false;
 window.__tptNativeModalDepth = 0;
 window.__tptSdkMobilePlatform = null;
+window.__tptAdWarningActive = false;
+window.__tptAdCycleActive = false;
+window.__tptAdAttemptCount = 0;
+window.__tptCanvasFit = null;
 
 function setStatus(message) {
   status.textContent = message;
@@ -175,7 +201,11 @@ function isMobilePlatform() {
 }
 
 function updateGameplayBlockState() {
-  setGameplayBlocked(orientationBlocked || nativeModalBlocked);
+  setGameplayBlocked(
+    orientationBlocked ||
+    nativeModalBlocked ||
+    adPauseRequested
+  );
 }
 
 window.__tptNativeModalBridge = {
@@ -442,8 +472,8 @@ function updateOrientationGate() {
 }
 
 function fitCanvas() {
-  const logicalWidth = canvas.width || 612;
-  const logicalHeight = canvas.height || 384;
+  const logicalWidth = canvas.width || 629;
+  const logicalHeight = canvas.height || 424;
   const appStyle = getComputedStyle(app);
   const horizontalPadding =
     parseFloat(appStyle.paddingLeft) + parseFloat(appStyle.paddingRight);
@@ -456,13 +486,33 @@ function fitCanvas() {
     return;
   }
 
-  const scale = Math.min(
-    availableWidth / logicalWidth,
-    availableHeight / logicalHeight
-  );
+  const displayWidth = Math.max(1, Math.round(availableWidth));
+  const displayHeight = Math.max(1, Math.round(availableHeight));
+  const scaleX = displayWidth / logicalWidth;
+  const scaleY = displayHeight / logicalHeight;
+  const uniformScale = Math.abs(scaleX - scaleY) < 0.01;
+  const integerScale =
+    uniformScale &&
+    Math.abs(scaleX - Math.round(scaleX)) < 0.01 &&
+    scaleX >= 1;
 
-  canvas.style.width = `${Math.max(1, Math.floor(logicalWidth * scale))}px`;
-  canvas.style.height = `${Math.max(1, Math.floor(logicalHeight * scale))}px`;
+  // Yandex can provide very wide/short game slots. Fill the complete slot
+  // rather than letterboxing the fixed TPT logical framebuffer. For exact
+  // integer scaling keep hard pixel edges; otherwise browser interpolation
+  // keeps text and UI lines substantially cleaner than uneven pixel stepping.
+  canvas.style.width = `${displayWidth}px`;
+  canvas.style.height = `${displayHeight}px`;
+  canvas.style.imageRendering = integerScale ? "pixelated" : "auto";
+
+  window.__tptCanvasFit = {
+    logicalWidth,
+    logicalHeight,
+    displayWidth,
+    displayHeight,
+    scaleX,
+    scaleY,
+    integerScale
+  };
 }
 
 function callRuntimeHook(name) {
@@ -486,7 +536,10 @@ function callRuntimeHook(name) {
 }
 
 function applyRuntimePauseState() {
-  const requested = platformPauseRequested || orientationPauseRequested;
+  const requested =
+    platformPauseRequested ||
+    orientationPauseRequested ||
+    adPauseRequested;
   if (!gameModule || runtimePaused === requested) {
     return;
   }
@@ -519,6 +572,8 @@ function showFatal(error) {
 
   loader.hidden = true;
   orientationGate.hidden = true;
+  adWarning.hidden = true;
+  clearAdTimer();
   setGameplayBlocked(true);
   canvas.style.display = "none";
   fatalMessage.textContent =
@@ -537,6 +592,94 @@ function loadScript(src) {
     document.head.appendChild(script);
   });
 }
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function clearAdTimer() {
+  if (adTimerId !== null) {
+    window.clearTimeout(adTimerId);
+    adTimerId = null;
+  }
+}
+
+function scheduleNextAd(delay = AD_INTERVAL_MS) {
+  clearAdTimer();
+  adTimerId = window.setTimeout(() => {
+    adTimerId = null;
+    void runFullscreenAdCycle();
+  }, Math.max(1000, delay));
+}
+
+async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
+  if (adCycleActive) {
+    return false;
+  }
+
+  if (
+    !presentable ||
+    fatalShown ||
+    document.hidden ||
+    platformPauseRequested ||
+    orientationBlocked ||
+    nativeModalBlocked
+  ) {
+    if (scheduleNext) {
+      scheduleNextAd(15000);
+    }
+    return false;
+  }
+
+  if (!(await canShowFullscreenAd())) {
+    if (scheduleNext) {
+      scheduleNextAd();
+    }
+    return false;
+  }
+
+  adCycleActive = true;
+  adPauseRequested = true;
+  window.__tptAdCycleActive = true;
+  window.__tptAdWarningActive = true;
+  window.__tptAdAttemptCount += 1;
+  updateGameplayBlockState();
+  applyRuntimePauseState();
+
+  try {
+    adWarningTitle.textContent = message("adWarningTitle");
+    adWarningMessage.textContent = message("adWarningMessage");
+    adWarning.hidden = false;
+
+    for (let seconds = AD_WARNING_SECONDS; seconds >= 1; seconds -= 1) {
+      adWarningCountdown.textContent = String(seconds);
+      await sleep(1000);
+
+      if (document.hidden || fatalShown) {
+        return false;
+      }
+    }
+
+    adWarning.hidden = true;
+    window.__tptAdWarningActive = false;
+    return await showFullscreenAd();
+  } finally {
+    adWarning.hidden = true;
+    window.__tptAdWarningActive = false;
+    adPauseRequested = false;
+    adCycleActive = false;
+    window.__tptAdCycleActive = false;
+    updateGameplayBlockState();
+    applyRuntimePauseState();
+
+    if (scheduleNext && !fatalShown) {
+      scheduleNextAd();
+    }
+  }
+}
+
+window.__tptTriggerAdForTest = () =>
+  runFullscreenAdCycle({ scheduleNext: false });
 
 async function onPresentable() {
   if (presentable) {
@@ -557,6 +700,7 @@ async function onPresentable() {
 
   await signalGameReady();
   await gameplayStart();
+  scheduleNextAd();
 }
 
 window.mark_presentable = () => {
@@ -564,13 +708,19 @@ window.mark_presentable = () => {
 };
 
 function scheduleViewportUpdate() {
-  requestAnimationFrame(() =>
+  if (viewportUpdateScheduled) {
+    return;
+  }
+
+  viewportUpdateScheduled = true;
+  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      viewportUpdateScheduled = false;
       fitCanvas();
       positionMobileTextInput();
       updateOrientationGate();
-    })
-  );
+    });
+  });
 }
 
 onYandexSDKReady((currentSDK, { late } = {}) => {

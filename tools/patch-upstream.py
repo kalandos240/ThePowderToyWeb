@@ -18,12 +18,17 @@ engine_h = root / "upstream" / "src" / "gui" / "interface" / "Engine.h"
 window_cpp = root / "upstream" / "src" / "gui" / "interface" / "Window.cpp"
 component_h = root / "upstream" / "src" / "gui" / "interface" / "Component.h"
 button_h = root / "upstream" / "src" / "gui" / "interface" / "Button.h"
+button_cpp = root / "upstream" / "src" / "gui" / "interface" / "Button.cpp"
+context_menu_h = root / "upstream" / "src" / "gui" / "interface" / "ContextMenu.h"
+textbox_cpp = root / "upstream" / "src" / "gui" / "interface" / "Textbox.cpp"
 save_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "SaveButton.cpp"
 label_cpp = root / "upstream" / "src" / "gui" / "interface" / "Label.cpp"
 copy_text_button_cpp = root / "upstream" / "src" / "gui" / "interface" / "CopyTextButton.cpp"
 locale_header = root / "upstream" / "src" / "YandexWebLocale.h"
 task_cpp = root / "upstream" / "src" / "tasks" / "Task.cpp"
 gravity_cpp = root / "upstream" / "src" / "simulation" / "gravity" / "Fft.cpp"
+simulation_cpp = root / "upstream" / "src" / "simulation" / "Simulation.cpp"
+renderer_cpp = root / "upstream" / "src" / "graphics" / "Renderer.cpp"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
@@ -774,6 +779,102 @@ game_view_text = game_view_text.replace(
 game_view.write_text(game_view_text, encoding="utf-8")
 
 
+# Browser performance: avoid a second full particle-array scan when
+# RecalcFreeParticles observed no holes/deaths. Parts::Flatten() only rebuilds
+# the free list and trims the active tail, so it is a no-op for a dense array.
+simulation_text = simulation_cpp.read_text(encoding="utf-8")
+recalc_start = """void Simulation::RecalcFreeParticles(bool do_life_dec)
+{
+	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
+	memset(pmap, 0, sizeof(pmap));"""
+recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
+{
+	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
+	bool yandexWebNeedsFlatten = false;
+	memset(pmap, 0, sizeof(pmap));"""
+if recalc_start not in simulation_text:
+    raise SystemExit("RecalcFreeParticles start anchor missing")
+simulation_text = simulation_text.replace(recalc_start, recalc_start_patch, 1)
+
+empty_anchor = """		if (!parts[i].type)
+		{
+			continue;
+		}"""
+empty_patch = """		if (!parts[i].type)
+		{
+			yandexWebNeedsFlatten = true;
+			continue;
+		}"""
+if empty_anchor not in simulation_text:
+    raise SystemExit("RecalcFreeParticles empty-particle anchor missing")
+simulation_text = simulation_text.replace(empty_anchor, empty_patch, 1)
+
+for kill_anchor in [
+    """				kill_part(i);
+				continue;""",
+]:
+    # Both life-expiry branches use the same sequence. Mark each occurrence
+    # inside this function before continuing.
+    recalc_pos = simulation_text.find("void Simulation::RecalcFreeParticles")
+    recalc_end = simulation_text.find("\nvoid Parts::Flatten()", recalc_pos)
+    segment = simulation_text[recalc_pos:recalc_end]
+    count = segment.count(kill_anchor)
+    if count < 2:
+        raise SystemExit(
+            f"Expected at least two RecalcFreeParticles kill anchors, found {count}"
+        )
+    segment = segment.replace(
+        kill_anchor,
+        """				yandexWebNeedsFlatten = true;
+				kill_part(i);
+				continue;"""
+    )
+    simulation_text = (
+        simulation_text[:recalc_pos] + segment + simulation_text[recalc_end:]
+    )
+
+flatten_anchor = """	parts.Flatten();
+	if (elementRecount)"""
+flatten_patch = """	if (yandexWebNeedsFlatten)
+		parts.Flatten();
+	if (elementRecount)"""
+if flatten_anchor not in simulation_text:
+    raise SystemExit("RecalcFreeParticles Flatten anchor missing")
+simulation_text = simulation_text.replace(flatten_anchor, flatten_patch, 1)
+simulation_cpp.write_text(simulation_text, encoding="utf-8")
+
+# Browser performance: FIREMODE is part of the default renderer, but most
+# scenes have no active fire/glow accumulation. Avoid the expensive blur/
+# decay neighbourhood pass when all fire buffers are already zero.
+renderer_text = renderer_cpp.read_text(encoding="utf-8")
+fire_anchor = """void Renderer::render_fire()
+{
+	if(!(renderMode & FIREMODE))
+		return;
+	int i,j,x,y,r,g,b,a;"""
+fire_patch = """void Renderer::render_fire()
+{
+	if(!(renderMode & FIREMODE))
+		return;
+
+	bool yandexWebHasFire = false;
+	for (int j = 0; j < YCELLS && !yandexWebHasFire; ++j)
+		for (int i = 0; i < XCELLS; ++i)
+			if (fire_r[j][i] || fire_g[j][i] || fire_b[j][i])
+			{
+				yandexWebHasFire = true;
+				break;
+			}
+	if (!yandexWebHasFire)
+		return;
+
+	int i,j,x,y,r,g,b,a;"""
+if fire_anchor not in renderer_text:
+    raise SystemExit("Renderer::render_fire fast-path anchor missing")
+renderer_text = renderer_text.replace(fire_anchor, fire_patch, 1)
+renderer_cpp.write_text(renderer_text, encoding="utf-8")
+
+
 # Yandex Web RU/EN localisation layer.
 locale_header.write_text(r'''#pragma once
 #include "common/String.h"
@@ -797,6 +898,83 @@ inline String YandexWebText(const char *english, const char *russian)
 {
 	return ByteString(YandexWebIsRussian() ? russian : english).FromUtf8();
 }
+
+// Common native UI strings can be created from many different windows,
+// including rarely opened local dialogs. Translate them at the component
+// boundary so Russian mode does not depend solely on individual call-site
+// replacements. The map is exact-match only, so arbitrary save names and
+// simulation text are left unchanged unless they exactly equal a UI token.
+inline String YandexWebTranslateUi(const String &source)
+{
+	if (!YandexWebIsRussian() || !source.size())
+		return source;
+
+#define YW_UI(en, ru) if (source == en) return ByteString(ru).FromUtf8()
+	YW_UI("OK", "ОК");
+	YW_UI("Okay", "ОК");
+	YW_UI("Cancel", "Отмена");
+	YW_UI("Close", "Закрыть");
+	YW_UI("Dismiss", "Закрыть");
+	YW_UI("Done", "Готово");
+	YW_UI("Save", "Сохранить");
+	YW_UI("Save as", "Сохранить как");
+	YW_UI("Open", "Открыть");
+	YW_UI("Load", "Загрузить");
+	YW_UI("Reload", "Перезапустить");
+	YW_UI("Retry", "Повторить");
+	YW_UI("Copy", "Копировать");
+	YW_UI("Cut", "Вырезать");
+	YW_UI("Paste", "Вставить");
+	YW_UI("Delete", "Удалить");
+	YW_UI("Rename", "Переименовать");
+	YW_UI("Select", "Выбрать");
+	YW_UI("Add", "Добавить");
+	YW_UI("Remove", "Удалить");
+	YW_UI("Edit", "Изменить");
+	YW_UI("Move", "Переместить");
+	YW_UI("New", "Создать");
+	YW_UI("Create", "Создать");
+	YW_UI("Reset", "Сбросить");
+	YW_UI("Apply", "Применить");
+	YW_UI("Clear", "Очистить");
+	YW_UI("Search", "Поиск");
+	YW_UI("Settings", "Настройки");
+	YW_UI("Options", "Настройки");
+	YW_UI("Renderer", "Отображение");
+	YW_UI("Render Options", "Настройки отображения");
+	YW_UI("Credits", "Авторы");
+	YW_UI("Stamps", "Штампы");
+	YW_UI("Element Search", "Поиск элементов");
+	YW_UI("Property", "Свойство");
+	YW_UI("Colour", "Цвет");
+	YW_UI("Color", "Цвет");
+	YW_UI("Sign", "Надпись");
+	YW_UI("Rescan", "Обновить");
+	YW_UI("Back", "Назад");
+	YW_UI("Next", "Далее");
+	YW_UI("Previous", "Назад");
+	YW_UI("Prev", "Назад");
+	YW_UI("Yes", "Да");
+	YW_UI("No", "Нет");
+	YW_UI("On", "Вкл.");
+	YW_UI("Off", "Выкл.");
+	YW_UI("Enabled", "Включено");
+	YW_UI("Disabled", "Отключено");
+	YW_UI("Default", "По умолчанию");
+	YW_UI("None", "Нет");
+	YW_UI("Pause", "Пауза");
+	YW_UI("Resume", "Продолжить");
+	YW_UI("Quit", "Выйти");
+	YW_UI("Exit", "Выйти");
+	YW_UI("Import", "Импорт");
+	YW_UI("Export", "Экспорт");
+	YW_UI("Browse", "Обзор");
+	YW_UI("View History", "История");
+	YW_UI("Overwrite", "Перезаписать");
+	YW_UI("Confirm", "Подтвердить");
+#undef YW_UI
+	return source;
+}
 ''', encoding="utf-8")
 
 def include_locale(path, anchor):
@@ -814,6 +992,9 @@ include_locale(options_view, '#include "Config.h"\n')
 include_locale(simulation_data, '#include "simulation/elements/PIPE.h"\n')
 include_locale(local_browser_controller, '#include "Controller.h"\n')
 include_locale(engine_cpp, '#include "Config.h"\n')
+include_locale(button_cpp, '#include "gui/interface/Button.h"\n')
+include_locale(button_h, '#include "common/String.h"\n')
+include_locale(textbox_cpp, '#include "Textbox.h"\n')
 include_locale(save_button_cpp, '#include "SimulationConfig.h"\n')
 include_locale(label_cpp, '#include "graphics/FontReader.h"\n')
 include_locale(copy_text_button_cpp, '#include "Label.h"\n')
@@ -836,6 +1017,79 @@ include_locale(gol_tool_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(task_window_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(client_cpp, '#include "Config.h"\n')
 include_locale(powder, '#include "Config.h"\n')
+
+# Translate common component-level UI strings in RU mode. This catches rare
+# local buttons, tooltips, placeholders and context-menu items that are easy
+# to miss with call-site-only localization.
+button_text = button_cpp.read_text(encoding="utf-8")
+button_ctor_anchor = """Button::Button(Point position, Point size, String buttonText, String toolTip):
+	Component(position, size),
+	ButtonText(buttonText),
+	toolTip(toolTip),"""
+button_ctor_patch = """Button::Button(Point position, Point size, String buttonText, String toolTip):
+	Component(position, size),
+	ButtonText(YandexWebTranslateUi(buttonText)),
+	toolTip(YandexWebTranslateUi(toolTip)),"""
+if button_ctor_anchor not in button_text:
+    raise SystemExit("Button constructor localization anchor missing")
+button_text = button_text.replace(button_ctor_anchor, button_ctor_patch, 1)
+button_set_anchor = """void Button::SetText(String buttonText)
+{
+	ButtonText = buttonText;
+	TextPosition(ButtonText);
+}"""
+button_set_patch = """void Button::SetText(String buttonText)
+{
+	ButtonText = YandexWebTranslateUi(buttonText);
+	TextPosition(ButtonText);
+}"""
+if button_set_anchor not in button_text:
+    raise SystemExit("Button::SetText localization anchor missing")
+button_text = button_text.replace(button_set_anchor, button_set_patch, 1)
+button_cpp.write_text(button_text, encoding="utf-8")
+
+button_h_text = button_h.read_text(encoding="utf-8")
+button_tooltip_anchor = "void SetToolTip(String newToolTip) { toolTip = newToolTip; }"
+button_tooltip_patch = "void SetToolTip(String newToolTip) { toolTip = YandexWebTranslateUi(newToolTip); }"
+if button_tooltip_anchor not in button_h_text:
+    raise SystemExit("Button tooltip localization anchor missing")
+button_h_text = button_h_text.replace(button_tooltip_anchor, button_tooltip_patch, 1)
+button_h.write_text(button_h_text, encoding="utf-8")
+
+context_menu_text = context_menu_h.read_text(encoding="utf-8")
+context_item_anchor = "ContextMenuItem(String text, int id, bool enabled) : ID(id), Text(text), Enabled(enabled) {}"
+context_item_patch = "ContextMenuItem(String text, int id, bool enabled) : ID(id), Text(YandexWebTranslateUi(text)), Enabled(enabled) {}"
+if context_item_anchor not in context_menu_text:
+    raise SystemExit("ContextMenuItem localization anchor missing")
+context_menu_text = context_menu_text.replace(context_item_anchor, context_item_patch, 1)
+context_menu_h.write_text(context_menu_text, encoding="utf-8")
+
+label_text = label_cpp.read_text(encoding="utf-8")
+label_ctor_anchor = "		SetText(labelText);"
+label_ctor_patch = "		SetText(YandexWebTranslateUi(labelText));"
+if label_ctor_anchor not in label_text:
+    raise SystemExit("Label constructor localization anchor missing")
+label_text = label_text.replace(label_ctor_anchor, label_ctor_patch, 1)
+label_cpp.write_text(label_text, encoding="utf-8")
+
+textbox_text = textbox_cpp.read_text(encoding="utf-8")
+placeholder_anchor = "	placeHolder = textboxPlaceholder;"
+placeholder_patch = "	placeHolder = YandexWebTranslateUi(textboxPlaceholder);"
+if placeholder_anchor not in textbox_text:
+    raise SystemExit("Textbox placeholder localization anchor missing")
+textbox_text = textbox_text.replace(placeholder_anchor, placeholder_patch, 1)
+set_placeholder_anchor = """void Textbox::SetPlaceholder(String text)
+{
+	placeHolder = text;
+}"""
+set_placeholder_patch = """void Textbox::SetPlaceholder(String text)
+{
+	placeHolder = YandexWebTranslateUi(text);
+}"""
+if set_placeholder_anchor not in textbox_text:
+    raise SystemExit("Textbox::SetPlaceholder localization anchor missing")
+textbox_text = textbox_text.replace(set_placeholder_anchor, set_placeholder_patch, 1)
+textbox_cpp.write_text(textbox_text, encoding="utf-8")
 
 game_view_text = game_view.read_text(encoding="utf-8")
 if 'int GetSplitPosition() const' not in game_view_text:
