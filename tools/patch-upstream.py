@@ -1705,7 +1705,7 @@ tool_button_patch = """	// Do not use "..." on element buttons. Fit the actual r
 	// width so localized Cyrillic labels never paint across neighbouring
 	// button borders while retaining as much of the word as possible.
 	buttonDisplayText = ButtonText.Substr(0, 7);
-	const int yandexWebCaptionWidth = std::max(0, Size.X - 4);
+	const int yandexWebCaptionWidth = Size.X > 4 ? Size.X - 4 : 0;
 	while (buttonDisplayText.size() &&
 	       Graphics::TextSize(buttonDisplayText).X > yandexWebCaptionWidth)
 	{
