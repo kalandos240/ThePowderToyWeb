@@ -216,7 +216,12 @@ async function applyPlatformDevice(currentSDK) {
       mobilePlatform = Boolean(mobile || tablet);
     }
   } catch (error) {
-    console.warn("[TPT] Could not read Yandex deviceInfo.", error);
+    // DeviceInfo is an optional refinement. Browser touch/pointer detection is
+    // the intended fallback, so keep this non-fatal path out of production
+    // warnings while preserving opt-in diagnostics.
+    if (ENGINE_STDOUT_DEBUG) {
+      console.info("[TPT] Could not read Yandex deviceInfo; using browser fallback.", error);
+    }
   }
 
   sdkMobilePlatform = mobilePlatform;
