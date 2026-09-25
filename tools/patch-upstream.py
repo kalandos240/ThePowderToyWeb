@@ -713,6 +713,18 @@ game_view_text = game_view_text.replace(
     "Save the simulation to your hard drive.",
     "Save the simulation locally in this browser."
 )
+game_view_text = game_view_text.replace(
+    "Re-upload the current simulation",
+    "Overwrite the open local simulation."
+)
+game_view_text = game_view_text.replace(
+    "Modify simulation properties",
+    "Save the simulation locally in this browser."
+)
+game_view_text = game_view_text.replace(
+    "Upload a new simulation. Hold Ctrl to save offline.",
+    "Save the simulation locally in this browser."
+)
 
 game_view.write_text(game_view_text, encoding="utf-8")
 
