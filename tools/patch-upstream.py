@@ -879,9 +879,12 @@ wall_state_anchor = """	unsigned char bmap[YCELLS][XCELLS];
 wall_state_patch = """	unsigned char bmap[YCELLS][XCELLS];
 	unsigned char emap[YCELLS][XCELLS];
 
-	// Yandex Web renderer hint. False is set only after an authoritative
-	// clear/full scan; wall mutation paths conservatively set it true.
+	// Yandex Web renderer hints. The existing BeforeSim wall/air scan is the
+	// authoritative producer. Paused mutation paths mark the sparse cache dirty
+	// so DrawWalls can safely fall back to the upstream full-grid traversal.
 	bool yandexWebWallsMayExist = true;
+	bool yandexWebWallCellsDirty = true;
+	std::vector<int> yandexWebWallCells;
 
 	Parts parts;"""
 if wall_state_anchor not in simulation_h_text:
@@ -1194,6 +1197,7 @@ wall_scan_anchor = """		// decrease wall conduction, make walls block air and am
 		}"""
 wall_scan_patch = """		// decrease wall conduction, make walls block air and ambient heat
 		bool yandexWebWallsPresent = false;
+		yandexWebWallCells.clear();
 		for (int y = 0; y < YCELLS; y++)
 		{
 			for (int x = 0; x < XCELLS; x++)
@@ -1201,12 +1205,16 @@ wall_scan_patch = """		// decrease wall conduction, make walls block air and amb
 				if (emap[y][x])
 					emap[y][x] --;
 				if (bmap[y][x])
+				{
 					yandexWebWallsPresent = true;
+					yandexWebWallCells.push_back(y * XCELLS + x);
+				}
 				air->bmap_blockair[y][x] = (bmap[y][x]==WL_WALL || bmap[y][x]==WL_WALLELEC || bmap[y][x]==WL_BLOCKAIR || (bmap[y][x]==WL_EWALL && !emap[y][x]));
 				air->bmap_blockairh[y][x] = (air->bmap_blockair[y][x] || bmap[y][x]==WL_GRAV) ? 0x8 : 0;
 			}
 		}
-		yandexWebWallsMayExist = yandexWebWallsPresent;"""
+		yandexWebWallsMayExist = yandexWebWallsPresent;
+		yandexWebWallCellsDirty = false;"""
 if wall_scan_anchor not in simulation_text:
     raise SystemExit("Simulation::BeforeSim wall-presence scan anchor missing")
 simulation_text = simulation_text.replace(wall_scan_anchor, wall_scan_patch, 1)
@@ -1219,10 +1227,24 @@ load_wall_patch = """		if (save->blockMap[spos])
 		{
 			bmap[bpos.Y][bpos.X] = save->blockMap[spos];
 			yandexWebWallsMayExist = true;
+			yandexWebWallCellsDirty = true;
 			fvx[bpos.Y][bpos.X] = save->fanVelX[spos];"""
 if load_wall_anchor not in simulation_text:
     raise SystemExit("Simulation::Load wall-presence anchor missing")
 simulation_text = simulation_text.replace(load_wall_anchor, load_wall_patch, 1)
+
+edge_mode_anchor = """void Simulation::SetEdgeMode(int newEdgeMode)
+{
+	edgeMode = newEdgeMode;
+	switch(edgeMode)"""
+edge_mode_patch = """void Simulation::SetEdgeMode(int newEdgeMode)
+{
+	edgeMode = newEdgeMode;
+	yandexWebWallCellsDirty = true;
+	switch(edgeMode)"""
+if edge_mode_anchor not in simulation_text:
+    raise SystemExit("Simulation::SetEdgeMode sparse-cache anchor missing")
+simulation_text = simulation_text.replace(edge_mode_anchor, edge_mode_patch, 1)
 
 solid_edge_anchor = """	case EDGE_SOLID:
 		int i;"""
@@ -1242,6 +1264,8 @@ clear_pmap_anchor = "\tmemset(pmap, 0, sizeof(pmap));\n"
 clear_pmap_patch = (
     "\tmemset(pmap, 0, sizeof(pmap));\n"
     "\tyandexWebWallsMayExist = false;\n"
+    "\tyandexWebWallCells.clear();\n"
+    "\tyandexWebWallCellsDirty = false;\n"
     "\tmemset(pmap_count, 0, sizeof(pmap_count));\n"
     "\tyandexWebCountedCells.clear();\n"
     "\tyandexWebStackingCells.clear();\n"
