@@ -224,6 +224,15 @@ jobs:
 
           echo "Player-facing technical-message audit: OK"
 
+      - name: Check Web hot-path optimizations
+        run: |
+          set -euo pipefail
+          grep -Fn 'bool yandexWebNeedsFlatten = false;' upstream/src/simulation/Simulation.cpp
+          grep -Fn 'if (yandexWebNeedsFlatten)' upstream/src/simulation/Simulation.cpp
+          grep -Fn 'bool yandexWebHasFire = false;' upstream/src/graphics/Renderer.cpp
+          grep -Fn 'if (!yandexWebHasFire)' upstream/src/graphics/Renderer.cpp
+          echo "Profile-driven Web hot-path guards: OK"
+
       - name: Check reachable local UI localization
         run: |
           set -euo pipefail
