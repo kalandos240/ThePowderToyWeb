@@ -160,6 +160,25 @@ jobs:
             exit 1
           fi
 
+          python3 - <<'PY'
+          from pathlib import Path
+
+          text = Path("upstream/src/gui/game/GameController.cpp").read_text(
+              encoding="utf-8"
+          )
+          required = '''void GameController::Install()
+{
+#if defined(__EMSCRIPTEN__)
+	// Yandex Web: desktop OS installation is not applicable in a browser.
+	return;
+#else'''
+          if required not in text:
+              raise SystemExit(
+                  "Browser GameController::Install() is not guarded from desktop dialogs"
+              )
+          print("Browser desktop-install dialog guard: OK")
+          PY
+
           echo "Player-facing technical-message audit: OK"
 
       - name: Check reachable local UI localization
