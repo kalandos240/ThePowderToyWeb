@@ -1,5 +1,6 @@
 let sdk = null;
 let sdkInitPromise = null;
+let sdkScriptPromise = null;
 let readySent = false;
 let loadingReadySent = false;
 let gameplayActive = false;
@@ -12,6 +13,58 @@ let resumeRuntimeCallback = () => {};
 const sdkReadySubscribers = new Set();
 
 const SDK_INIT_TIMEOUT_MS = 8000;
+const SDK_SCRIPT_ID = "yandex-games-sdk";
+
+function loadYandexSDKScript() {
+  if (typeof window.YaGames !== "undefined") {
+    return Promise.resolve(true);
+  }
+
+  if (sdkScriptPromise) {
+    return sdkScriptPromise;
+  }
+
+  sdkScriptPromise = new Promise((resolve) => {
+    let settled = false;
+    const finish = (available) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(Boolean(available));
+    };
+
+    let script = document.getElementById(SDK_SCRIPT_ID);
+    const created = !script;
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = SDK_SCRIPT_ID;
+      script.src = "/sdk.js";
+      script.async = true;
+    }
+
+    script.addEventListener(
+      "load",
+      () => finish(typeof window.YaGames !== "undefined"),
+      { once: true }
+    );
+    script.addEventListener("error", () => finish(false), { once: true });
+
+    // If another integration supplied the script before this module ran,
+    // YaGames may already be available even though its load event is gone.
+    if (typeof window.YaGames !== "undefined") {
+      finish(true);
+      return;
+    }
+
+    if (created) {
+      document.head.appendChild(script);
+    }
+  });
+
+  return sdkScriptPromise;
+}
 
 function sendLoadingReady(currentSDK) {
   if (!currentSDK || !readySent || loadingReadySent) {
@@ -156,19 +209,19 @@ export async function initYandexSDK() {
   }
 
   sdkInitPromise = (async () => {
-    if (typeof window.YaGames === "undefined") {
-      console.info("[Yandex] SDK is unavailable; using local development mode.");
-      return null;
-    }
-
     let timeoutId = null;
-    const rawInitPromise = Promise.resolve().then(() => window.YaGames.init());
+    const rawInitPromise = loadYandexSDKScript().then((available) => {
+      if (!available || typeof window.YaGames === "undefined") {
+        return null;
+      }
+      return window.YaGames.init();
+    });
 
     try {
       const timeoutPromise = new Promise((_, reject) => {
         timeoutId = window.setTimeout(() => {
           const error = new Error(
-            `Yandex SDK initialization timed out after ${SDK_INIT_TIMEOUT_MS} ms`
+            `Yandex SDK loading/initialization timed out after ${SDK_INIT_TIMEOUT_MS} ms`
           );
           error.name = "YandexSDKTimeoutError";
           reject(error);
@@ -176,17 +229,24 @@ export async function initYandexSDK() {
       });
 
       const currentSDK = await Promise.race([rawInitPromise, timeoutPromise]);
+      if (!currentSDK) {
+        console.info("[Yandex] SDK is unavailable; using local development mode.");
+        return null;
+      }
       return adoptSDK(currentSDK);
     } catch (error) {
       if (error?.name === "YandexSDKTimeoutError") {
-        console.warn("[Yandex] SDK initialization timed out; continuing while it finishes.");
+        console.warn(
+          "[Yandex] SDK loading/initialization timed out; continuing while it finishes."
+        );
 
-        // Do not block the game on a slow SDK, but keep the original init
-        // operation alive. If it eventually succeeds, attach it and reconcile
-        // LoadingAPI/GameplayAPI with the already-running game.
+        // The script request and YaGames.init() remain alive after the startup
+        // fallback. If either completes later, adopt the SDK without reloading.
         void rawInitPromise
           .then((currentSDK) => {
-            adoptSDK(currentSDK, true);
+            if (currentSDK) {
+              adoptSDK(currentSDK, true);
+            }
           })
           .catch((lateError) => {
             console.error("[Yandex] Late SDK initialization failed.", lateError);
