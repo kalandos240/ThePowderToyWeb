@@ -245,7 +245,10 @@ export async function initYandexSDK() {
       return adoptSDK(currentSDK);
     } catch (error) {
       if (error?.name === "YandexSDKTimeoutError") {
-        console.warn(
+        // Timeout is an expected startup fallback: the engine continues
+        // immediately and adopts the SDK later if initialization completes.
+        // Keep normal production console clean; expose the detail on demand.
+        debugInfo(
           "[Yandex] SDK loading/initialization timed out; continuing while it finishes."
         );
 
