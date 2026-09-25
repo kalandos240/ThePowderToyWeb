@@ -776,7 +776,9 @@ static int YandexWeb_TestSettingsButtonX = -1;
 static int YandexWeb_TestSettingsButtonY = -1;
 static int YandexWeb_TestOpenButtonX = -1;
 static int YandexWeb_TestOpenButtonY = -1;
+static int YandexWeb_TestServerControlMask = -1;
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestServerControlsVisibleMask() { return YandexWeb_TestServerControlMask; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiWidth() { return YandexWeb_TestUiWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexWeb_TestUiHeight; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonX() { return YandexWeb_TestDustButtonX; }
@@ -805,6 +807,18 @@ ui_geometry_patch = r'''
 #if defined(__EMSCRIPTEN__)
 	YandexWeb_TestUiWidth = Size.X;
 	YandexWeb_TestUiHeight = Size.Y;
+
+	// Bit 0: login, bit 1: upvote, bit 2: downvote, bit 3: tags.
+	// All upstream server/account controls must remain hidden in Yandex Web.
+	YandexWeb_TestServerControlMask = 0;
+	if (loginButton && loginButton->Visible)
+		YandexWeb_TestServerControlMask |= 1;
+	if (upVoteButton && upVoteButton->Visible)
+		YandexWeb_TestServerControlMask |= 2;
+	if (downVoteButton && downVoteButton->Visible)
+		YandexWeb_TestServerControlMask |= 4;
+	if (tagSimulationButton && tagSimulationButton->Visible)
+		YandexWeb_TestServerControlMask |= 8;
 
 	if (saveSimulationButton)
 	{
