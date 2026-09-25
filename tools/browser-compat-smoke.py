@@ -76,10 +76,10 @@ def run_case(browser, browser_name: str, language: str, mobile: bool):
     context_args = {
         "viewport": viewport,
         "device_scale_factor": 3 if mobile else 1,
-        "has_touch": mobile,
-        "is_mobile": mobile,
     }
     if mobile:
+        context_args["has_touch"] = True
+        context_args["is_mobile"] = True
         context_args["user_agent"] = (
             "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 "
