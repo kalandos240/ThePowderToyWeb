@@ -121,6 +121,10 @@ let lastCanvasImageRendering = "";
 let lastCanvasFitGeometry = null;
 let adTimerId = null;
 let adCycleActive = false;
+const coarsePointerMedia =
+  typeof window.matchMedia === "function"
+    ? window.matchMedia("(pointer: coarse)")
+    : null;
 const AD_INTERVAL_MS = 120000;
 const AD_WARNING_SECONDS = 2;
 window.__tptRuntimePaused = false;
@@ -187,7 +191,7 @@ function logEngineStderr(...args) {
 function isTouchEnvironment() {
   return Boolean(
     navigator.maxTouchPoints > 0 ||
-    window.matchMedia?.("(pointer: coarse)")?.matches
+    coarsePointerMedia?.matches
   );
 }
 
