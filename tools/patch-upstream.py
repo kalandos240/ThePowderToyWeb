@@ -102,7 +102,21 @@ meson.write_text(meson_text, encoding="utf-8")
 # smoke/performance diagnostics and does not ship native debug artifacts.
 build_sh_text = upstream_build_sh.read_text(encoding="utf-8")
 buildtype_anchor = """if [[ $BSH_DEBUG_RELEASE == release ]]; then
-	meson_configure+= from the generated
+	meson_configure+=$'\\t'-Dbuildtype=debugoptimized
+fi"""
+buildtype_patch = """if [[ $BSH_DEBUG_RELEASE == release ]]; then
+	if [[ $BSH_HOST_PLATFORM == emscripten ]]; then
+		meson_configure+=$'\\t'-Dbuildtype=release
+	else
+		meson_configure+=$'\\t'-Dbuildtype=debugoptimized
+	fi
+fi"""
+if buildtype_anchor not in build_sh_text:
+    raise SystemExit("upstream build.sh release buildtype anchor missing")
+build_sh_text = build_sh_text.replace(buildtype_anchor, buildtype_patch, 1)
+upstream_build_sh.write_text(build_sh_text, encoding="utf-8")
+
+# Yandex Web/no-HTTP: strip upstream server constants from the generated
 # Config.h/WASM entirely. NOHTTP already disables the transport, but leaving
 # the default powdertoy.co.uk strings embedded in the binary violates the
 # self-contained release policy and makes static network audits ambiguous.
