@@ -502,7 +502,14 @@ function fitCanvas() {
   // keeps text and UI lines substantially cleaner than uneven pixel stepping.
   canvas.style.width = `${displayWidth}px`;
   canvas.style.height = `${displayHeight}px`;
-  canvas.style.imageRendering = integerScale ? "pixelated" : "auto";
+
+  // The native TPT framebuffer is intentionally compact. Yandex desktop
+  // slots can be much wider than it, so browser interpolation makes text and
+  // 1px UI lines visibly soft. Prefer nearest-neighbour output whenever the
+  // framebuffer is being enlarged on either axis; keep normal filtering only
+  // for pure downscaling.
+  const crispUpscale = scaleX > 1.02 || scaleY > 1.02;
+  canvas.style.imageRendering = crispUpscale ? "pixelated" : "auto";
 
   window.__tptCanvasFit = {
     logicalWidth,
@@ -511,7 +518,8 @@ function fitCanvas() {
     displayHeight,
     scaleX,
     scaleY,
-    integerScale
+    integerScale,
+    crispUpscale
   };
 }
 

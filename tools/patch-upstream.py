@@ -18,6 +18,8 @@ engine_h = root / "upstream" / "src" / "gui" / "interface" / "Engine.h"
 window_cpp = root / "upstream" / "src" / "gui" / "interface" / "Window.cpp"
 component_h = root / "upstream" / "src" / "gui" / "interface" / "Component.h"
 button_h = root / "upstream" / "src" / "gui" / "interface" / "Button.h"
+checkbox_cpp = root / "upstream" / "src" / "gui" / "interface" / "Checkbox.cpp"
+drop_down_cpp = root / "upstream" / "src" / "gui" / "interface" / "DropDown.cpp"
 button_cpp = root / "upstream" / "src" / "gui" / "interface" / "Button.cpp"
 context_menu_h = root / "upstream" / "src" / "gui" / "interface" / "ContextMenu.h"
 textbox_cpp = root / "upstream" / "src" / "gui" / "interface" / "Textbox.cpp"
@@ -1010,6 +1012,8 @@ include_locale(local_browser_controller, '#include "Controller.h"\n')
 include_locale(engine_cpp, '#include "Config.h"\n')
 include_locale(button_cpp, '#include "gui/interface/Button.h"\n')
 include_locale(button_h, '#include "common/String.h"\n')
+include_locale(checkbox_cpp, '#include "Checkbox.h"\n')
+include_locale(drop_down_cpp, '#include "DropDown.h"\n')
 include_locale(textbox_cpp, '#include "Textbox.h"\n')
 include_locale(save_button_cpp, '#include "SimulationConfig.h"\n')
 include_locale(label_cpp, '#include "graphics/FontReader.h"\n')
@@ -1071,6 +1075,48 @@ if button_tooltip_anchor not in button_h_text:
     raise SystemExit("Button tooltip localization anchor missing")
 button_h_text = button_h_text.replace(button_tooltip_anchor, button_tooltip_patch, 1)
 button_h.write_text(button_h_text, encoding="utf-8")
+
+checkbox_text = checkbox_cpp.read_text(encoding="utf-8")
+checkbox_ctor_anchor = """Checkbox::Checkbox(ui::Point position, ui::Point size, String text, String toolTip):
+	Component(position, size),
+	text(text),
+	toolTip(toolTip),"""
+checkbox_ctor_patch = """Checkbox::Checkbox(ui::Point position, ui::Point size, String text, String toolTip):
+	Component(position, size),
+	text(YandexWebTranslateUi(text)),
+	toolTip(YandexWebTranslateUi(toolTip)),"""
+if checkbox_ctor_anchor not in checkbox_text:
+    raise SystemExit("Checkbox constructor localization anchor missing")
+checkbox_text = checkbox_text.replace(checkbox_ctor_anchor, checkbox_ctor_patch, 1)
+checkbox_set_anchor = """void Checkbox::SetText(String text)
+{
+	this->text = text;
+}"""
+checkbox_set_patch = """void Checkbox::SetText(String text)
+{
+	this->text = YandexWebTranslateUi(text);
+}"""
+if checkbox_set_anchor not in checkbox_text:
+    raise SystemExit("Checkbox::SetText localization anchor missing")
+checkbox_text = checkbox_text.replace(checkbox_set_anchor, checkbox_set_patch, 1)
+checkbox_cpp.write_text(checkbox_text, encoding="utf-8")
+
+drop_down_text = drop_down_cpp.read_text(encoding="utf-8")
+drop_draw_anchor = """		if(optionIndex!=-1)
+			TextPosition(options[optionIndex].first);"""
+drop_draw_patch = """		if(optionIndex!=-1)
+			TextPosition(YandexWebTranslateUi(options[optionIndex].first));"""
+if drop_draw_anchor not in drop_down_text:
+    raise SystemExit("DropDown text-position localization anchor missing")
+drop_down_text = drop_down_text.replace(drop_draw_anchor, drop_draw_patch, 1)
+drop_blend_anchor = """	if(optionIndex!=-1)
+		g->BlendText(Position + textPosition, options[optionIndex].first, textColour);"""
+drop_blend_patch = """	if(optionIndex!=-1)
+		g->BlendText(Position + textPosition, YandexWebTranslateUi(options[optionIndex].first), textColour);"""
+if drop_blend_anchor not in drop_down_text:
+    raise SystemExit("DropDown draw localization anchor missing")
+drop_down_text = drop_down_text.replace(drop_blend_anchor, drop_blend_patch, 1)
+drop_down_cpp.write_text(drop_down_text, encoding="utf-8")
 
 context_menu_text = context_menu_h.read_text(encoding="utf-8")
 context_item_anchor = "ContextMenuItem(String text, int id, bool enabled) : ID(id), Text(text), Enabled(enabled) {}"
