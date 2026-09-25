@@ -842,6 +842,16 @@ if stacking_member_anchor not in simulation_h_text:
 simulation_h_text = simulation_h_text.replace(
     stacking_member_anchor, stacking_member_patch, 1
 )
+recalc_decl_anchor = "\tvoid RecalcFreeParticles(bool do_life_dec);\n"
+recalc_decl_patch = (
+    "\tvoid RecalcFreeParticles(bool do_life_dec, "
+    "bool rebuildStackingCounts = true);\n"
+)
+if recalc_decl_anchor not in simulation_h_text:
+    raise SystemExit("Simulation.h RecalcFreeParticles declaration anchor missing")
+simulation_h_text = simulation_h_text.replace(
+    recalc_decl_anchor, recalc_decl_patch, 1
+)
 simulation_h.write_text(simulation_h_text, encoding="utf-8")
 
 # Browser performance: avoid a second full particle-array scan when
@@ -852,12 +862,18 @@ recalc_start = """void Simulation::RecalcFreeParticles(bool do_life_dec)
 {
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	memset(pmap, 0, sizeof(pmap));"""
-recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
+recalc_start_patch = """void Simulation::RecalcFreeParticles(
+	bool do_life_dec,
+	bool rebuildStackingCounts
+)
 {
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	bool yandexWebNeedsFlatten = false;
-	yandexWebStackingCandidate = false;
-	yandexWebStackingCells.clear();
+	if (rebuildStackingCounts)
+	{
+		yandexWebStackingCandidate = false;
+		yandexWebStackingCells.clear();
+	}
 	memset(pmap, 0, sizeof(pmap));"""
 if recalc_start not in simulation_text:
     raise SystemExit("RecalcFreeParticles start anchor missing")
@@ -870,16 +886,20 @@ if recalc_pos < 0 or recalc_end < 0:
 segment = simulation_text[recalc_pos:recalc_end]
 
 count_reset_anchor = """\tmemset(pmap_count, 0, sizeof(pmap_count));"""
-count_reset_patch = """\tfor (int cell : yandexWebCountedCells)
-\t\tpmap_count[cell / XRES][cell % XRES] = 0;
-\tyandexWebCountedCells.clear();"""
+count_reset_patch = """	if (rebuildStackingCounts)
+	{
+		for (int cell : yandexWebCountedCells)
+			pmap_count[cell / XRES][cell % XRES] = 0;
+		yandexWebCountedCells.clear();
+	}"""
 if count_reset_anchor not in segment:
     raise SystemExit("RecalcFreeParticles pmap_count memset anchor missing")
 segment = segment.replace(count_reset_anchor, count_reset_patch, 1)
 
 count_anchor = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
 					pmap_count[y][x]++;"""
-count_patch = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
+count_patch = """				if (rebuildStackingCounts &&
+				    t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
 				{
 					auto &cellCount = pmap_count[y][x];
 					if (cellCount == 0)
@@ -1011,6 +1031,46 @@ simulation_text = simulation_text.replace(
     stacking_scan_anchor, stacking_scan_patch, 1
 )
 
+stacking_schedule_anchor = """	if (debug_nextToUpdate == 0)
+		RecalcFreeParticles(willUpdate);
+
+	if (willUpdate)
+	{"""
+stacking_schedule_patch = """	bool yandexWebCheckStacking = false;
+	if (debug_nextToUpdate == 0)
+	{
+		if (willUpdate)
+			yandexWebCheckStacking =
+				force_stacking_check || rng.chance(1, 10);
+		RecalcFreeParticles(willUpdate, yandexWebCheckStacking);
+	}
+
+	if (willUpdate)
+	{"""
+if stacking_schedule_anchor not in simulation_text:
+    raise SystemExit("BeforeSim stacking schedule anchor missing")
+simulation_text = simulation_text.replace(
+    stacking_schedule_anchor, stacking_schedule_patch, 1
+)
+
+stacking_call_anchor = """		// check for stacking and create BHOL if found
+		if (force_stacking_check || rng.chance(1, 10))
+		{
+			CheckStacking();
+		}"""
+stacking_call_patch = """		// Check stacking only on frames that built fresh counts.
+		if (yandexWebCheckStacking ||
+		    (debug_nextToUpdate != 0 &&
+		     (force_stacking_check || rng.chance(1, 10))))
+		{
+			CheckStacking();
+		}"""
+if stacking_call_anchor not in simulation_text:
+    raise SystemExit("BeforeSim CheckStacking call anchor missing")
+simulation_text = simulation_text.replace(
+    stacking_call_anchor, stacking_call_patch, 1
+)
+
 wire_anchor = """		// make WIRE work
 		if(elementCount[PT_WIRE] > 0)
 		{
@@ -1092,6 +1152,14 @@ simulation_cpp.write_text(simulation_text, encoding="utf-8")
 # scenes have no active fire/glow accumulation. Avoid the expensive blur/
 # decay neighbourhood pass when all fire buffers are already zero.
 renderer_text = renderer_cpp.read_text(encoding="utf-8")
+signs_anchor = """	std::vector<sign> signs = sim->signs;
+	for (auto &currentSign : signs)"""
+signs_patch = """	const auto &signs = sim->signs;
+	for (const auto &currentSign : signs)"""
+if signs_anchor not in renderer_text:
+    raise SystemExit("Renderer::DrawSigns copy anchor missing")
+renderer_text = renderer_text.replace(signs_anchor, signs_patch, 1)
+
 fire_anchor = """void Renderer::render_fire()
 {
 	if(!(renderMode & FIREMODE))
