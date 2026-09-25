@@ -248,9 +248,13 @@ jobs:
           grep -Fn 'bool yandexWebNeedsFlatten = false;' "$SIM"
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
           grep -Fn 'bool yandexWebStackingCandidate = false;' "$SIM_H"
+          grep -Fn 'std::vector<int> yandexWebStackingCells;' "$SIM_H"
           grep -Fn 'yandexWebStackingCandidate = false;' "$SIM"
-          grep -Fn 'if (cellCount > 5)' "$SIM"
+          grep -Fn 'yandexWebStackingCells.clear();' "$SIM"
+          grep -Fn 'if (cellCount == 6)' "$SIM"
+          grep -Fn 'yandexWebStackingCells.push_back(y * XRES + x);' "$SIM"
           grep -Fn 'if (!yandexWebStackingCandidate)' "$SIM"
+          grep -Fn 'std::sort(yandexWebStackingCells.begin(), yandexWebStackingCells.end());' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; ++i)' "$SIM"
           grep -Fn 'ID(r) == i' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
@@ -270,8 +274,10 @@ jobs:
           required_recalc = (
               "bool yandexWebNeedsFlatten = false;",
               "yandexWebStackingCandidate = false;",
-              "if (cellCount > 5)",
+              "yandexWebStackingCells.clear();",
+              "if (cellCount == 6)",
               "yandexWebStackingCandidate = true;",
+              "yandexWebStackingCells.push_back(y * XRES + x);",
           )
           if recalc_start < 0 or recalc_end < 0:
               raise SystemExit("RecalcFreeParticles bounds missing")
@@ -288,6 +294,12 @@ jobs:
           stacking = text[stacking_start:stacking_end]
           if "if (!yandexWebStackingCandidate)" not in stacking:
               raise SystemExit("CheckStacking candidate early-out missing")
+          if "std::sort(yandexWebStackingCells.begin(), yandexWebStackingCells.end());" not in stacking:
+              raise SystemExit("CheckStacking row-major candidate ordering missing")
+          if "for (int y = 0; y < YRES; y++)" in stacking:
+              raise SystemExit("CheckStacking still scans the complete simulation grid")
+          if "for (int cell : yandexWebStackingCells)" not in stacking:
+              raise SystemExit("CheckStacking sparse candidate scan missing")
 
           before_start = text.find("void Simulation::BeforeSim(bool willUpdate)")
           before_end = text.find("\nvoid Simulation::AfterSim()", before_start)
