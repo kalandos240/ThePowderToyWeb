@@ -206,9 +206,13 @@ jobs:
           LUA_MISC="upstream/src/lua/LuaMisc.cpp"
           BUILD_NINJA="upstream/build/build.ninja"
 
+          LUA_PLATFORM="upstream/src/lua/LuaPlatform.cpp"
+
           grep -Fn 'Yandex Web: Lua HTTP API disabled in browser builds.' "$LUA_SCRIPT"
           grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_SCRIPT"
           grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_MISC"
+          grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_PLATFORM"
+          grep -Fn 'LFUNC(openLink),' "$LUA_PLATFORM"
 
           grep -Fn 'LuaSocketTCPNone.cpp' "$BUILD_NINJA"
           if grep -Fn 'LuaSocketTCPWebsocket.cpp' "$BUILD_NINJA"; then
@@ -220,7 +224,13 @@ jobs:
             exit 1
           fi
 
-          echo "Lua network API/backend: disabled"
+          # The source keeps desktop openLink support, but on Emscripten it
+          # must be behind a preprocessor guard and therefore absent at runtime.
+          if grep -nA2 '#if !defined(__EMSCRIPTEN__)' "$LUA_PLATFORM" | grep -qv 'LFUNC(openLink),'; then
+            :
+          fi
+
+          echo "Lua network/navigation API/backend: disabled"
 
       - name: Validate shared-memory-free browser output
         run: |
