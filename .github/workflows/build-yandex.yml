@@ -844,6 +844,9 @@ jobs:
               if (sdkMode === "hang") {
                 return new Promise(() => {});
               }
+              if (sdkMode === "brief-delay") {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+              }
               if (sdkMode === "delay") {
                 await new Promise((resolve) => setTimeout(resolve, 11000));
               }
