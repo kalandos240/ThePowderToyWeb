@@ -149,9 +149,6 @@ jobs:
           cp src/main.js src/yandex.js dist/src/
           cp upstream/build/powder.js dist/game/
           cp upstream/build/powder.wasm dist/game/
-          if [ -f upstream/build/powder.wasm.map ]; then
-            cp upstream/build/powder.wasm.map dist/game/
-          fi
           cp upstream/LICENSE dist/LICENSE
           cp SOURCE.md dist/SOURCE.md
 
@@ -164,16 +161,35 @@ jobs:
           from pathlib import Path
 
           bad = []
+          unexpected_files = []
+          allowed_files = {
+              "index.html",
+              "styles.css",
+              "LICENSE",
+              "SOURCE.md",
+              "src/main.js",
+              "src/yandex.js",
+              "game/powder.js",
+              "game/powder.wasm",
+          }
           for path in Path("dist").rglob("*"):
               rel = path.relative_to("dist").as_posix()
               if any(ch.isspace() or ord(ch) > 0x7F for ch in rel):
                   bad.append(rel)
+              if path.is_file() and rel not in allowed_files:
+                  unexpected_files.append(rel)
 
           if bad:
               raise SystemExit(
                   "Yandex archive contains invalid path names: " + ", ".join(bad)
               )
+          if unexpected_files:
+              raise SystemExit(
+                  "Yandex archive contains unexpected release files: "
+                  + ", ".join(unexpected_files)
+              )
           print("Yandex archive path names: ASCII/no-whitespace OK")
+          print("Yandex archive release-file whitelist: OK")
           PY
 
           ROOT_INDEX_COUNT="$(find dist -maxdepth 1 -type f -name 'index.html' | wc -l)"
