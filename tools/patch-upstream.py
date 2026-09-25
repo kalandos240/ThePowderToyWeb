@@ -3931,6 +3931,20 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestWallRenderHint()
 	return YandexWeb_TestGameModel->GetSimulation()->yandexWebWallsMayExist ? 1 : 0;
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestWallCacheDirty()
+{
+	if (!YandexWeb_TestGameModel)
+		return -1;
+	return YandexWeb_TestGameModel->GetSimulation()->yandexWebWallCellsDirty ? 1 : 0;
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestWallCacheSize()
+{
+	if (!YandexWeb_TestGameModel)
+		return -1;
+	return int(YandexWeb_TestGameModel->GetSimulation()->yandexWebWallCells.size());
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void YandexWeb_TestCreateWallForRenderHint()
 {
 	if (!YandexWeb_TestGameModel)
