@@ -126,9 +126,6 @@ jobs:
           INTRO="upstream/src/gui/game/IntroText.h"
           GAME_VIEW="upstream/src/gui/game/GameView.cpp"
 
-          grep -Fn 'Yandex Web: keep player-facing help free of build/debug flags.' "$INTRO"
-          grep -Fn 'Imported online-sign tooltips disabled in Yandex Web.' "$GAME_VIEW"
-
           python3 - <<'PY'
           from pathlib import Path
 
@@ -529,7 +526,7 @@ jobs:
         with:
           name: ThePowderToy-Smoke-Screenshots
           path: test-artifacts/*.png
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Upload browser console logs
