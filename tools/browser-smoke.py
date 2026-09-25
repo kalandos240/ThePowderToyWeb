@@ -445,6 +445,24 @@ def smoke_case(language: str, mobile: bool):
         assert state["sdkScriptAsync"] is True, (label, state)
         assert state["sdkScriptPath"] == "/sdk.js", (label, state)
 
+        lua_network_mask = int(
+            driver.execute_script(
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestLuaNetworkApiMask',
+                    'number',
+                    [],
+                    []
+                );
+                """
+            )
+        )
+        assert lua_network_mask == 0, (
+            label,
+            "network/navigation Lua API survived in runtime",
+            lua_network_mask,
+        )
+
         if not mobile and language == "en":
             locale_aliases = driver.execute_async_script(
                 """
