@@ -887,16 +887,52 @@ game_replacements = [
      'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area to copy (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для копирования (правый клик - отмена)");'),
     ('buttonTip = "\\x0F\\xEF\\xEF\\020Click-and-drag to specify an area to copy then cut (right click = cancel)";',
      'buttonTip = YandexWebText("\\x0F\\xEF\\xEF\\020Drag to select an area to cut (right click = cancel)", "\\x0F\\xEF\\xEF\\020Выделите область для вырезания (правый клик - отмена)");'),
-    ('tooltip << "Go to save ID:" << str.Substr(3, si.first - 3);',
-     'tooltip << YandexWebText("Online save links are unavailable in this build", "Онлайн-сохранения недоступны в этой версии");'),
-    ('tooltip << "Open forum thread " << str.Substr(3, si.first - 3) << " in browser";',
-     'tooltip << YandexWebText("Forum links are unavailable in this build", "Ссылки на форум недоступны в этой версии");'),
-    ('tooltip << "Search for " << str.Substr(3, si.first - 3);',
-     'tooltip << YandexWebText("Online search is unavailable in this build", "Онлайн-поиск недоступен в этой версии");'),
 ]
 for old, new in game_replacements:
     if old in game_view_text:
         game_view_text = game_view_text.replace(old, new)
+
+# Imported upstream saves may contain special online Save/Thread/Search signs.
+# In the Yandex build those actions are inert, so do not surface technical
+# "unavailable" messages or suggest browser/server functionality to players.
+external_sign_tooltip_anchor = '''		StringBuilder tooltip;
+		switch (si.second)
+		{
+		case sign::Type::Save:
+			tooltip << "Go to save ID:" << str.Substr(3, si.first - 3);
+			break;
+		case sign::Type::Thread:
+			tooltip << "Open forum thread " << str.Substr(3, si.first - 3) << " in browser";
+			break;
+		case sign::Type::Search:
+			tooltip << "Search for " << str.Substr(3, si.first - 3);
+			break;
+		default: break;
+		}'''
+external_sign_tooltip_patch = '''		StringBuilder tooltip;
+#if !defined(__EMSCRIPTEN__)
+		switch (si.second)
+		{
+		case sign::Type::Save:
+			tooltip << "Go to save ID:" << str.Substr(3, si.first - 3);
+			break;
+		case sign::Type::Thread:
+			tooltip << "Open forum thread " << str.Substr(3, si.first - 3) << " in browser";
+			break;
+		case sign::Type::Search:
+			tooltip << "Search for " << str.Substr(3, si.first - 3);
+			break;
+		default: break;
+		}
+#endif'''
+if "Imported online-sign tooltips disabled in Yandex Web" not in game_view_text:
+    if external_sign_tooltip_anchor not in game_view_text:
+        raise SystemExit("GameView.cpp external sign tooltip anchor missing")
+    game_view_text = game_view_text.replace(
+        external_sign_tooltip_anchor,
+        "// Imported online-sign tooltips disabled in Yandex Web.\n" + external_sign_tooltip_patch,
+        1,
+    )
 
 hud_replacements = [
     ('sampleInfo << "Molten " <<', 'sampleInfo << YandexWebText("Molten ", "Расплав: ") <<'),
@@ -1788,7 +1824,7 @@ intro_source = intro_source[:intro_start] + r'''inline ByteString IntroText()
 		      "Saves are stored locally in the browser.\\n"
 		      "\\n";
 	}
-	sb << "\\bt" << VersionInfo();
+	// Yandex Web: keep player-facing help free of build/debug flags.
 	return sb.Build();
 }
 '''

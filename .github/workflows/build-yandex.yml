@@ -116,6 +116,52 @@ jobs:
 
           echo "Browser external-navigation sink: disabled"
 
+      - name: Check player-facing UI has no build diagnostics
+        run: |
+          set -euo pipefail
+          INTRO="upstream/src/gui/game/IntroText.h"
+          GAME_VIEW="upstream/src/gui/game/GameView.cpp"
+
+          grep -Fn 'Yandex Web: keep player-facing help free of build/debug flags.' "$INTRO"
+          grep -Fn 'Imported online-sign tooltips disabled in Yandex Web.' "$GAME_VIEW"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          intro_text = Path("upstream/src/gui/game/IntroText.h").read_text(
+              encoding="utf-8"
+          )
+          marker = "inline ByteString IntroText()"
+          if marker not in intro_text:
+              raise SystemExit("IntroText() missing after Yandex patch")
+
+          player_intro = intro_text.split(marker, 1)[1]
+          forbidden = (
+              "VersionInfo()",
+              "NOHTTP",
+              "USE_UPDATESERVER",
+              "starcatcher",
+              "tptserv",
+              "powdertoy.co.uk",
+              "irc.libera.chat",
+              "tpt.io/discord",
+          )
+          found = [value for value in forbidden if value in player_intro]
+          if found:
+              raise SystemExit(
+                  "Technical/network marker remains in player-facing IntroText: "
+                  + ", ".join(found)
+              )
+          print("Player-facing IntroText diagnostics: clean")
+          PY
+
+          if grep -EIn 'unavailable in this build|недоступн.{0,20}верс' "$GAME_VIEW"; then
+            echo "Technical unavailable-build wording remains in player-facing GameView."
+            exit 1
+          fi
+
+          echo "Player-facing technical-message audit: OK"
+
       - name: Check reachable local UI localization
         run: |
           set -euo pipefail
