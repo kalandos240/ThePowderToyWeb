@@ -3,6 +3,7 @@ import json
 import os
 import statistics
 import time
+from urllib.parse import urlsplit
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -15,6 +16,70 @@ from selenium.webdriver.support.ui import WebDriverWait
 BASE_URL = os.environ.get("TPT_SMOKE_URL", "http://127.0.0.1:8765")
 ARTIFACT_DIR = os.environ.get("TPT_SMOKE_ARTIFACT_DIR", "test-artifacts")
 os.makedirs(ARTIFACT_DIR, exist_ok=True)
+
+
+def assert_no_external_network(driver, label):
+    base = urlsplit(BASE_URL)
+    base_host = (base.hostname or "").lower()
+    base_port = base.port
+
+    seen = []
+    external = []
+
+    for entry in driver.get_log("performance"):
+        try:
+            message = json.loads(entry["message"])["message"]
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+
+        method = message.get("method")
+        params = message.get("params") or {}
+        url = None
+        kind = method
+
+        if method == "Network.requestWillBeSent":
+            url = (params.get("request") or {}).get("url")
+        elif method == "Network.webSocketCreated":
+            url = params.get("url")
+        elif method == "Network.webTransportCreated":
+            url = params.get("url")
+
+        if not url:
+            continue
+
+        try:
+            parsed = urlsplit(url)
+        except ValueError:
+            continue
+
+        scheme = parsed.scheme.lower()
+        if scheme not in {"http", "https", "ws", "wss"}:
+            continue
+
+        record = {"kind": kind, "url": url}
+        seen.append(record)
+
+        host = (parsed.hostname or "").lower()
+        port = parsed.port
+        if host != base_host or port != base_port:
+            external.append(record)
+
+    report_path = os.path.join(ARTIFACT_DIR, f"{label}-network.json")
+    with open(report_path, "w", encoding="utf-8") as handle:
+        json.dump(
+            {"base_url": BASE_URL, "events": seen, "external": external},
+            handle,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    assert not external, (
+        label,
+        "external HTTP/WebSocket/WebTransport traffic detected",
+        external,
+    )
+
+    return seen
 
 
 def measure_animation_frames(driver, sample_count=90):
@@ -118,7 +183,10 @@ def make_driver(mobile: bool, browser_language: str | None = None):
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1365,768")
-    options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+    options.set_capability(
+        "goog:loggingPrefs",
+        {"browser": "ALL", "performance": "ALL"},
+    )
     if browser_language:
         options.add_argument(f"--lang={browser_language}")
         options.add_experimental_option(
@@ -2616,6 +2684,8 @@ def smoke_case(language: str, mobile: bool):
             assert settings_closed_state["blocked"] is False, (label, settings_closed_state)
             assert settings_closed_state["gameplay"] is True, (label, settings_closed_state)
 
+        network_events = assert_no_external_network(driver, label)
+
         browser_logs = driver.get_log("browser")
         browser_log_path = os.path.join(
             ARTIFACT_DIR, f"{label}-browser-console.json"
@@ -2658,7 +2728,8 @@ def smoke_case(language: str, mobile: bool):
 
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
-            f"paused={paused}; resumed={resumed}; performance={performance}"
+            f"paused={paused}; resumed={resumed}; performance={performance}; "
+            f"network_events={len(network_events)}"
         )
     finally:
         driver.quit()
