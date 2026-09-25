@@ -874,6 +874,22 @@ recalc_start_patch = """void Simulation::RecalcFreeParticles(
 		yandexWebStackingCandidate = false;
 		yandexWebStackingCells.clear();
 	}
+
+	// After clear_sim(), or after the previous RecalcFreeParticles flattened
+	// away the last dead slots, all three occupancy maps are already empty.
+	// Avoid clearing several large grids every frame while an empty scene is
+	// idle (common during startup and before the player begins drawing).
+	if (parts.active == 0)
+	{
+		NUM_PARTS = 0;
+		if (elementRecount)
+		{
+			std::fill(elementCount, elementCount + PT_NUM, 0);
+			elementRecount = false;
+		}
+		return;
+	}
+
 	memset(pmap, 0, sizeof(pmap));"""
 if recalc_start not in simulation_text:
     raise SystemExit("RecalcFreeParticles start anchor missing")
