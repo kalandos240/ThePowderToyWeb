@@ -1244,6 +1244,67 @@ def smoke_case(language: str, mobile: bool):
                 )
             )
 
+            # A gameplay blocker that appears during the warning countdown
+            # must cancel the pending ad rather than opening it over a modal.
+            driver.execute_script("void window.__tptTriggerAdForTest()")
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptAdWarningActive === true"
+                )
+            )
+            driver.execute_script(
+                "window.__tptNativeModalBridge.setBlocked(true, 1)"
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    return (
+                        window.__tptAdCycleActive === false &&
+                        window.__tptAdWarningActive === false &&
+                        window.__tptNativeModalBlocked === true &&
+                        window.__tptRuntimePaused === true &&
+                        window.__yandexGameplayStarted === false
+                    );
+                    """
+                )
+            )
+            cancelled_ad_state = driver.execute_script(
+                """
+                return {
+                    opens: window.__yandexAdOpenCount,
+                    closes: window.__yandexAdCloseCount,
+                    attempts: window.__tptAdAttemptCount,
+                    blocked: window.__tptNativeModalBlocked,
+                    paused: window.__tptRuntimePaused,
+                    gameplay: window.__yandexGameplayStarted,
+                };
+                """
+            )
+            assert cancelled_ad_state["opens"] == 1, (
+                label,
+                "ad opened despite blocker arriving during countdown",
+                cancelled_ad_state,
+            )
+            assert cancelled_ad_state["closes"] == 1, (
+                label,
+                cancelled_ad_state,
+            )
+            assert cancelled_ad_state["attempts"] == 2, (
+                label,
+                cancelled_ad_state,
+            )
+
+            driver.execute_script(
+                "window.__tptNativeModalBridge.setBlocked(false, 0)"
+            )
+            wait.until(
+                lambda d: d.execute_script(
+                    "return window.__tptNativeModalBlocked === false && "
+                    "window.__tptRuntimePaused === false && "
+                    "window.__yandexGameplayStarted === true"
+                )
+            )
+
         if not mobile:
             # Prove desktop mouse input can select a real UI element and draw.
             driver.execute_script(
