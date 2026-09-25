@@ -42,6 +42,18 @@ jobs:
           python3 -m pip install --user --upgrade meson ninja selenium
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Check non-blocking Yandex SDK loader
+        run: |
+          set -euo pipefail
+          if grep -Fn '<script src="/sdk.js"></script>' index.html; then
+            echo "Blocking Yandex SDK script tag returned."
+            exit 1
+          fi
+          grep -Fn 'script.src = "/sdk.js";' src/yandex.js
+          grep -Fn 'script.async = true;' src/yandex.js
+          grep -Fn 'loadYandexSDKScript().then' src/yandex.js
+          echo "Yandex SDK async loader audit: OK"
+
       - name: Check Russian font coverage
         run: |
           python3 tools/check-font.py
