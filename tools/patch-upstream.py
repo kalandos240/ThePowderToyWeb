@@ -1883,6 +1883,7 @@ static int YandexWeb_TestDustButtonY = -1;
 static int YandexWeb_TestDustButtonRussian = -1;
 static int YandexWeb_TestDustButtonTextWidth = -1;
 static int YandexWeb_TestDustButtonWidth = -1;
+static int YandexWeb_TestMaxToolButtonOverflow = -1;
 static int YandexWeb_TestSaveButtonX = -1;
 static int YandexWeb_TestSaveButtonY = -1;
 static int YandexWeb_TestSettingsButtonX = -1;
@@ -1905,6 +1906,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonY() { return Yand
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonIsRussian() { return YandexWeb_TestDustButtonRussian; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonTextWidth() { return YandexWeb_TestDustButtonTextWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonWidth() { return YandexWeb_TestDustButtonWidth; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestMaxToolButtonOverflow() { return YandexWeb_TestMaxToolButtonOverflow; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonX() { return YandexWeb_TestSaveButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonY() { return YandexWeb_TestSaveButtonY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonX() { return YandexWeb_TestSettingsButtonX; }
@@ -1972,6 +1974,18 @@ ui_geometry_patch = r'''
 	YandexWeb_TestDustButtonRussian = -1;
 	YandexWeb_TestDustButtonTextWidth = -1;
 	YandexWeb_TestDustButtonWidth = -1;
+	YandexWeb_TestMaxToolButtonOverflow = -1;
+	for (auto *button : toolButtons)
+	{
+		if (!button)
+			continue;
+		int captionWidth =
+			Graphics::TextSize(button->YandexWebDisplayTextForTest()).X;
+		int contentWidth = button->Size.X > 4 ? button->Size.X - 4 : 0;
+		int overflow = captionWidth - contentWidth;
+		if (overflow > YandexWeb_TestMaxToolButtonOverflow)
+			YandexWeb_TestMaxToolButtonOverflow = overflow;
+	}
 	for (auto *button : toolButtons)
 	{
 		if (button && button->tool && button->tool->Identifier == "DEFAULT_PT_DUST")
