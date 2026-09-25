@@ -86,14 +86,18 @@ jobs:
           fi
           echo "TPT browser timing override audit: OK"
 
-      - name: Check Yandex UI has no external community links
+      - name: Check Yandex UI has no external links
         run: |
           set -euo pipefail
-          if grep -RInE 'powdertoy\.co\.uk|tpt\.io/discord|irc\.libera\.chat|github\.com/The-Powder-Toy' upstream/src/gui; then
-            echo "External community link remains in Yandex UI."
+          if grep -RInE 'https?://' upstream/src/gui; then
+            echo "Absolute external URL remains in player-facing Yandex GUI source."
             exit 1
           fi
-          echo "Yandex UI external-link audit: OK"
+          if grep -RInE 'powdertoy\.co\.uk|tpt\.io|irc\.libera\.chat|github\.com/The-Powder-Toy|starcatcher\.us' upstream/src/gui; then
+            echo "External service marker remains in player-facing Yandex GUI source."
+            exit 1
+          fi
+          echo "Yandex GUI absolute external-link audit: OK"
 
       - name: Check browser external navigation is disabled
         run: |
