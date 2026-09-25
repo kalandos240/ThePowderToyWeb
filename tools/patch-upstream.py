@@ -34,6 +34,7 @@ simulation_cpp = root / "upstream" / "src" / "simulation" / "Simulation.cpp"
 simulation_h = root / "upstream" / "src" / "simulation" / "Simulation.h"
 air_cpp = root / "upstream" / "src" / "simulation" / "Air.cpp"
 renderer_cpp = root / "upstream" / "src" / "graphics" / "Renderer.cpp"
+renderer_h = root / "upstream" / "src" / "graphics" / "Renderer.h"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
@@ -1264,6 +1265,19 @@ air_cpp.write_text(air_text, encoding="utf-8")
 # Browser performance: FIREMODE is part of the default renderer, but most
 # scenes have no active fire/glow accumulation. Avoid the expensive blur/
 # decay neighbourhood pass when all fire buffers are already zero.
+renderer_h_text = renderer_h.read_text(encoding="utf-8")
+fire_state_anchor = """	unsigned char fire_b[YCELLS][XCELLS];
+	unsigned int fire_alpha[CELL*3][CELL*3];"""
+fire_state_patch = """	unsigned char fire_b[YCELLS][XCELLS];
+	unsigned int fire_alpha[CELL*3][CELL*3];
+	bool yandexWebFireActive = false;"""
+if fire_state_anchor not in renderer_h_text:
+    raise SystemExit("Renderer.h fire accumulation state anchor missing")
+renderer_h_text = renderer_h_text.replace(
+    fire_state_anchor, fire_state_patch, 1
+)
+renderer_h.write_text(renderer_h_text, encoding="utf-8")
+
 renderer_text = renderer_cpp.read_text(encoding="utf-8")
 signs_anchor = """	std::vector<sign> signs = sim->signs;
 	for (auto &currentSign : signs)"""
@@ -1273,6 +1287,70 @@ if signs_anchor not in renderer_text:
     raise SystemExit("Renderer::DrawSigns copy anchor missing")
 renderer_text = renderer_text.replace(signs_anchor, signs_patch, 1)
 
+fire_blend_anchor = """					fire_b[ny/CELL][nx/CELL] = (firea*fireb + (255-firea)*fire_b[ny/CELL][nx/CELL]) >> 8;
+				}
+				if(firea && (pixel_mode & FIRE_ADD))"""
+fire_blend_patch = """					fire_b[ny/CELL][nx/CELL] = (firea*fireb + (255-firea)*fire_b[ny/CELL][nx/CELL]) >> 8;
+					yandexWebFireActive = true;
+				}
+				if(firea && (pixel_mode & FIRE_ADD))"""
+if fire_blend_anchor not in renderer_text:
+    raise SystemExit("Renderer FIRE_BLEND active-state anchor missing")
+renderer_text = renderer_text.replace(
+    fire_blend_anchor, fire_blend_patch, 1
+)
+
+fire_add_anchor = """					fire_r[ny/CELL][nx/CELL] = firer;
+					fire_g[ny/CELL][nx/CELL] = fireg;
+					fire_b[ny/CELL][nx/CELL] = fireb;
+				}
+				if(firea && (pixel_mode & FIRE_SPARK))"""
+fire_add_patch = """					fire_r[ny/CELL][nx/CELL] = firer;
+					fire_g[ny/CELL][nx/CELL] = fireg;
+					fire_b[ny/CELL][nx/CELL] = fireb;
+					yandexWebFireActive = true;
+				}
+				if(firea && (pixel_mode & FIRE_SPARK))"""
+if fire_add_anchor not in renderer_text:
+    raise SystemExit("Renderer FIRE_ADD active-state anchor missing")
+renderer_text = renderer_text.replace(
+    fire_add_anchor, fire_add_patch, 1
+)
+
+fire_spark_anchor = """					fire_b[ny/CELL][nx/CELL] = (firea*fireb + (255-firea)*fire_b[ny/CELL][nx/CELL]) >> 8;
+				}
+			}
+		}"""
+fire_spark_patch = """					fire_b[ny/CELL][nx/CELL] = (firea*fireb + (255-firea)*fire_b[ny/CELL][nx/CELL]) >> 8;
+					yandexWebFireActive = true;
+				}
+			}
+		}"""
+if fire_spark_anchor not in renderer_text:
+    raise SystemExit("Renderer FIRE_SPARK active-state anchor missing")
+renderer_text = renderer_text.replace(
+    fire_spark_anchor, fire_spark_patch, 1
+)
+
+wall_glow_anchor = """					fire_r[y][x] = cr;
+					fire_g[y][x] = cg;
+					fire_b[y][x] = cb;
+				}
+			}
+}"""
+wall_glow_patch = """					fire_r[y][x] = cr;
+					fire_g[y][x] = cg;
+					fire_b[y][x] = cb;
+					yandexWebFireActive = true;
+				}
+			}
+}"""
+if wall_glow_anchor not in renderer_text:
+    raise SystemExit("Renderer powered-wall fire state anchor missing")
+renderer_text = renderer_text.replace(
+    wall_glow_anchor, wall_glow_patch, 1
+)
+
 fire_anchor = """void Renderer::render_fire()
 {
 	if(!(renderMode & FIREMODE))
@@ -1280,24 +1358,45 @@ fire_anchor = """void Renderer::render_fire()
 	int i,j,x,y,r,g,b,a;"""
 fire_patch = """void Renderer::render_fire()
 {
-	if(!(renderMode & FIREMODE))
+	if(!(renderMode & FIREMODE) || !yandexWebFireActive)
 		return;
 
-	bool yandexWebHasFire = false;
-	for (int j = 0; j < YCELLS && !yandexWebHasFire; ++j)
-		for (int i = 0; i < XCELLS; ++i)
-			if (fire_r[j][i] || fire_g[j][i] || fire_b[j][i])
-			{
-				yandexWebHasFire = true;
-				break;
-			}
-	if (!yandexWebHasFire)
-		return;
-
+	bool yandexWebNextFireActive = false;
 	int i,j,x,y,r,g,b,a;"""
 if fire_anchor not in renderer_text:
     raise SystemExit("Renderer::render_fire fast-path anchor missing")
 renderer_text = renderer_text.replace(fire_anchor, fire_patch, 1)
+
+fire_decay_anchor = """			fire_r[j][i] = r>4 ? r-4 : 0;
+			fire_g[j][i] = g>4 ? g-4 : 0;
+			fire_b[j][i] = b>4 ? b-4 : 0;
+		}
+}"""
+fire_decay_patch = """			fire_r[j][i] = r>4 ? r-4 : 0;
+			fire_g[j][i] = g>4 ? g-4 : 0;
+			fire_b[j][i] = b>4 ? b-4 : 0;
+			if (fire_r[j][i] || fire_g[j][i] || fire_b[j][i])
+				yandexWebNextFireActive = true;
+		}
+	yandexWebFireActive = yandexWebNextFireActive;
+}"""
+if fire_decay_anchor not in renderer_text:
+    raise SystemExit("Renderer::render_fire decay-state anchor missing")
+renderer_text = renderer_text.replace(
+    fire_decay_anchor, fire_decay_patch, 1
+)
+
+clear_accum_anchor = """	std::fill(&fire_b[0][0], &fire_b[0][0] + NCELL, 0);
+	std::fill(persistentVideo.begin(), persistentVideo.end(), 0);"""
+clear_accum_patch = """	std::fill(&fire_b[0][0], &fire_b[0][0] + NCELL, 0);
+	yandexWebFireActive = false;
+	std::fill(persistentVideo.begin(), persistentVideo.end(), 0);"""
+if clear_accum_anchor not in renderer_text:
+    raise SystemExit("Renderer::ClearAccumulation fire-state anchor missing")
+renderer_text = renderer_text.replace(
+    clear_accum_anchor, clear_accum_patch, 1
+)
+
 renderer_cpp.write_text(renderer_text, encoding="utf-8")
 
 
