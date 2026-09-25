@@ -268,6 +268,9 @@ def record_startup_metric(driver, label):
             - float(timing["engineFactoryStartMs"]),
             3,
         ),
+        "sdk_available_at_engine_start": bool(
+            timing.get("sdkAvailableAtEngineStart", False)
+        ),
     }
 
     # This is a catastrophic-regression guard, not a target for real devices.
@@ -3247,8 +3250,10 @@ def smoke_sdk_late_recovery():
         driver.get(f"{BASE_URL}/?lang=ru&device=desktop&sdk=delay")
         wait = WebDriverWait(driver, 20)
 
-        # The native game must become presentable from the 8-second fallback
-        # before the deliberately delayed SDK resolves at 11 seconds.
+        # The native engine must compile independently of the SDK. The
+        # deliberately delayed YaGames.init() resolves at 11 seconds, while
+        # the SDK timeout itself is 8 seconds; engine startup must not wait for
+        # either one.
         wait.until(
             lambda d: d.execute_script(
                 """
@@ -3280,6 +3285,9 @@ def smoke_sdk_late_recovery():
                 lockedLanguage: window.__tptLanguageLocked,
                 sdkMobilePlatform: window.__tptSdkMobilePlatform,
                 htmlLanguage: document.documentElement.lang,
+                startupTiming: window.__tptStartupTiming
+                    ? {...window.__tptStartupTiming}
+                    : null,
             };
             """
         )
@@ -3296,6 +3304,17 @@ def smoke_sdk_late_recovery():
         assert fallback_state["lockedLanguage"] == "ru", (label, fallback_state)
         assert fallback_state["sdkMobilePlatform"] is None, (label, fallback_state)
         assert fallback_state["htmlLanguage"] == "ru", (label, fallback_state)
+        assert fallback_state["startupTiming"], (label, fallback_state)
+        assert fallback_state["startupTiming"]["sdkAvailableAtEngineStart"] is False, (
+            label,
+            "delayed SDK remained on the engine startup critical path",
+            fallback_state,
+        )
+        assert fallback_state["startupTiming"]["engineFactoryStartMs"] < 8000.0, (
+            label,
+            "engine factory did not start before the SDK timeout",
+            fallback_state,
+        )
         assert driver.execute_script(
             "return window.__yandexLoadingReady === false"
         ) is True, (
