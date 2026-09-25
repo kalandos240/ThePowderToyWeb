@@ -1190,6 +1190,9 @@ air_update_patch = """void Air::update_air(void)
 	auto &fvy = sim.fvy;
 	auto &bmap = sim.bmap;
 
+	if (airMode == AIR_NOUPDATE)
+		return;
+
 	// Yandex Web: with no particles, zero boundary targets, zero air state and
 	// no active fan velocity, every operation below produces zero again.
 	if (sim.parts.active == 0 &&
