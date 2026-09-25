@@ -1274,6 +1274,60 @@ simulation_text = (
 
 simulation_cpp.write_text(simulation_text, encoding="utf-8")
 
+editing_text = editing_cpp.read_text(encoding="utf-8")
+restore_wall_anchor = """	std::copy(snap.BlockMap       .begin(), snap.BlockMap       .end(), &bmap[0][0]      );
+	std::copy(snap.ElecMap"""
+restore_wall_patch = """	std::copy(snap.BlockMap       .begin(), snap.BlockMap       .end(), &bmap[0][0]      );
+	yandexWebWallsMayExist = true;
+	std::copy(snap.ElecMap"""
+if restore_wall_anchor not in editing_text:
+    raise SystemExit("Simulation::Restore wall-presence anchor missing")
+editing_text = editing_text.replace(restore_wall_anchor, restore_wall_patch, 1)
+
+create_wall_anchor = """				else
+					bmap[wallY][wallX] = wall;
+			}
+		}
+	}
+	return 1;"""
+create_wall_patch = """				else
+					bmap[wallY][wallX] = wall;
+				if (bmap[wallY][wallX])
+					yandexWebWallsMayExist = true;
+			}
+		}
+	}
+	return 1;"""
+if create_wall_anchor not in editing_text:
+    raise SystemExit("Simulation::CreateWalls wall-presence anchor missing")
+editing_text = editing_text.replace(create_wall_anchor, create_wall_patch, 1)
+editing_cpp.write_text(editing_text, encoding="utf-8")
+
+lua_simulation_text = lua_simulation_cpp.read_text(encoding="utf-8")
+lua_wall_anchor = """static int wallMap(lua_State *L)
+{
+	auto *lsi = GetLSI();
+	return LuaBlockMap(L, 0, UI_WALLCOUNT - 1, [lsi](Vec2<int> p) -> unsigned char & {
+		return lsi->sim->bmap[p.Y][p.X];
+	});
+}"""
+lua_wall_patch = """static int wallMap(lua_State *L)
+{
+	auto *lsi = GetLSI();
+	return LuaBlockMap(L, 0, UI_WALLCOUNT - 1, [lsi](Vec2<int> p) -> unsigned char & {
+		// Lua may mutate the wall map while paused. Mark conservatively even
+		// for reads; the next running full wall scan can prove false again.
+		lsi->sim->yandexWebWallsMayExist = true;
+		return lsi->sim->bmap[p.Y][p.X];
+	});
+}"""
+if lua_wall_anchor not in lua_simulation_text:
+    raise SystemExit("LuaSimulation wallMap wall-presence anchor missing")
+lua_simulation_text = lua_simulation_text.replace(
+    lua_wall_anchor, lua_wall_patch, 1
+)
+lua_simulation_cpp.write_text(lua_simulation_text, encoding="utf-8")
+
 # Browser performance: a freshly cleared/empty simulation has exactly zero
 # pressure and velocity. The full air solver is one of the larger fixed-cost
 # loops in a frame; prove the zero state is a fixed point and return early.
