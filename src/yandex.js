@@ -9,6 +9,7 @@ let gameplayBlocked = false;
 let sdkListenersInstalled = false;
 let pauseRuntimeCallback = () => {};
 let resumeRuntimeCallback = () => {};
+const sdkReadySubscribers = new Set();
 
 const SDK_INIT_TIMEOUT_MS = 8000;
 
@@ -98,6 +99,16 @@ function installSDKPauseListeners(currentSDK) {
   });
 }
 
+function notifySDKReady(currentSDK, late) {
+  for (const callback of sdkReadySubscribers) {
+    Promise.resolve()
+      .then(() => callback(currentSDK, { late }))
+      .catch((error) => {
+        console.error("[Yandex] SDK-ready subscriber failed.", error);
+      });
+  }
+}
+
 function adoptSDK(currentSDK, late = false) {
   if (!currentSDK) {
     return null;
@@ -116,7 +127,27 @@ function adoptSDK(currentSDK, late = false) {
 
   sendLoadingReady(currentSDK);
   startGameplayOnSDK(currentSDK);
+  notifySDKReady(currentSDK, late);
   return currentSDK;
+}
+
+export function onYandexSDKReady(callback) {
+  if (typeof callback !== "function") {
+    return () => {};
+  }
+
+  sdkReadySubscribers.add(callback);
+  if (sdk) {
+    Promise.resolve()
+      .then(() => callback(sdk, { late: false }))
+      .catch((error) => {
+        console.error("[Yandex] SDK-ready subscriber failed.", error);
+      });
+  }
+
+  return () => {
+    sdkReadySubscribers.delete(callback);
+  };
 }
 
 export async function initYandexSDK() {
@@ -272,8 +303,9 @@ export function installPlatformPauseBridge({ onPause, onResume } = {}) {
 export function getYandexLanguage(currentSDK = sdk) {
   const language =
     currentSDK?.environment?.i18n?.lang ||
-    document.documentElement.lang ||
+    navigator.languages?.[0] ||
     navigator.language ||
+    document.documentElement.lang ||
     "en";
 
   const normalized = String(language).toLowerCase().split("-")[0];
