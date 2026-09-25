@@ -810,6 +810,7 @@ stacking_member_anchor = "\tbool force_stacking_check = false;\n"
 stacking_member_patch = (
     "\tbool force_stacking_check = false;\n"
     "\tbool yandexWebStackingCandidate = false;\n"
+    "\tstd::vector<int> yandexWebStackingCells;\n"
 )
 if stacking_member_anchor not in simulation_h_text:
     raise SystemExit("Simulation.h stacking candidate anchor missing")
@@ -831,6 +832,7 @@ recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	bool yandexWebNeedsFlatten = false;
 	yandexWebStackingCandidate = false;
+	yandexWebStackingCells.clear();
 	memset(pmap, 0, sizeof(pmap));"""
 if recalc_start not in simulation_text:
     raise SystemExit("RecalcFreeParticles start anchor missing")
@@ -848,8 +850,11 @@ count_patch = """				if (t!=PT_THDR && t!=PT_EMBR && t!=PT_FIGH && t!=PT_PLSM)
 				{
 					auto &cellCount = pmap_count[y][x];
 					cellCount++;
-					if (cellCount > 5)
+					if (cellCount == 6)
+					{
 						yandexWebStackingCandidate = true;
+						yandexWebStackingCells.push_back(y * XRES + x);
+					}
 				}"""
 if count_anchor not in segment:
     raise SystemExit("RecalcFreeParticles stacking-count anchor missing")
@@ -918,6 +923,59 @@ stacking_patch = """void Simulation::CheckStacking()
 if stacking_anchor not in simulation_text:
     raise SystemExit("Simulation::CheckStacking fast-path anchor missing")
 simulation_text = simulation_text.replace(stacking_anchor, stacking_patch, 1)
+
+stacking_scan_anchor = """	for (int y = 0; y < YRES; y++)
+	{
+		for (int x = 0; x < XRES; x++)
+		{
+			// Use a threshold, since some particle stacking can be normal (e.g. BIZR + FILT)
+			// Setting pmap_count[y][x] > NPART means BHOL will form in that spot
+			if (pmap_count[y][x]>5)
+			{
+				if (bmap[y/CELL][x/CELL]==WL_EHOLE)
+				{
+					// Allow more stacking in E-hole
+					if (pmap_count[y][x]>1500)
+					{
+						pmap_count[y][x] = pmap_count[y][x] + NPART;
+						excessive_stacking_found = 1;
+					}
+				}
+				else if (pmap_count[y][x]>1500 || (unsigned int)rng.between(0, 1599) <= (pmap_count[y][x]+100))
+				{
+					pmap_count[y][x] = pmap_count[y][x] + NPART;
+					excessive_stacking_found = true;
+				}
+			}
+		}
+	}"""
+stacking_scan_patch = """	// Preserve the original row-major RNG/order semantics while touching only
+	// cells that actually crossed the pmap_count > 5 threshold.
+	std::sort(yandexWebStackingCells.begin(), yandexWebStackingCells.end());
+	for (int cell : yandexWebStackingCells)
+	{
+		int y = cell / XRES;
+		int x = cell % XRES;
+		if (bmap[y/CELL][x/CELL]==WL_EHOLE)
+		{
+			// Allow more stacking in E-hole
+			if (pmap_count[y][x]>1500)
+			{
+				pmap_count[y][x] = pmap_count[y][x] + NPART;
+				excessive_stacking_found = 1;
+			}
+		}
+		else if (pmap_count[y][x]>1500 || (unsigned int)rng.between(0, 1599) <= (pmap_count[y][x]+100))
+		{
+			pmap_count[y][x] = pmap_count[y][x] + NPART;
+			excessive_stacking_found = true;
+		}
+	}"""
+if stacking_scan_anchor not in simulation_text:
+    raise SystemExit("Simulation::CheckStacking full-grid scan anchor missing")
+simulation_text = simulation_text.replace(
+    stacking_scan_anchor, stacking_scan_patch, 1
+)
 
 wire_anchor = """		// make WIRE work
 		if(elementCount[PT_WIRE] > 0)
