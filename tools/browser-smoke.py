@@ -549,6 +549,33 @@ def smoke_case(language: str, mobile: bool):
             server_control_mask,
         )
 
+        native_fullscreen = driver.execute_script(
+            """
+            const before = Boolean(document.fullscreenElement);
+            const native = window.__tptGameModule.ccall(
+                'YandexWeb_TestNativeFullscreenRequest',
+                'number',
+                [],
+                []
+            );
+            return {
+                native,
+                before,
+                after: Boolean(document.fullscreenElement),
+            };
+            """
+        )
+        assert native_fullscreen["native"] == 0, (
+            label,
+            "native TPT fullscreen flag changed in embedded Web build",
+            native_fullscreen,
+        )
+        assert native_fullscreen["before"] == native_fullscreen["after"], (
+            label,
+            "native TPT fullscreen request changed browser fullscreen state",
+            native_fullscreen,
+        )
+
         if not mobile and language == "en":
             locale_aliases = driver.execute_async_script(
                 """
