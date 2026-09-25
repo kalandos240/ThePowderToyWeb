@@ -88,6 +88,20 @@ jobs:
         run: |
           python3 tools/check-element-localization.py
 
+      - name: Check Russian options and renderer localization
+        run: |
+          set -euo pipefail
+          # These strings live in the generated localization layer after
+          # tools/patch-upstream.py runs; source-level anchors below prevent
+          # accidental loss of the high-visibility settings translations.
+          grep -Fn 'YW_UI("Air simulation mode", "Режим симуляции воздуха");' tools/patch-upstream.py
+          grep -Fn 'YW_UI("Gravity simulation mode", "Режим гравитации");' tools/patch-upstream.py
+          grep -Fn 'YW_UI("Simulation framerate cap", "Ограничение FPS симуляции");' tools/patch-upstream.py
+          grep -Fn 'YW_UI("Rendering framerate cap", "Ограничение FPS отрисовки");' tools/patch-upstream.py
+          grep -Fn 'YW_UI("Fullscreen \\bg- fill the entire screen", "Полноэкранный режим");' tools/patch-upstream.py
+          grep -Fn 'YW_UI("Fire effect for gasses", "Эффект огня для газов");' tools/patch-upstream.py
+          echo "Russian options/render localization anchors: OK"
+
       - name: Restore Emscripten build cache
         id: emscripten-build-cache
         uses: actions/cache@v4
