@@ -43,6 +43,8 @@ task_window_cpp = root / "upstream" / "src" / "tasks" / "TaskWindow.cpp"
 client_cpp = root / "upstream" / "src" / "client" / "Client.cpp"
 intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
+lua_script_interface_cpp = root / "upstream" / "src" / "lua" / "LuaScriptInterface.cpp"
+lua_misc_cpp = root / "upstream" / "src" / "lua" / "LuaMisc.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -437,6 +439,63 @@ if "external URI navigation is disabled" not in platform_text:
         raise SystemExit("Emscripten.cpp OpenURI anchor not found")
     platform_text = platform_text.replace(open_uri_anchor, open_uri_patch, 1)
 emscripten_platform.write_text(platform_text, encoding="utf-8")
+
+# Yandex Web: the game must never expose network-capable Lua APIs. NOHTTP
+# already selects LuaSocketTCPNone.cpp, but upstream still registers the
+# generic http table and the script-manager downloader. Remove both from the
+# Emscripten build so scripts cannot even attempt external HTTP requests.
+lua_script_text = lua_script_interface_cpp.read_text(encoding="utf-8")
+lua_http_open_anchor = "\tLuaHttp::Open(L);"
+lua_http_open_patch = """#if !defined(__EMSCRIPTEN__)
+\tLuaHttp::Open(L);
+#endif"""
+if "Yandex Web: Lua HTTP API disabled" not in lua_script_text:
+    if lua_http_open_anchor not in lua_script_text:
+        raise SystemExit("LuaScriptInterface.cpp LuaHttp::Open anchor missing")
+    lua_script_text = lua_script_text.replace(
+        lua_http_open_anchor,
+        "// Yandex Web: Lua HTTP API disabled in browser builds.\n" + lua_http_open_patch,
+        1,
+    )
+lua_script_interface_cpp.write_text(lua_script_text, encoding="utf-8")
+
+lua_misc_text = lua_misc_cpp.read_text(encoding="utf-8")
+install_manager_anchor = "static int installScriptManager(lua_State *L)\n{"
+if "#if !defined(__EMSCRIPTEN__)\nstatic int installScriptManager" not in lua_misc_text:
+    if install_manager_anchor not in lua_misc_text:
+        raise SystemExit("LuaMisc.cpp installScriptManager anchor missing")
+    lua_misc_text = lua_misc_text.replace(
+        install_manager_anchor,
+        "#if !defined(__EMSCRIPTEN__)\n" + install_manager_anchor,
+        1,
+    )
+
+    install_manager_end_anchor = """\treturn 0;
+}
+
+void LuaMisc::Tick(lua_State *L)"""
+    if install_manager_end_anchor not in lua_misc_text:
+        raise SystemExit("LuaMisc.cpp installScriptManager end anchor missing")
+    lua_misc_text = lua_misc_text.replace(
+        install_manager_end_anchor,
+        """\treturn 0;
+}
+#endif
+
+void LuaMisc::Tick(lua_State *L)""",
+        1,
+    )
+
+registration_anchor = "\t\tLFUNC(installScriptManager),"
+if "#if !defined(__EMSCRIPTEN__)\n\t\tLFUNC(installScriptManager)," not in lua_misc_text:
+    if registration_anchor not in lua_misc_text:
+        raise SystemExit("LuaMisc.cpp installScriptManager registration anchor missing")
+    lua_misc_text = lua_misc_text.replace(
+        registration_anchor,
+        "#if !defined(__EMSCRIPTEN__)\n" + registration_anchor + "\n#endif",
+        1,
+    )
+lua_misc_cpp.write_text(lua_misc_text, encoding="utf-8")
 
 print("Applied Yandex Web upstream patches.")
 

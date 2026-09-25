@@ -199,6 +199,29 @@ jobs:
 
           echo "Compiled Yandex configuration: NOHTTP, no update server"
 
+      - name: Verify Lua has no network backend
+        run: |
+          set -euo pipefail
+          LUA_SCRIPT="upstream/src/lua/LuaScriptInterface.cpp"
+          LUA_MISC="upstream/src/lua/LuaMisc.cpp"
+          BUILD_NINJA="upstream/build/build.ninja"
+
+          grep -Fn 'Yandex Web: Lua HTTP API disabled in browser builds.' "$LUA_SCRIPT"
+          grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_SCRIPT"
+          grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_MISC"
+
+          grep -Fn 'LuaSocketTCPNone.cpp' "$BUILD_NINJA"
+          if grep -Fn 'LuaSocketTCPWebsocket.cpp' "$BUILD_NINJA"; then
+            echo "Lua WebSocket backend is compiled into the Yandex build."
+            exit 1
+          fi
+          if grep -Fn 'LuaSocketTCPHttp.cpp' "$BUILD_NINJA"; then
+            echo "Lua HTTP socket backend is compiled into the Yandex build."
+            exit 1
+          fi
+
+          echo "Lua network API/backend: disabled"
+
       - name: Validate shared-memory-free browser output
         run: |
           set -euo pipefail
