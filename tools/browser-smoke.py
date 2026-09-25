@@ -903,11 +903,10 @@ def smoke_case(language: str, mobile: bool):
                 const afterCreate = m.ccall(
                     'YandexWeb_TestWallRenderHint', 'number', [], []
                 );
-                m.ccall('YandexWeb_TestClearSimulation', null, [], []);
-                const afterSecondClear = m.ccall(
-                    'YandexWeb_TestWallRenderHint', 'number', [], []
+                const dirtyAfterCreate = m.ccall(
+                    'YandexWeb_TestWallCacheDirty', 'number', [], []
                 );
-                return {afterClear, afterCreate, afterSecondClear};
+                return {afterClear, afterCreate, dirtyAfterCreate};
                 """
             )
             assert wall_hint["afterClear"] == 0, (label, wall_hint)
@@ -916,7 +915,65 @@ def smoke_case(language: str, mobile: bool):
                 "wall mutation did not invalidate the wall-free renderer hint",
                 wall_hint,
             )
-            assert wall_hint["afterSecondClear"] == 0, (label, wall_hint)
+            assert wall_hint["dirtyAfterCreate"] == 1, (
+                label,
+                "paused-safe wall mutation did not invalidate sparse cache",
+                wall_hint,
+            )
+
+            wait.until(
+                lambda d: d.execute_script(
+                    """
+                    const m = window.__tptGameModule;
+                    return (
+                        m.ccall(
+                            'YandexWeb_TestWallRenderHint',
+                            'number',
+                            [],
+                            []
+                        ) === 1 &&
+                        m.ccall(
+                            'YandexWeb_TestWallCacheDirty',
+                            'number',
+                            [],
+                            []
+                        ) === 0 &&
+                        m.ccall(
+                            'YandexWeb_TestWallCacheSize',
+                            'number',
+                            [],
+                            []
+                        ) > 0
+                    );
+                    """
+                )
+            )
+            wall_cache = driver.execute_script(
+                """
+                const m = window.__tptGameModule;
+                return {
+                    dirty: m.ccall(
+                        'YandexWeb_TestWallCacheDirty', 'number', [], []
+                    ),
+                    size: m.ccall(
+                        'YandexWeb_TestWallCacheSize', 'number', [], []
+                    ),
+                };
+                """
+            )
+            assert wall_cache["dirty"] == 0, (label, wall_cache)
+            assert wall_cache["size"] > 0, (label, wall_cache)
+
+            after_second_clear = driver.execute_script(
+                """
+                const m = window.__tptGameModule;
+                m.ccall('YandexWeb_TestClearSimulation', null, [], []);
+                return m.ccall(
+                    'YandexWeb_TestWallRenderHint', 'number', [], []
+                );
+                """
+            )
+            assert after_second_clear == 0, (label, after_second_clear)
 
         native_fullscreen = driver.execute_script(
             """
