@@ -154,12 +154,16 @@ function logEngineStderr(...args) {
   const text = args.map((value) => String(value)).join(" ");
 
   if (ENGINE_STDERR_INFO_PREFIXES.some((prefix) => text.startsWith(prefix))) {
-    console.info("[TPT]", ...args);
+    if (ENGINE_STDOUT_DEBUG) {
+      console.info("[TPT]", ...args);
+    }
     return;
   }
 
   if (ENGINE_STDERR_WARNING_PREFIXES.some((prefix) => text.startsWith(prefix))) {
-    console.warn("[TPT]", ...args);
+    if (ENGINE_STDOUT_DEBUG) {
+      console.warn("[TPT]", ...args);
+    }
     return;
   }
 
