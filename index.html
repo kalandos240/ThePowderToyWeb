@@ -13,6 +13,16 @@
 
   <!-- Yandex Games SDK is loaded asynchronously by src/yandex.js. -->
 
+  <!-- Start downloading the local engine payload while the SDK/UI bootstrap runs. -->
+  <link rel="preload" href="./game/powder.js" as="script">
+  <link
+    rel="preload"
+    href="./game/powder.wasm"
+    as="fetch"
+    type="application/wasm"
+    crossorigin="anonymous"
+  >
+
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
