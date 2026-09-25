@@ -1236,25 +1236,32 @@ wall_scan_anchor = """		// decrease wall conduction, make walls block air and am
 			}
 		}"""
 wall_scan_patch = """		// decrease wall conduction, make walls block air and ambient heat
-		bool yandexWebWallsPresent = false;
-		yandexWebWallCells.clear();
-		for (int y = 0; y < YCELLS; y++)
+		// Once a complete scan has proven that no walls exist, and no mutation
+		// has dirtied that proof, the block-air maps are already all zero and
+		// emap has no live wall cells to decay. Skip the fixed YCELLS*XCELLS
+		// traversal entirely until a wall mutation invalidates the cache.
+		if (yandexWebWallsMayExist || yandexWebWallCellsDirty)
 		{
-			for (int x = 0; x < XCELLS; x++)
+			bool yandexWebWallsPresent = false;
+			yandexWebWallCells.clear();
+			for (int y = 0; y < YCELLS; y++)
 			{
-				if (emap[y][x])
-					emap[y][x] --;
-				if (bmap[y][x])
+				for (int x = 0; x < XCELLS; x++)
 				{
-					yandexWebWallsPresent = true;
-					yandexWebWallCells.push_back(y * XCELLS + x);
+					if (emap[y][x])
+						emap[y][x] --;
+					if (bmap[y][x])
+					{
+						yandexWebWallsPresent = true;
+						yandexWebWallCells.push_back(y * XCELLS + x);
+					}
+					air->bmap_blockair[y][x] = (bmap[y][x]==WL_WALL || bmap[y][x]==WL_WALLELEC || bmap[y][x]==WL_BLOCKAIR || (bmap[y][x]==WL_EWALL && !emap[y][x]));
+					air->bmap_blockairh[y][x] = (air->bmap_blockair[y][x] || bmap[y][x]==WL_GRAV) ? 0x8 : 0;
 				}
-				air->bmap_blockair[y][x] = (bmap[y][x]==WL_WALL || bmap[y][x]==WL_WALLELEC || bmap[y][x]==WL_BLOCKAIR || (bmap[y][x]==WL_EWALL && !emap[y][x]));
-				air->bmap_blockairh[y][x] = (air->bmap_blockair[y][x] || bmap[y][x]==WL_GRAV) ? 0x8 : 0;
 			}
-		}
-		yandexWebWallsMayExist = yandexWebWallsPresent;
-		yandexWebWallCellsDirty = false;"""
+			yandexWebWallsMayExist = yandexWebWallsPresent;
+			yandexWebWallCellsDirty = false;
+		}"""
 if wall_scan_anchor not in simulation_text:
     raise SystemExit("Simulation::BeforeSim wall-presence scan anchor missing")
 simulation_text = simulation_text.replace(wall_scan_anchor, wall_scan_patch, 1)
