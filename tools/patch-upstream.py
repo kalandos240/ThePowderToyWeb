@@ -1885,61 +1885,6 @@ for filename, (english, russian) in simtool_translations.items():
     path.write_text(source, encoding="utf-8")
 
 
-# Yandex Web bilingual intro without external links.
-intro_source = intro_text.read_text(encoding="utf-8")
-intro_start = intro_source.find("inline ByteString IntroText()")
-if intro_start < 0:
-    raise SystemExit("IntroText.h IntroText function not found")
-intro_source = intro_source[:intro_start] + r'''inline ByteString IntroText()
-{
-	ByteStringBuilder sb;
-	if (YandexWebIsRussian())
-	{
-		sb << "\\bl\\bU" << APPNAME << "\\bU - Версия " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\\n"
-		      "\\n"
-		      "\\bgНажмите \\boF1\\bg, чтобы показать или скрыть эту справку.\\n"
-		      "\\n"
-		      "\\bgВыберите категорию справа, затем нужный элемент.\\n"
-		      "Рисуйте мышью на ПК или касанием на мобильном устройстве.\\n"
-		      "Колесо мыши или клавиши \\bo[\\bg и \\bo]\\bg меняют размер инструмента. \\boTab\\bg меняет форму кисти.\\n"
-		      "\\boСредняя кнопка мыши\\bg или \\boAlt+клик\\bg выбирает элемент с поля.\\n"
-		      "\\boCtrl+C/V/X\\bg - копировать, вставить и вырезать.\\n"
-		      "\\boShift+перетаскивание\\bg рисует прямую линию, \\boCtrl+перетаскивание\\bg - заполненный прямоугольник.\\n"
-		      "\\boПробел\\bg ставит физику на паузу. \\boF\\bg - один кадр, \\boF5\\bg - перезапуск симуляции.\\n"
-		      "\\boCtrl+Z\\bg - отмена, \\boCtrl+Y\\bg или \\boCtrl+Shift+Z\\bg - повтор.\\n"
-		      "Сохранения хранятся локально в браузере.\\n"
-		      "\\n";
-	}
-	else
-	{
-		sb << "\\bl\\bU" << APPNAME << "\\bU - Version " << DISPLAY_VERSION[0] << "." << DISPLAY_VERSION[1] << "\\n"
-		      "\\n"
-		      "\\bgPress \\boF1\\bg to show or hide this help.\\n"
-		      "\\n"
-		      "\\bgChoose a category on the right, then select an element.\\n"
-		      "Draw with the mouse on desktop or touch on mobile.\\n"
-		      "Use the mouse wheel or \\bo[\\bg and \\bo]\\bg to change tool size. \\boTab\\bg changes brush shape.\\n"
-		      "\\boMiddle click\\bg or \\boAlt+click\\bg samples an element from the field.\\n"
-		      "\\boCtrl+C/V/X\\bg copy, paste and cut.\\n"
-		      "\\boShift+drag\\bg draws a straight line; \\boCtrl+drag\\bg draws a filled rectangle.\\n"
-		      "\\boSpace\\bg pauses physics. \\boF\\bg advances one frame; \\boF5\\bg reloads the simulation.\\n"
-		      "\\boCtrl+Z\\bg undoes; \\boCtrl+Y\\bg or \\boCtrl+Shift+Z\\bg redoes.\\n"
-		      "Saves are stored locally in the browser.\\n"
-		      "\\n";
-	}
-	// Yandex Web: keep player-facing help free of build/debug flags.
-	return sb.Build();
-}
-'''
-if '#include "YandexWebLocale.h"' not in intro_source:
-    intro_source = intro_source.replace(
-        '#include "common/String.h"\n',
-        '#include "common/String.h"\n#include "YandexWebLocale.h"\n',
-        1,
-    )
-intro_text.write_text(intro_source, encoding="utf-8")
-
-
 # Central Russian descriptions for the most frequently used elements.
 simulation_text = simulation_data.read_text(encoding="utf-8")
 element_anchor = """	elements = GetElements();
@@ -2187,7 +2132,7 @@ intro_replacement = r'''inline ByteString IntroText()
 		      "\bo0-9\bg выбирают режим отображения. \boH\bg включает HUD. \boZ\bg - увеличение.\n"
 		      "\boCtrl+F\bg подсвечивает выбранный элемент.\n"
 		      "\n"
-		      "\bgСохранения этой версии хранятся локально в браузере. Серверные функции отключены.\n";
+		      "\bgСохранения хранятся локально в браузере.\n";
 	}
 	else
 	{
@@ -2210,9 +2155,8 @@ intro_replacement = r'''inline ByteString IntroText()
 		      "\bo0-9\bg selects display modes. \boH\bg toggles the HUD. \boZ\bg enables zoom.\n"
 		      "\boCtrl+F\bg highlights the selected element.\n"
 		      "\n"
-		      "\bgSaves in this build are stored locally in the browser. Server features are disabled.\n";
+		      "\bgSaves are stored locally in the browser.\n";
 	}
-	sb << "\n\bt" << VersionInfo();
 	return sb.Build();
 }
 '''
