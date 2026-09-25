@@ -864,8 +864,26 @@ def smoke_case(language: str, mobile: bool):
         assert dust_caption["buttonWidth"] > 4, (label, dust_caption)
         assert dust_caption["textWidth"] <= dust_caption["buttonWidth"] - 4, (
             label,
-            "visible tool caption exceeds the native button content width",
+            "visible DUST caption exceeds the native button content width",
             dust_caption,
+        )
+
+        max_tool_overflow = int(
+            driver.execute_script(
+                """
+                return window.__tptGameModule.ccall(
+                    'YandexWeb_TestMaxToolButtonOverflow',
+                    'number',
+                    [],
+                    []
+                );
+                """
+            )
+        )
+        assert max_tool_overflow <= 0, (
+            label,
+            "at least one visible native tool caption crosses its button border",
+            max_tool_overflow,
         )
 
         native_fullscreen = driver.execute_script(
