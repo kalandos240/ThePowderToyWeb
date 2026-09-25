@@ -13,6 +13,7 @@ options_view = root / "upstream" / "src" / "gui" / "options" / "OptionsView.cpp"
 simulation_data = root / "upstream" / "src" / "simulation" / "SimulationData.cpp"
 local_browser_controller = root / "upstream" / "src" / "gui" / "localbrowser" / "LocalBrowserController.cpp"
 engine_cpp = root / "upstream" / "src" / "gui" / "interface" / "Engine.cpp"
+engine_h = root / "upstream" / "src" / "gui" / "interface" / "Engine.h"
 window_cpp = root / "upstream" / "src" / "gui" / "interface" / "Window.cpp"
 component_h = root / "upstream" / "src" / "gui" / "interface" / "Component.h"
 button_h = root / "upstream" / "src" / "gui" / "interface" / "Button.h"
@@ -71,6 +72,37 @@ if thread_callback_arg in meson_text:
     meson_text = meson_text.replace(thread_callback_arg, "", 1)
 
 meson.write_text(meson_text, encoding="utf-8")
+
+# Browser fullscreen belongs to the Yandex/player container. Keep every native
+# TPT fullscreen entry point (F11, Options, Lua) from mutating Engine state.
+engine_h_text = engine_h.read_text(encoding="utf-8")
+fullscreen_set_anchor = "void SetFullscreen         (bool newFullscreen         ) { windowFrameOps.fullscreen          = newFullscreen;          }"
+fullscreen_set_patch = """void SetFullscreen         (bool newFullscreen         )
+		{
+#if defined(__EMSCRIPTEN__)
+			(void)newFullscreen;
+			windowFrameOps.fullscreen = false;
+#else
+			windowFrameOps.fullscreen = newFullscreen;
+#endif
+		}"""
+if fullscreen_set_anchor not in engine_h_text:
+    raise SystemExit("Engine.h SetFullscreen anchor missing")
+engine_h_text = engine_h_text.replace(fullscreen_set_anchor, fullscreen_set_patch, 1)
+
+fullscreen_get_anchor = "bool GetFullscreen         () const { return windowFrameOps.fullscreen;          }"
+fullscreen_get_patch = """bool GetFullscreen         () const
+		{
+#if defined(__EMSCRIPTEN__)
+			return false;
+#else
+			return windowFrameOps.fullscreen;
+#endif
+		}"""
+if fullscreen_get_anchor not in engine_h_text:
+    raise SystemExit("Engine.h GetFullscreen anchor missing")
+engine_h_text = engine_h_text.replace(fullscreen_get_anchor, fullscreen_get_patch, 1)
+engine_h.write_text(engine_h_text, encoding="utf-8")
 
 text = powder.read_text(encoding="utf-8")
 
@@ -779,6 +811,12 @@ static int YandexWeb_TestOpenButtonY = -1;
 static int YandexWeb_TestServerControlMask = -1;
 
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestServerControlsVisibleMask() { return YandexWeb_TestServerControlMask; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestNativeFullscreenRequest()
+{
+	auto &engine = ui::Engine::Ref();
+	engine.SetFullscreen(true);
+	return engine.GetFullscreen() ? 1 : 0;
+}
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiWidth() { return YandexWeb_TestUiWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexWeb_TestUiHeight; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonX() { return YandexWeb_TestDustButtonX; }
