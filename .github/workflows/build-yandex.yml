@@ -347,6 +347,8 @@ jobs:
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
           grep -Fn 'bool yandexWebStackingCandidate = false;' "$SIM_H"
           grep -Fn 'bool yandexWebWallsMayExist = true;' "$SIM_H"
+          grep -Fn 'bool yandexWebWallCellsDirty = true;' "$SIM_H"
+          grep -Fn 'std::vector<int> yandexWebWallCells;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebStackingCells;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebCountedCells;' "$SIM_H"
           grep -Fn 'void RebuildStackingCounts();' "$SIM_H"
@@ -368,12 +370,22 @@ jobs:
           grep -Fn 'ID(r) == i' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
           grep -Fn 'bool yandexWebWallsPresent = false;' "$SIM"
+          grep -Fn 'yandexWebWallCells.clear();' "$SIM"
+          grep -Fn 'yandexWebWallCells.push_back(y * XCELLS + x);' "$SIM"
           grep -Fn 'yandexWebWallsMayExist = yandexWebWallsPresent;' "$SIM"
+          grep -Fn 'yandexWebWallCellsDirty = false;' "$SIM"
           grep -Fn 'yandexWebWallsMayExist = false;' "$SIM"
+          grep -Fn 'yandexWebWallCellsDirty = true;' "$EDITING"
           grep -Fn 'yandexWebWallsMayExist = true;' "$EDITING"
+          grep -Fn 'yandexWebWallCellsDirty = true;' "$LUA_SIM"
           grep -Fn 'yandexWebWallsMayExist = true;' "$LUA_SIM"
           grep -Fn 'if (!sim->yandexWebWallsMayExist)' "$RENDERER"
+          grep -Fn 'if (!sim->yandexWebWallCellsDirty)' "$RENDERER"
+          grep -Fn 'for (int cell : sim->yandexWebWallCells)' "$RENDERER"
+          grep -Fn 'yandexWebDrawWallCell(x, y);' "$RENDERER"
           grep -Fn 'YandexWeb_TestWallRenderHint' upstream/src/gui/game/GameModel.cpp
+          grep -Fn 'YandexWeb_TestWallCacheDirty' upstream/src/gui/game/GameModel.cpp
+          grep -Fn 'YandexWeb_TestWallCacheSize' upstream/src/gui/game/GameModel.cpp
           grep -Fn 'YandexWeb_TestCreateWallForRenderHint' upstream/src/gui/game/GameModel.cpp
           if [ "$(grep -Fc 'yandexWebWallsMayExist = false;' "$SIM")" -ne 1 ]; then
             echo "Wall renderer hint has an unsafe extra false-assignment."
@@ -456,11 +468,27 @@ jobs:
           if "RebuildStackingCounts();" not in before_sim:
               raise SystemExit("On-demand stacking-count rebuild missing")
           wall_mark = "bool yandexWebWallsPresent = false;"
+          wall_clear = "yandexWebWallCells.clear();"
+          wall_push = "yandexWebWallCells.push_back(y * XCELLS + x);"
           wall_publish = "yandexWebWallsMayExist = yandexWebWallsPresent;"
-          if wall_mark not in before_sim or wall_publish not in before_sim:
-              raise SystemExit("BeforeSim wall-presence scan/publish missing")
-          if before_sim.find(wall_mark) > before_sim.find(wall_publish):
-              raise SystemExit("Wall-presence state published before it is scanned")
+          wall_clean = "yandexWebWallCellsDirty = false;"
+          required_wall_scan = (
+              wall_mark,
+              wall_clear,
+              wall_push,
+              wall_publish,
+              wall_clean,
+          )
+          for marker in required_wall_scan:
+              if marker not in before_sim:
+                  raise SystemExit(
+                      f"BeforeSim sparse wall-cache marker missing: {marker}"
+                  )
+          order = [before_sim.find(marker) for marker in required_wall_scan]
+          if order != sorted(order):
+              raise SystemExit(
+                  "BeforeSim sparse wall-cache build/publish order changed"
+              )
           if before_sim.find("RebuildStackingCounts();") > before_sim.find("CheckStacking();"):
               raise SystemExit("Stacking counts must rebuild before CheckStacking")
 
@@ -536,6 +564,36 @@ jobs:
               raise SystemExit("Simulation::Save active-range scan missing")
 
           print("Simulation Web hot-path scope: OK")
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          text = Path("upstream/src/graphics/Renderer.cpp").read_text(
+              encoding="utf-8"
+          )
+          start = text.find("void Renderer::DrawWalls()")
+          end = text.find("\nvoid Renderer::render_fire()", start)
+          draw_walls = text[start:end]
+          if start < 0 or end < 0:
+              raise SystemExit("Renderer::DrawWalls bounds missing")
+          required = (
+              "if (!sim->yandexWebWallsMayExist)",
+              "auto yandexWebDrawWallCell =",
+              "if (!sim->yandexWebWallCellsDirty)",
+              "for (int cell : sim->yandexWebWallCells)",
+              "for (int y = 0; y < YCELLS; ++y)",
+          )
+          for marker in required:
+              if marker not in draw_walls:
+                  raise SystemExit(
+                      f"Renderer sparse wall path missing: {marker}"
+                  )
+          if draw_walls.count("for (int y = 0; y < YCELLS; ++y)") != 1:
+              raise SystemExit(
+                  "Renderer::DrawWalls gained an unexpected full-grid pass"
+              )
+          print("Renderer sparse wall cache/fallback: OK")
           PY
 
           python3 - <<'PY'
