@@ -996,6 +996,18 @@ inline String YandexWebTranslateUi(const String &source)
 	return source;
 }
 
+inline String YandexWebCompactToolButtonText(String label)
+{
+	// Native ToolButton geometry is intentionally kept upstream-compatible.
+	// Russian words are often much wider than the canonical 3-5 character
+	// element abbreviations, so cap only the painted caption. The complete
+	// localized name/description remains available in the tooltip/HUD.
+	constexpr size_t maxVisibleCharacters = 5;
+	if (label.size() > maxVisibleCharacters)
+		return label.Substr(0, maxVisibleCharacters);
+	return label;
+}
+
 inline String YandexWebToolButtonText(
 	ByteString const &identifier,
 	String const &name,
@@ -1008,7 +1020,7 @@ inline String YandexWebToolButtonText(
 	// Keep canonical identifiers and element names untouched internally. Only
 	// the text painted on ToolButton is localized, so saves, Lua scripts and
 	// element lookup remain fully upstream-compatible.
-#define YW_TOOL(id, ru) if (identifier == id) return ByteString(ru).FromUtf8()
+#define YW_TOOL(id, ru) if (identifier == id) return YandexWebCompactToolButtonText(ByteString(ru).FromUtf8())
 	YW_TOOL("DEFAULT_PT_DUST", "ПЫЛЬ");
 	YW_TOOL("DEFAULT_PT_WATR", "ВОДА");
 	YW_TOOL("DEFAULT_PT_SEED", "СЕМЯ");
@@ -1048,8 +1060,8 @@ inline String YandexWebToolButtonText(
 	if (String::Split split = label.SplitBy(' '))
 		label = split.Before();
 	if (!label.size())
-		return name;
-	return label;
+		return YandexWebCompactToolButtonText(name);
+	return YandexWebCompactToolButtonText(label);
 }
 ''', encoding="utf-8")
 
