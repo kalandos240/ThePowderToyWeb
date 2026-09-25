@@ -1951,6 +1951,8 @@ def smoke_case(language: str, mobile: bool):
                         viewportHeight: window.innerHeight,
                         appWidth: app.clientWidth,
                         appHeight: app.clientHeight,
+                        contentWidth,
+                        contentHeight,
                         blocked: window.__tptOrientationBlocked === true,
                         gameplay: window.__yandexGameplayStarted,
                         paused: window.__tptRuntimePaused === true,
@@ -1975,24 +1977,24 @@ def smoke_case(language: str, mobile: bool):
                 # Full-slot Yandex mode intentionally stretches the native
                 # framebuffer to the available player area instead of keeping
                 # the old aspect-fit/letterbox dimensions.
-                assert fullscreen_state["width"] >= fullscreen_state["appWidth"] - 8, (
+                assert fullscreen_state["width"] >= fullscreen_state["contentWidth"] - 2, (
                     label,
                     fullscreen_cycle,
-                    "fullscreen-cycle canvas does not fill available width",
+                    "fullscreen-cycle canvas does not fill safe content width",
                     fullscreen_state,
                 )
-                assert fullscreen_state["height"] >= fullscreen_state["appHeight"] - 8, (
+                assert fullscreen_state["height"] >= fullscreen_state["contentHeight"] - 2, (
                     label,
                     fullscreen_cycle,
-                    "fullscreen-cycle canvas does not fill available height",
+                    "fullscreen-cycle canvas does not fill safe content height",
                     fullscreen_state,
                 )
-                assert fullscreen_state["width"] <= fullscreen_state["appWidth"] + 1, (
+                assert fullscreen_state["width"] <= fullscreen_state["contentWidth"] + 1, (
                     label,
                     fullscreen_cycle,
                     fullscreen_state,
                 )
-                assert fullscreen_state["height"] <= fullscreen_state["appHeight"] + 1, (
+                assert fullscreen_state["height"] <= fullscreen_state["contentHeight"] + 1, (
                     label,
                     fullscreen_cycle,
                     fullscreen_state,
