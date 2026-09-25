@@ -228,8 +228,10 @@ async function applyPlatformDevice(currentSDK) {
     }
   }
 
+  const changed = sdkMobilePlatform !== mobilePlatform;
   sdkMobilePlatform = mobilePlatform;
   window.__tptSdkMobilePlatform = sdkMobilePlatform;
+  return changed;
 }
 
 function isMobilePlatform() {
@@ -829,7 +831,7 @@ onYandexSDKReady((currentSDK) => {
   // arrival, not only the >timeout "late" path: the SDK may legitimately
   // resolve after powder.js but before the 8 second timeout.
   void (async () => {
-    await applyPlatformDevice(currentSDK);
+    const deviceClassificationChanged = await applyPlatformDevice(currentSDK);
 
     const detectedLanguage = getYandexLanguage(currentSDK);
     window.yandexDetectedLanguage = detectedLanguage;
@@ -842,7 +844,9 @@ onYandexSDKReady((currentSDK) => {
       );
     }
 
-    scheduleViewportUpdate();
+    if (deviceClassificationChanged) {
+      scheduleViewportUpdate();
+    }
   })();
 });
 
