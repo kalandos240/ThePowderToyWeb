@@ -886,6 +886,38 @@ def smoke_case(language: str, mobile: bool):
             max_tool_overflow,
         )
 
+        if language == "en" and not mobile:
+            wall_hint = driver.execute_script(
+                """
+                const m = window.__tptGameModule;
+                m.ccall('YandexWeb_TestClearSimulation', null, [], []);
+                const afterClear = m.ccall(
+                    'YandexWeb_TestWallRenderHint', 'number', [], []
+                );
+                m.ccall(
+                    'YandexWeb_TestCreateWallForRenderHint',
+                    null,
+                    [],
+                    []
+                );
+                const afterCreate = m.ccall(
+                    'YandexWeb_TestWallRenderHint', 'number', [], []
+                );
+                m.ccall('YandexWeb_TestClearSimulation', null, [], []);
+                const afterSecondClear = m.ccall(
+                    'YandexWeb_TestWallRenderHint', 'number', [], []
+                );
+                return {afterClear, afterCreate, afterSecondClear};
+                """
+            )
+            assert wall_hint["afterClear"] == 0, (label, wall_hint)
+            assert wall_hint["afterCreate"] == 1, (
+                label,
+                "wall mutation did not invalidate the wall-free renderer hint",
+                wall_hint,
+            )
+            assert wall_hint["afterSecondClear"] == 0, (label, wall_hint)
+
         native_fullscreen = driver.execute_script(
             """
             const before = Boolean(document.fullscreenElement);
