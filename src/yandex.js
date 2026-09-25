@@ -70,10 +70,9 @@ function installSDKPauseListeners(currentSDK) {
   currentSDK.on("game_api_pause", () => {
     platformPauseActive = true;
 
-    // Yandex applies GameplayAPI.stop() automatically for this event.
-    // Preserve the logical gameplay state, but mark the SDK side stopped so
-    // resume can explicitly reconcile it when required.
-    sdkGameplayActive = false;
+    // Yandex applies the platform pause automatically. Keep sdkGameplayActive
+    // unchanged here: for an SDK that was already active, Yandex also owns the
+    // matching resume. A late SDK adopted during the pause never sets this flag.
     pauseRuntimeCallback();
     console.info("[Yandex] game_api_pause");
   });
@@ -86,10 +85,12 @@ function installSDKPauseListeners(currentSDK) {
     }
 
     if (readySent && !document.hidden && !gameplayBlocked) {
-      if (gameplayActive) {
-        startGameplayOnSDK(currentSDK);
-      } else {
+      if (!gameplayActive) {
         void gameplayStart();
+      } else if (!sdkGameplayActive) {
+        // This is the late-adoption case: the SDK appeared while platform
+        // pause was active, so Yandex had no prior GameplayAPI.start to resume.
+        startGameplayOnSDK(currentSDK);
       }
     }
 
