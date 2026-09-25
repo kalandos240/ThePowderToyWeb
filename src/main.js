@@ -911,7 +911,14 @@ async function boot() {
   await loadScript("./game/powder.js");
   const currentSDK = window.ysdk || null;
   startupTiming.sdkAvailableAtEngineStart = Boolean(currentSDK);
-  await applyPlatformDevice(currentSDK);
+
+  // DeviceInfo is an optional refinement. Touch/coarse-pointer detection is
+  // already the supported fallback, so a slow async deviceInfo implementation
+  // must not delay creation of the native engine. The SDK-ready reconciliation
+  // path applies the authoritative classification when it resolves.
+  void applyPlatformDevice(currentSDK).then(() => {
+    scheduleViewportUpdate();
+  });
   applyPlatformLanguage(currentSDK);
 
   // Keep the SDK promise alive explicitly so startup errors remain handled by
