@@ -370,6 +370,7 @@ jobs:
           grep -Fn 'for (int i = 0; i < parts.active; ++i)' "$SIM"
           grep -Fn 'ID(r) == i' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
+          grep -Fn 'if (yandexWebWallsMayExist || yandexWebWallCellsDirty)' "$SIM"
           grep -Fn 'bool yandexWebWallsPresent = false;' "$SIM"
           grep -Fn 'yandexWebWallCells.clear();' "$SIM"
           grep -Fn 'yandexWebWallCells.push_back(y * XCELLS + x);' "$SIM"
@@ -553,6 +554,19 @@ jobs:
               raise SystemExit("WIRE active-particle scan missing")
           if "ID(r) == i" not in before:
               raise SystemExit("WIRE pmap-visibility guard missing")
+
+          wall_guard = "if (yandexWebWallsMayExist || yandexWebWallCellsDirty)"
+          if wall_guard not in before_sim:
+              raise SystemExit("wall-free BeforeSim grid-scan guard missing")
+          wall_guard_pos = before_sim.find(wall_guard)
+          wall_scan_pos = before_sim.find(
+              "for (int y = 0; y < YCELLS; y++)",
+              wall_guard_pos,
+          )
+          if wall_scan_pos < 0 or wall_scan_pos < wall_guard_pos:
+              raise SystemExit(
+                  "wall/air-block full-grid scan escaped the wall-presence guard"
+              )
 
           clear_start = text.find("void Simulation::clear_sim(void)")
           clear_end = text.find("\nbool Simulation::IsWallBlocking", clear_start)
