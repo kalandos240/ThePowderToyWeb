@@ -3241,6 +3241,105 @@ def smoke_sdk_script_delay():
         driver.quit()
 
 
+def smoke_sdk_brief_delay_recovery():
+    label = "desktop-sdk-brief-delay-recovery"
+    driver = make_driver(mobile=False, browser_language="en-US")
+    started = time.monotonic()
+    try:
+        driver.set_page_load_timeout(45)
+        driver.get(
+            f"{BASE_URL}/?lang=ru&device=mobile&sdk=brief-delay"
+        )
+        wait = WebDriverWait(driver, 15)
+
+        # The engine should start from browser fallbacks before YaGames.init()
+        # resolves, because SDK latency is no longer on the critical path.
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return Boolean(
+                    window.__tptGameModule &&
+                    document.getElementById('loader').hidden &&
+                    document.getElementById('canvas').style.display === 'block'
+                );
+                """
+            )
+        )
+
+        pre_sdk = driver.execute_script(
+            """
+            return {
+                sdkMissing: window.ysdk === undefined,
+                language: window.tptLanguage,
+                sdkMobilePlatform: window.__tptSdkMobilePlatform,
+                startupTiming: window.__tptStartupTiming
+                    ? {...window.__tptStartupTiming}
+                    : null,
+            };
+            """
+        )
+        assert pre_sdk["sdkMissing"] is True, (label, pre_sdk)
+        assert pre_sdk["language"] == "en", (
+            label,
+            "browser fallback should be active before the SDK resolves",
+            pre_sdk,
+        )
+        assert pre_sdk["sdkMobilePlatform"] is None, (label, pre_sdk)
+        assert pre_sdk["startupTiming"], (label, pre_sdk)
+        assert pre_sdk["startupTiming"]["sdkAvailableAtEngineStart"] is False, (
+            label,
+            pre_sdk,
+        )
+
+        # brief-delay resolves well before SDK_INIT_TIMEOUT_MS. The callback
+        # must still reconcile device metadata even though it is not the
+        # timeout-specific "late" path.
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return Boolean(
+                    window.ysdk &&
+                    window.__tptSdkMobilePlatform === true &&
+                    window.yandexDetectedLanguage === 'ru'
+                );
+                """
+            )
+        )
+
+        recovered = driver.execute_script(
+            """
+            return {
+                language: window.tptLanguage,
+                detectedLanguage: window.yandexDetectedLanguage,
+                lockedLanguage: window.__tptLanguageLocked,
+                sdkMobilePlatform: window.__tptSdkMobilePlatform,
+                readyCount: window.__yandexReadyCount || 0,
+                loadingReady: window.__yandexLoadingReady === true,
+                gameplayStarted: window.__yandexGameplayStarted === true,
+            };
+            """
+        )
+        assert recovered["sdkMobilePlatform"] is True, (label, recovered)
+        assert recovered["detectedLanguage"] == "ru", (label, recovered)
+        # The native UI is already constructed by now; keep one language for
+        # the running session instead of mixing EN/RU labels.
+        assert recovered["language"] == "en", (label, recovered)
+        assert recovered["lockedLanguage"] == "en", (label, recovered)
+        assert recovered["readyCount"] == 1, (label, recovered)
+        assert recovered["loadingReady"] is True, (label, recovered)
+
+        elapsed = time.monotonic() - started
+        assert elapsed < 8.0, (
+            label,
+            "sub-timeout SDK reconciliation unexpectedly waited for timeout",
+            elapsed,
+            recovered,
+        )
+        print(f"[smoke] {label}: OK recovered={elapsed:.2f}s {recovered}")
+    finally:
+        driver.quit()
+
+
 def smoke_sdk_late_recovery():
     label = "desktop-sdk-late-recovery"
     driver = make_driver(mobile=False, browser_language="ru-RU")
@@ -3400,4 +3499,5 @@ if __name__ == "__main__":
     smoke_case("ru", mobile=True)
     smoke_sdk_script_failure()
     smoke_sdk_script_delay()
+    smoke_sdk_brief_delay_recovery()
     smoke_sdk_late_recovery()
