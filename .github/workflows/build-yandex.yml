@@ -83,6 +83,21 @@ jobs:
           fi
           echo "Yandex UI external-link audit: OK"
 
+      - name: Check reachable local UI localization
+        run: |
+          set -euo pipefail
+          if grep -Fn '"Done"' upstream/src/gui/colourpicker/ColourPickerActivity.cpp; then
+            echo "Colour picker still exposes an English-only Done button."
+            exit 1
+          fi
+          if grep -Fn '"Copied!"' upstream/src/gui/interface/CopyTextButton.cpp; then
+            echo "Copy feedback still exposes English-only text."
+            exit 1
+          fi
+          grep -Fn 'YandexWebText("Done", "Готово")' upstream/src/gui/colourpicker/ColourPickerActivity.cpp
+          grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
+          echo "Reachable local UI localization audit: OK"
+
       - name: Build upstream Emscripten target without external HTTP features
         if: steps.emscripten-build-cache.outputs.cache-hit != 'true'
         working-directory: upstream
