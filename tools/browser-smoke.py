@@ -2201,17 +2201,11 @@ def smoke_case(language: str, mobile: bool):
                     parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
                 const availableWidth = app.clientWidth - horizontalPadding;
                 const availableHeight = app.clientHeight - verticalPadding;
-                const logicalWidth = canvas.width;
-                const logicalHeight = canvas.height;
-                const scale = Math.min(
-                    availableWidth / logicalWidth,
-                    availableHeight / logicalHeight
-                );
                 return {
                     beforeWidth: before.width,
                     beforeHeight: before.height,
-                    expectedWidth: Math.max(1, Math.floor(logicalWidth * scale)),
-                    expectedHeight: Math.max(1, Math.floor(logicalHeight * scale)),
+                    expectedWidth: Math.max(1, Math.floor(availableWidth)),
+                    expectedHeight: Math.max(1, Math.floor(availableHeight)),
                 };
                 """
             )
