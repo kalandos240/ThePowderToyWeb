@@ -118,6 +118,15 @@ window.__tptAdCycleActive = false;
 window.__tptAdAttemptCount = 0;
 window.__tptCanvasFit = null;
 
+const ENGINE_STDOUT_DEBUG =
+  new URLSearchParams(window.location.search).get("tpt-debug") === "1";
+
+function logEngineStdout(...args) {
+  if (ENGINE_STDOUT_DEBUG) {
+    console.log("[TPT]", ...args);
+  }
+}
+
 function setStatus(message) {
   status.textContent = message;
 }
@@ -832,7 +841,7 @@ async function boot() {
 
   const gamePromise = window.create_powder({
     canvas,
-    print: (...args) => console.log("[TPT]", ...args),
+    print: (...args) => logEngineStdout(...args),
     printErr: (...args) => logEngineStderr(...args),
     locateFile(path) {
       if (path.endsWith(".wasm")) {
