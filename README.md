@@ -21,7 +21,8 @@ This repository intentionally keeps platform glue separate from upstream game so
 - `src/main.js` — Emscripten loader and Game Ready bridge.
 - `styles.css` — responsive desktop/mobile shell.
 - `tools/patch-upstream.py` — applies Yandex/mobile/localization/single-thread changes to the pinned upstream source.
-- `tools/browser-smoke.py` — launches the built game in Chrome as desktop/mobile and RU/EN.
+- `tools/browser-smoke.py` — launches the built game in Chrome as desktop/mobile and RU/EN, including blocked and deliberately delayed Yandex SDK startup paths.
+- `tools/smoke-http-server.py` — threaded CI server that can delay only `/sdk.js` while serving the game normally.
 - `tools/browser-compat-smoke.py` — runs the exact release ZIP in Firefox and WebKit, including WebKit mobile viewport/orientation checks.
 - `.github/workflows/build-yandex.yml` — builds the official upstream Emscripten target, disables upstream HTTP features, verifies the browser runtime, and produces a minimal whitelisted Yandex ZIP artifact without debug/source-map files.
 
