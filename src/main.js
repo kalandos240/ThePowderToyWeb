@@ -277,12 +277,21 @@ function positionMobileTextInput() {
     Math.min(canvasRect.bottom - top, mobileTextInputRect.h * scaleY)
   );
 
-  mobileTextInput.style.left = `${left}px`;
-  mobileTextInput.style.top = `${top}px`;
-  mobileTextInput.style.width = `${width}px`;
-  mobileTextInput.style.height = `${height}px`;
+  const previousRect = window.__tptMobileTextInputRect;
+  const geometryChanged =
+    !previousRect ||
+    previousRect.left !== left ||
+    previousRect.top !== top ||
+    previousRect.width !== width ||
+    previousRect.height !== height;
 
-  window.__tptMobileTextInputRect = { left, top, width, height };
+  if (geometryChanged) {
+    mobileTextInput.style.left = `${left}px`;
+    mobileTextInput.style.top = `${top}px`;
+    mobileTextInput.style.width = `${width}px`;
+    mobileTextInput.style.height = `${height}px`;
+    window.__tptMobileTextInputRect = { left, top, width, height };
+  }
 }
 
 function focusMobileTextInput() {
