@@ -4528,6 +4528,101 @@ if "#if !defined(__EMSCRIPTEN__)\n\tthr = std::thread" not in gravity_text:
     if thread_start_anchor not in gravity_text:
         raise SystemExit("Fft.cpp worker thread anchor not found")
     gravity_text = gravity_text.replace(thread_start_anchor, thread_start_patch, 1)
+
+# Newtonian gravity is optional and many ordinary simulations contain no
+# Newtonian mass sources. Avoid the expensive FFTW planner entirely until the
+# first effective non-zero mass appears in the browser build.
+gravity_exchange_anchor = """	// lazy init
+	if (!fftGravity->initDone)
+	{
+		// this takes a noticeable amount of time
+		// TODO: hide the wait somehow
+		fftGravity->Init();
+		fftGravity->initDone = true;
+	}"""
+gravity_exchange_patch = """	// lazy init
+#if defined(__EMSCRIPTEN__)
+	if (!fftGravity->initDone)
+	{
+		bool yandexWebHasEffectiveMass = false;
+		for (auto p : gravIn.mass.Size().OriginRect())
+		{
+			if (gravIn.mask[p] && gravIn.mass[p] != 0.0f)
+			{
+				yandexWebHasEffectiveMass = true;
+				break;
+			}
+		}
+		if (!yandexWebHasEffectiveMass)
+		{
+			// No initialized worker/output exists yet, so the exact gravity
+			// result is already the default zero field. Remember the input
+			// only so a later non-zero source is detected normally.
+			fftGravity->gravIn.mass = gravIn.mass;
+			fftGravity->gravIn.mask = gravIn.mask;
+			return;
+		}
+	}
+#endif
+	if (!fftGravity->initDone)
+	{
+		// this takes a noticeable amount of time
+		// TODO: hide the wait somehow
+		fftGravity->Init();
+		fftGravity->initDone = true;
+	}"""
+if gravity_exchange_anchor not in gravity_text:
+    raise SystemExit("Fft.cpp lazy-init gravity anchor missing")
+gravity_text = gravity_text.replace(
+    gravity_exchange_anchor, gravity_exchange_patch, 1
+)
+
+# Once FFTW is initialized, keep the original one-frame exchange pipeline but
+# skip the transforms when the masked mass plane is exactly zero.
+gravity_work_anchor = """void GravityImpl::Work()
+{
+	{
+		auto massBigP = MakePlane<blocks.X, blocks.Y>(blocks, massBig.get());
+		for (auto p : CELLS.OriginRect())
+		{
+			// used to be a membwand but we'd need a new buffer for this,
+			// not worth it just to make this unalinged copy faster
+			massBigP[p + CELLS] = gravIn.mask[p] ? gravIn.mass[p] : 0.f;
+		}
+	}
+	fftwf_execute(massForward.get());"""
+gravity_work_patch = """void GravityImpl::Work()
+{
+	bool yandexWebHasEffectiveMass = false;
+	{
+		auto massBigP = MakePlane<blocks.X, blocks.Y>(blocks, massBig.get());
+		for (auto p : CELLS.OriginRect())
+		{
+			// used to be a membwand but we'd need a new buffer for this,
+			// not worth it just to make this unalinged copy faster
+			auto value = gravIn.mask[p] ? gravIn.mass[p] : 0.f;
+			massBigP[p + CELLS] = value;
+			yandexWebHasEffectiveMass |= value != 0.0f;
+		}
+	}
+#if defined(__EMSCRIPTEN__)
+	if (!yandexWebHasEffectiveMass)
+	{
+		for (auto p : CELLS.OriginRect())
+		{
+			gravOut.forceX[p] = 0.0f;
+			gravOut.forceY[p] = 0.0f;
+		}
+		return;
+	}
+#else
+	(void)yandexWebHasEffectiveMass;
+#endif
+	fftwf_execute(massForward.get());"""
+if gravity_work_anchor not in gravity_text:
+    raise SystemExit("Fft.cpp zero-mass FFT anchor missing")
+gravity_text = gravity_text.replace(gravity_work_anchor, gravity_work_patch, 1)
+
 gravity_cpp.write_text(gravity_text, encoding="utf-8")
 
 controller_text = game_controller_cpp.read_text(encoding="utf-8")
