@@ -268,6 +268,11 @@ jobs:
           grep -Fn 'YandexWebText("Done", "Готово")' upstream/src/gui/colourpicker/ColourPickerActivity.cpp
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
           grep -Fn 'YandexWebToolButtonText(tool->Identifier, tool->Name, tool->Description)' upstream/src/gui/game/GameView.cpp
+          grep -Fn 'saveSimulationButton->SetText(YandexWebText("[untitled simulation]", "[без названия]"));' upstream/src/gui/game/GameView.cpp
+          if grep -Fn 'saveSimulationButton->SetText("[untitled simulation]");' upstream/src/gui/game/GameView.cpp; then
+            echo "Untitled simulation label is still reset to English."
+            exit 1
+          fi
           grep -Fn 'YandexWebToolButtonText(tool->Identifier, tool->Name, tool->Description)' upstream/src/gui/elementsearch/ElementSearchActivity.cpp
           grep -Fn 'YW_TOOL("DEFAULT_PT_DUST", "ПЫЛЬ")' upstream/src/YandexWebLocale.h
           grep -Fn 'YW_UI("Legacy", "Классический")' upstream/src/YandexWebLocale.h

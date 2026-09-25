@@ -1352,6 +1352,8 @@ game_replacements = [
      '"", YandexWebText("Reload the simulation", "Перезагрузить симуляцию"))'),
     ('"[untitled simulation]", "", "", 19)',
      'YandexWebText("[untitled simulation]", "[без названия]"), "", "", 19)'),
+    ('saveSimulationButton->SetText("[untitled simulation]");',
+     'saveSimulationButton->SetText(YandexWebText("[untitled simulation]", "[без названия]"));'),
     ('"", "Erase everything")',
      '"", YandexWebText("Erase everything", "Очистить всё"))'),
     ('"", "Settings")',
