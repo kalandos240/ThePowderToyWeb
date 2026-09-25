@@ -3,6 +3,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 meson = root / "upstream" / "meson.build"
+src_meson = root / "upstream" / "src" / "meson.build"
 powder = root / "upstream" / "src" / "PowderToy.cpp"
 powder_sdl = root / "upstream" / "src" / "PowderToySDL.cpp"
 sdl_emscripten = root / "upstream" / "src" / "PowderToySDLEmscripten.cpp"
@@ -72,6 +73,62 @@ if thread_callback_arg in meson_text:
     meson_text = meson_text.replace(thread_callback_arg, "", 1)
 
 meson.write_text(meson_text, encoding="utf-8")
+
+# Yandex Web/no-HTTP: strip upstream server constants from the generated
+# Config.h/WASM entirely. NOHTTP already disables the transport, but leaving
+# the default powdertoy.co.uk strings embedded in the binary violates the
+# self-contained release policy and makes static network audits ambiguous.
+src_meson_text = src_meson.read_text(encoding="utf-8")
+server_config_anchor = """enforce_https = get_option('enforce_https')
+server = get_option('server')
+static_server = get_option('static_server')
+update_server = get_option('update_server')
+
+if not (server.startswith('http://') or server.startswith('https://'))
+	server = 'https://' + server
+endif
+if server.startswith('http://') and enforce_https
+	error('enforce_https is true but server is a http:// URL base')
+endif
+if not (static_server.startswith('http://') or static_server.startswith('https://'))
+	static_server = 'https://' + static_server
+endif
+if static_server.startswith('http://') and enforce_https
+	error('enforce_https is true but static_server is a http:// URL base')
+endif
+"""
+server_config_patch = """enforce_https = get_option('enforce_https')
+server = get_option('server')
+static_server = get_option('static_server')
+update_server = get_option('update_server')
+
+if host_platform == 'emscripten' and not get_option('http')
+	# Yandex Web is deliberately serverless apart from the platform SDK.
+	server = ''
+	static_server = ''
+else
+	if not (server.startswith('http://') or server.startswith('https://'))
+		server = 'https://' + server
+	endif
+	if server.startswith('http://') and enforce_https
+		error('enforce_https is true but server is a http:// URL base')
+	endif
+	if not (static_server.startswith('http://') or static_server.startswith('https://'))
+		static_server = 'https://' + static_server
+	endif
+	if static_server.startswith('http://') and enforce_https
+		error('enforce_https is true but static_server is a http:// URL base')
+	endif
+endif
+"""
+if server_config_anchor not in src_meson_text:
+    raise SystemExit("src/meson.build server configuration anchor missing")
+src_meson_text = src_meson_text.replace(
+    server_config_anchor,
+    server_config_patch,
+    1,
+)
+src_meson.write_text(src_meson_text, encoding="utf-8")
 
 # Browser fullscreen belongs to the Yandex/player container. Keep every native
 # TPT fullscreen entry point (F11, Options, Lua) from mutating Engine state.
