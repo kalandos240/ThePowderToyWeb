@@ -164,6 +164,10 @@ jobs:
             echo "Technical unavailable-build wording remains in player-facing GameView."
             exit 1
           fi
+          if grep -EIn 'Login to save online|Re-upload the current simulation|Upload a new simulation|Modify simulation properties' "$GAME_VIEW"; then
+            echo "Online save/upload wording remains in player-facing GameView."
+            exit 1
+          fi
 
           python3 - <<'PY'
           from pathlib import Path
