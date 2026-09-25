@@ -257,6 +257,9 @@ jobs:
           grep -Fn 'YandexWebText("Copied!", "Скопировано!")' upstream/src/gui/interface/CopyTextButton.cpp
           grep -Fn 'ButtonText(YandexWebTranslateUi(buttonText))' upstream/src/gui/interface/Button.cpp
           grep -Fn 'toolTip(YandexWebTranslateUi(toolTip))' upstream/src/gui/interface/Button.cpp
+          grep -Fn 'text(YandexWebTranslateUi(text))' upstream/src/gui/interface/Checkbox.cpp
+          grep -Fn 'toolTip(YandexWebTranslateUi(toolTip))' upstream/src/gui/interface/Checkbox.cpp
+          grep -Fn 'saveSimulationButton->SetText(YandexWebText("[untitled simulation]", "[без названия]"));' upstream/src/gui/game/GameView.cpp
           grep -Fn 'YandexWebTranslateUi(newToolTip)' upstream/src/gui/interface/Button.h
           grep -Fn 'Text(YandexWebTranslateUi(text))' upstream/src/gui/interface/ContextMenu.h
           grep -Fn 'SetText(YandexWebTranslateUi(labelText))' upstream/src/gui/interface/Label.cpp
