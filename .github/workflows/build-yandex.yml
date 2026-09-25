@@ -206,9 +206,36 @@ jobs:
           LUA_MISC="upstream/src/lua/LuaMisc.cpp"
           BUILD_NINJA="upstream/build/build.ninja"
 
+          LUA_PLATFORM="upstream/src/lua/LuaPlatform.cpp"
+
           grep -Fn 'Yandex Web: Lua HTTP API disabled in browser builds.' "$LUA_SCRIPT"
-          grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_SCRIPT"
-          grep -Fn '#if !defined(__EMSCRIPTEN__)' "$LUA_MISC"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          checks = {
+              "upstream/src/lua/LuaScriptInterface.cpp": [
+                  "#if !defined(__EMSCRIPTEN__)\n\tLuaHttp::Open(L);\n#endif",
+              ],
+              "upstream/src/lua/LuaMisc.cpp": [
+                  "#if !defined(__EMSCRIPTEN__)\nstatic int installScriptManager",
+                  "#if !defined(__EMSCRIPTEN__)\n\t\tLFUNC(installScriptManager),\n#endif",
+              ],
+              "upstream/src/lua/LuaPlatform.cpp": [
+                  "#if !defined(__EMSCRIPTEN__)\nstatic int openLink",
+                  "#if !defined(__EMSCRIPTEN__)\n\t\tLFUNC(openLink),\n#endif",
+              ],
+          }
+
+          for path, snippets in checks.items():
+              text = Path(path).read_text(encoding="utf-8")
+              for snippet in snippets:
+                  if snippet not in text:
+                      raise SystemExit(
+                          f"Missing Emscripten Lua network/navigation guard in {path}: {snippet!r}"
+                      )
+          print("Lua Emscripten API guards: OK")
+          PY
 
           grep -Fn 'LuaSocketTCPNone.cpp' "$BUILD_NINJA"
           if grep -Fn 'LuaSocketTCPWebsocket.cpp' "$BUILD_NINJA"; then
@@ -220,7 +247,7 @@ jobs:
             exit 1
           fi
 
-          echo "Lua network API/backend: disabled"
+          echo "Lua network/navigation API/backend: disabled"
 
       - name: Validate shared-memory-free browser output
         run: |
