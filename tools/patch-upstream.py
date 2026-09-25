@@ -45,6 +45,7 @@ intro_text = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
 emscripten_platform = root / "upstream" / "src" / "common" / "platform" / "Emscripten.cpp"
 lua_script_interface_cpp = root / "upstream" / "src" / "lua" / "LuaScriptInterface.cpp"
 lua_misc_cpp = root / "upstream" / "src" / "lua" / "LuaMisc.cpp"
+lua_platform_cpp = root / "upstream" / "src" / "lua" / "LuaPlatform.cpp"
 
 meson_text = meson.read_text(encoding="utf-8")
 pthread_arg = "\t\t'-s', 'USE_PTHREADS',\n"
@@ -496,6 +497,34 @@ if "#if !defined(__EMSCRIPTEN__)\n\t\tLFUNC(installScriptManager)," not in lua_m
         1,
     )
 lua_misc_cpp.write_text(lua_misc_text, encoding="utf-8")
+
+lua_platform_text = lua_platform_cpp.read_text(encoding="utf-8")
+open_link_anchor = """static int openLink(lua_State *L)
+{
+	GetLSI()->AssertInterfaceEvent();
+	auto uri = tpt_lua_checkByteString(L, 1);
+	Platform::OpenURI(uri);
+	return 0;
+}"""
+if "#if !defined(__EMSCRIPTEN__)\nstatic int openLink" not in lua_platform_text:
+    if open_link_anchor not in lua_platform_text:
+        raise SystemExit("LuaPlatform.cpp openLink anchor missing")
+    lua_platform_text = lua_platform_text.replace(
+        open_link_anchor,
+        "#if !defined(__EMSCRIPTEN__)\n" + open_link_anchor + "\n#endif",
+        1,
+    )
+
+open_link_registration = "\t\tLFUNC(openLink),"
+if "#if !defined(__EMSCRIPTEN__)\n\t\tLFUNC(openLink)," not in lua_platform_text:
+    if open_link_registration not in lua_platform_text:
+        raise SystemExit("LuaPlatform.cpp openLink registration anchor missing")
+    lua_platform_text = lua_platform_text.replace(
+        open_link_registration,
+        "#if !defined(__EMSCRIPTEN__)\n" + open_link_registration + "\n#endif",
+        1,
+    )
+lua_platform_cpp.write_text(lua_platform_text, encoding="utf-8")
 
 print("Applied Yandex Web upstream patches.")
 
