@@ -282,6 +282,7 @@ jobs:
           RENDERER="upstream/src/graphics/Renderer.cpp"
           MESON="upstream/meson.build"
           BUILD_SH="upstream/.github/build.sh"
+          EMSCRIPTEN_PLATFORM="upstream/src/common/platform/Emscripten.cpp"
 
           grep -Fn 'bool yandexWebNeedsFlatten = false;' "$SIM"
           grep -Fn 'if (yandexWebNeedsFlatten)' "$SIM"
@@ -315,6 +316,22 @@ jobs:
           grep -Fn 'bool yandexWebHasFire = false;' "$RENDERER"
           grep -Fn 'if (!yandexWebHasFire)' "$RENDERER"
           grep -Fn 'const auto &signs = sim->signs;' "$RENDERER"
+          grep -Fn 'static bool shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
+          grep -Fn 'if (!syncFsInFlight && shouldSyncFs)' "$EMSCRIPTEN_PLATFORM"
+          grep -Fn 'shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
+          grep -Fn 'shouldSyncFs = true;' "$EMSCRIPTEN_PLATFORM"
+          if grep -Fn 'shouldSyncFs.exchange' "$EMSCRIPTEN_PLATFORM"; then
+            echo "Atomic exchange returned to the single-thread browser sync hot path."
+            exit 1
+          fi
+          if grep -Fn 'invoking FS.syncfs' "$EMSCRIPTEN_PLATFORM"; then
+            echo "Per-sync stderr logging returned to the browser storage path."
+            exit 1
+          fi
+          if grep -Fn '#include <atomic>' "$EMSCRIPTEN_PLATFORM"; then
+            echo "Unused atomic support returned to Emscripten platform code."
+            exit 1
+          fi
           if grep -Fn 'std::vector<sign> signs = sim->signs;' "$RENDERER"; then
             echo "Renderer::DrawSigns still copies the sign vector every frame."
             exit 1
@@ -427,6 +444,7 @@ jobs:
           end = text.find("\nvoid Air::Invert()", start)
           update = text[start:end]
           required = (
+              "if (airMode == AIR_NOUPDATE)",
               "if (sim.parts.active == 0 &&",
               "edgePressure == 0.0f",
               "edgeVelocityX == 0.0f",
@@ -441,6 +459,12 @@ jobs:
           for marker in required:
               if marker not in update:
                   raise SystemExit(f"Air idle fast path missing: {marker}")
+          no_update = update.find("if (airMode == AIR_NOUPDATE)")
+          idle_scan = update.find("if (sim.parts.active == 0 &&")
+          if no_update < 0 or idle_scan < 0 or no_update > idle_scan:
+              raise SystemExit(
+                  "AIR_NOUPDATE must return before the empty-scene zero scan"
+              )
           print("Air empty-scene fixed-point fast path: OK")
           PY
 
