@@ -796,6 +796,12 @@ if recalc_start not in simulation_text:
     raise SystemExit("RecalcFreeParticles start anchor missing")
 simulation_text = simulation_text.replace(recalc_start, recalc_start_patch, 1)
 
+recalc_pos = simulation_text.find("void Simulation::RecalcFreeParticles")
+recalc_end = simulation_text.find("\nvoid Parts::Flatten()", recalc_pos)
+if recalc_pos < 0 or recalc_end < 0:
+    raise SystemExit("RecalcFreeParticles function bounds missing")
+segment = simulation_text[recalc_pos:recalc_end]
+
 empty_anchor = """		if (!parts[i].type)
 		{
 			continue;
@@ -805,19 +811,16 @@ empty_patch = """		if (!parts[i].type)
 			yandexWebNeedsFlatten = true;
 			continue;
 		}"""
-if empty_anchor not in simulation_text:
+if empty_anchor not in segment:
     raise SystemExit("RecalcFreeParticles empty-particle anchor missing")
-simulation_text = simulation_text.replace(empty_anchor, empty_patch, 1)
+segment = segment.replace(empty_anchor, empty_patch, 1)
 
 for kill_anchor in [
     """				kill_part(i);
 				continue;""",
 ]:
     # Both life-expiry branches use the same sequence. Mark each occurrence
-    # inside this function before continuing.
-    recalc_pos = simulation_text.find("void Simulation::RecalcFreeParticles")
-    recalc_end = simulation_text.find("\nvoid Parts::Flatten()", recalc_pos)
-    segment = simulation_text[recalc_pos:recalc_end]
+    # strictly inside RecalcFreeParticles before continuing.
     count = segment.count(kill_anchor)
     if count < 2:
         raise SystemExit(
@@ -942,6 +945,19 @@ inline String YandexWebTranslateUi(const String &source)
 	YW_UI("Options", "Настройки");
 	YW_UI("Renderer", "Отображение");
 	YW_UI("Render Options", "Настройки отображения");
+	YW_UI("Alternative Velocity Display", "Альтернативная скорость");
+	YW_UI("Velocity Display", "Скорость");
+	YW_UI("Pressure Display", "Давление");
+	YW_UI("Persistent Display", "Следы");
+	YW_UI("Fire Display", "Огонь");
+	YW_UI("Blob Display", "Сгустки");
+	YW_UI("Heat Display", "Температура");
+	YW_UI("Fancy Display", "Эффекты");
+	YW_UI("Nothing Display", "Без эффектов");
+	YW_UI("Heat Gradient Display", "Градиент температуры");
+	YW_UI("Life Gradient Display", "Градиент жизни");
+	YW_UI("Dynamic Heat Display", "Динамическая температура");
+	YW_UI("Vorticity Display", "Завихренность");
 	YW_UI("Credits", "Авторы");
 	YW_UI("Stamps", "Штампы");
 	YW_UI("Element Search", "Поиск элементов");
