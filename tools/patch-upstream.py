@@ -38,6 +38,7 @@ renderer_h = root / "upstream" / "src" / "graphics" / "Renderer.h"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
 tool_button_cpp = root / "upstream" / "src" / "gui" / "game" / "ToolButton.cpp"
+tool_button_h = root / "upstream" / "src" / "gui" / "game" / "ToolButton.h"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
 intro_text_h = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
@@ -1720,6 +1721,23 @@ tool_button_text = tool_button_text.replace(
 )
 tool_button_cpp.write_text(tool_button_text, encoding="utf-8")
 
+tool_button_h_text = tool_button_h.read_text(encoding="utf-8")
+tool_button_h_anchor = """	void SetSelectionState(int state);
+	int GetSelectionState();
+	Tool *tool;"""
+tool_button_h_patch = """	void SetSelectionState(int state);
+	int GetSelectionState();
+#if defined(__EMSCRIPTEN__)
+	const String &YandexWebDisplayTextForTest() const { return buttonDisplayText; }
+#endif
+	Tool *tool;"""
+if tool_button_h_anchor not in tool_button_h_text:
+    raise SystemExit("ToolButton Web display-text diagnostic anchor missing")
+tool_button_h_text = tool_button_h_text.replace(
+    tool_button_h_anchor, tool_button_h_patch, 1
+)
+tool_button_h.write_text(tool_button_h_text, encoding="utf-8")
+
 # Translate common component-level UI strings in RU mode. This catches rare
 # local buttons, tooltips, placeholders and context-menu items that are easy
 # to miss with call-site-only localization.
@@ -1863,6 +1881,8 @@ static int YandexWeb_TestUiHeight = -1;
 static int YandexWeb_TestDustButtonX = -1;
 static int YandexWeb_TestDustButtonY = -1;
 static int YandexWeb_TestDustButtonRussian = -1;
+static int YandexWeb_TestDustButtonTextWidth = -1;
+static int YandexWeb_TestDustButtonWidth = -1;
 static int YandexWeb_TestSaveButtonX = -1;
 static int YandexWeb_TestSaveButtonY = -1;
 static int YandexWeb_TestSettingsButtonX = -1;
@@ -1883,6 +1903,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetUiHeight() { return YandexW
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonX() { return YandexWeb_TestDustButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetDustButtonY() { return YandexWeb_TestDustButtonY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonIsRussian() { return YandexWeb_TestDustButtonRussian; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonTextWidth() { return YandexWeb_TestDustButtonTextWidth; }
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestDustButtonWidth() { return YandexWeb_TestDustButtonWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonX() { return YandexWeb_TestSaveButtonX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSaveButtonY() { return YandexWeb_TestSaveButtonY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestGetSettingsButtonX() { return YandexWeb_TestSettingsButtonX; }
@@ -1948,6 +1970,8 @@ ui_geometry_patch = r'''
 	YandexWeb_TestDustButtonX = -1;
 	YandexWeb_TestDustButtonY = -1;
 	YandexWeb_TestDustButtonRussian = -1;
+	YandexWeb_TestDustButtonTextWidth = -1;
+	YandexWeb_TestDustButtonWidth = -1;
 	for (auto *button : toolButtons)
 	{
 		if (button && button->tool && button->tool->Identifier == "DEFAULT_PT_DUST")
@@ -1956,6 +1980,9 @@ ui_geometry_patch = r'''
 			YandexWeb_TestDustButtonY = button->Position.Y + button->Size.Y / 2;
 			YandexWeb_TestDustButtonRussian =
 				button->GetText() == ByteString("ПЫЛЬ").FromUtf8() ? 1 : 0;
+			YandexWeb_TestDustButtonTextWidth =
+				Graphics::TextSize(button->YandexWebDisplayTextForTest()).X;
+			YandexWeb_TestDustButtonWidth = button->Size.X;
 			break;
 		}
 	}
