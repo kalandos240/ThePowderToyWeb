@@ -118,7 +118,6 @@ let viewportUpdateScheduled = false;
 let lastCanvasStyleWidth = "";
 let lastCanvasStyleHeight = "";
 let lastCanvasImageRendering = "";
-let lastCanvasFitGeometry = null;
 let adTimerId = null;
 let adCycleActive = false;
 const coarsePointerMedia =
@@ -531,26 +530,10 @@ function fitCanvas() {
   const appWidth = app.clientWidth;
   const appHeight = app.clientHeight;
 
-  // ResizeObserver, visualViewport and fullscreen events can all schedule the
-  // same geometry more than once. Bail out before getComputedStyle() so
-  // duplicate notifications do not force repeated style/layout reads.
-  if (
-    lastCanvasFitGeometry &&
-    lastCanvasFitGeometry.logicalWidth === logicalWidth &&
-    lastCanvasFitGeometry.logicalHeight === logicalHeight &&
-    lastCanvasFitGeometry.appWidth === appWidth &&
-    lastCanvasFitGeometry.appHeight === appHeight
-  ) {
-    return;
-  }
-
-  lastCanvasFitGeometry = {
-    logicalWidth,
-    logicalHeight,
-    appWidth,
-    appHeight
-  };
-
+  // Always re-read computed safe-area padding. Mobile browsers can change
+  // env(safe-area-inset-*) across repeated fullscreen/browser-chrome cycles
+  // without changing app.clientWidth/clientHeight. The individual canvas
+  // style writes below are still coalesced, so unchanged geometry remains cheap.
   const appStyle = getComputedStyle(app);
   const horizontalPadding =
     parseFloat(appStyle.paddingLeft) + parseFloat(appStyle.paddingRight);
