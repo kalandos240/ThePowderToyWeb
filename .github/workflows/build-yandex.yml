@@ -178,6 +178,27 @@ jobs:
           chmod +x .github/build.sh
           ./.github/build.sh
 
+      - name: Verify compiled no-HTTP configuration
+        run: |
+          set -euo pipefail
+          CONFIG_FILE="upstream/build/src/Config.h"
+          test -f "$CONFIG_FILE"
+
+          grep -Fn 'constexpr bool NOHTTP                   = true;' "$CONFIG_FILE"
+          grep -Fn 'constexpr bool USE_UPDATESERVER         = false;' "$CONFIG_FILE"
+          grep -Fn 'constexpr bool IGNORE_UPDATES           = true;' "$CONFIG_FILE"
+
+          if grep -Fn 'constexpr bool NOHTTP                   = false;' "$CONFIG_FILE"; then
+            echo "HTTP support is enabled in the compiled Yandex build."
+            exit 1
+          fi
+          if grep -Fn 'constexpr bool USE_UPDATESERVER         = true;' "$CONFIG_FILE"; then
+            echo "Update server support is enabled in the compiled Yandex build."
+            exit 1
+          fi
+
+          echo "Compiled Yandex configuration: NOHTTP, no update server"
+
       - name: Validate shared-memory-free browser output
         run: |
           set -euo pipefail
