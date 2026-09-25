@@ -1,11 +1,122 @@
 let sdk = null;
 let sdkInitPromise = null;
 let readySent = false;
+let loadingReadySent = false;
 let gameplayActive = false;
+let sdkGameplayActive = false;
 let platformPauseActive = false;
 let gameplayBlocked = false;
+let sdkListenersInstalled = false;
+let pauseRuntimeCallback = () => {};
+let resumeRuntimeCallback = () => {};
 
 const SDK_INIT_TIMEOUT_MS = 8000;
+
+function sendLoadingReady(currentSDK) {
+  if (!currentSDK || !readySent || loadingReadySent) {
+    return;
+  }
+
+  try {
+    currentSDK.features?.LoadingAPI?.ready();
+    loadingReadySent = true;
+    console.info("[Yandex] LoadingAPI.ready sent.");
+  } catch (error) {
+    console.error("[Yandex] LoadingAPI.ready failed.", error);
+  }
+}
+
+function startGameplayOnSDK(currentSDK) {
+  if (
+    !currentSDK ||
+    sdkGameplayActive ||
+    !gameplayActive ||
+    document.hidden ||
+    platformPauseActive ||
+    gameplayBlocked
+  ) {
+    return;
+  }
+
+  try {
+    currentSDK.features?.GameplayAPI?.start();
+    sdkGameplayActive = true;
+  } catch (error) {
+    console.error("[Yandex] GameplayAPI.start failed.", error);
+  }
+}
+
+function stopGameplayOnSDK(currentSDK) {
+  if (!currentSDK || !sdkGameplayActive) {
+    return;
+  }
+
+  try {
+    currentSDK.features?.GameplayAPI?.stop();
+  } catch (error) {
+    console.error("[Yandex] GameplayAPI.stop failed.", error);
+  } finally {
+    sdkGameplayActive = false;
+  }
+}
+
+function installSDKPauseListeners(currentSDK) {
+  if (!currentSDK?.on || sdkListenersInstalled) {
+    return;
+  }
+
+  sdkListenersInstalled = true;
+
+  currentSDK.on("game_api_pause", () => {
+    platformPauseActive = true;
+
+    // Yandex applies GameplayAPI.stop() automatically for this event.
+    // Preserve the logical gameplay state, but mark the SDK side stopped so
+    // resume can explicitly reconcile it when required.
+    sdkGameplayActive = false;
+    pauseRuntimeCallback();
+    console.info("[Yandex] game_api_pause");
+  });
+
+  currentSDK.on("game_api_resume", () => {
+    platformPauseActive = false;
+
+    if (!document.hidden) {
+      resumeRuntimeCallback();
+    }
+
+    if (readySent && !document.hidden && !gameplayBlocked) {
+      if (gameplayActive) {
+        startGameplayOnSDK(currentSDK);
+      } else {
+        void gameplayStart();
+      }
+    }
+
+    console.info("[Yandex] game_api_resume");
+  });
+}
+
+function adoptSDK(currentSDK, late = false) {
+  if (!currentSDK) {
+    return null;
+  }
+
+  sdk = currentSDK;
+  sdkInitPromise = Promise.resolve(currentSDK);
+  window.ysdk = currentSDK;
+  installSDKPauseListeners(currentSDK);
+
+  if (late) {
+    console.info("[Yandex] SDK initialized after startup timeout; state reconciled.");
+  } else {
+    console.info("[Yandex] SDK initialized.");
+  }
+
+  sendLoadingReady(currentSDK);
+  startGameplayOnSDK(currentSDK);
+  return currentSDK;
+}
 
 export async function initYandexSDK() {
   if (sdkInitPromise) {
@@ -19,6 +130,8 @@ export async function initYandexSDK() {
     }
 
     let timeoutId = null;
+    const rawInitPromise = Promise.resolve().then(() => window.YaGames.init());
+
     try {
       const timeoutPromise = new Promise((_, reject) => {
         timeoutId = window.setTimeout(() => {
@@ -30,16 +143,22 @@ export async function initYandexSDK() {
         }, SDK_INIT_TIMEOUT_MS);
       });
 
-      sdk = await Promise.race([
-        Promise.resolve(window.YaGames.init()),
-        timeoutPromise
-      ]);
-      window.ysdk = sdk;
-      console.info("[Yandex] SDK initialized.");
-      return sdk;
+      const currentSDK = await Promise.race([rawInitPromise, timeoutPromise]);
+      return adoptSDK(currentSDK);
     } catch (error) {
       if (error?.name === "YandexSDKTimeoutError") {
-        console.warn("[Yandex] SDK initialization timed out; continuing without SDK.");
+        console.warn("[Yandex] SDK initialization timed out; continuing while it finishes.");
+
+        // Do not block the game on a slow SDK, but keep the original init
+        // operation alive. If it eventually succeeds, attach it and reconcile
+        // LoadingAPI/GameplayAPI with the already-running game.
+        void rawInitPromise
+          .then((currentSDK) => {
+            adoptSDK(currentSDK, true);
+          })
+          .catch((lateError) => {
+            console.error("[Yandex] Late SDK initialization failed.", lateError);
+          });
       } else {
         console.error("[Yandex] SDK initialization failed.", error);
       }
@@ -60,18 +179,8 @@ export async function signalGameReady() {
   }
 
   const currentSDK = await initYandexSDK();
-  if (!currentSDK) {
-    readySent = true;
-    return;
-  }
-
-  try {
-    currentSDK.features?.LoadingAPI?.ready();
-    readySent = true;
-    console.info("[Yandex] LoadingAPI.ready sent.");
-  } catch (error) {
-    console.error("[Yandex] LoadingAPI.ready failed.", error);
-  }
+  readySent = true;
+  sendLoadingReady(currentSDK);
 }
 
 export async function gameplayStart() {
@@ -80,17 +189,8 @@ export async function gameplayStart() {
   }
 
   const currentSDK = await initYandexSDK();
-  if (!currentSDK) {
-    gameplayActive = true;
-    return;
-  }
-
-  try {
-    currentSDK.features?.GameplayAPI?.start();
-    gameplayActive = true;
-  } catch (error) {
-    console.error("[Yandex] GameplayAPI.start failed.", error);
-  }
+  gameplayActive = true;
+  startGameplayOnSDK(currentSDK);
 }
 
 export async function gameplayStop() {
@@ -99,18 +199,8 @@ export async function gameplayStop() {
   }
 
   const currentSDK = await initYandexSDK();
-  if (!currentSDK) {
-    gameplayActive = false;
-    return;
-  }
-
-  try {
-    currentSDK.features?.GameplayAPI?.stop();
-  } catch (error) {
-    console.error("[Yandex] GameplayAPI.stop failed.", error);
-  } finally {
-    gameplayActive = false;
-  }
+  gameplayActive = false;
+  stopGameplayOnSDK(currentSDK);
 }
 
 export function setGameplayBlocked(blocked) {
@@ -128,13 +218,20 @@ export function setGameplayBlocked(blocked) {
 }
 
 export function installPlatformPauseBridge({ onPause, onResume } = {}) {
-  const pauseRuntime = () => {
+  pauseRuntimeCallback = () => {
     onPause?.();
+  };
+  resumeRuntimeCallback = () => {
+    onResume?.();
+  };
+
+  const pauseRuntime = () => {
+    pauseRuntimeCallback();
   };
 
   const resumeRuntime = () => {
     if (!document.hidden && !platformPauseActive) {
-      onResume?.();
+      resumeRuntimeCallback();
     }
   };
 
@@ -165,36 +262,9 @@ export function installPlatformPauseBridge({ onPause, onResume } = {}) {
     }
   });
 
-  void initYandexSDK().then((currentSDK) => {
-    if (!currentSDK?.on) {
-      return;
-    }
-
-    currentSDK.on("game_api_pause", () => {
-      platformPauseActive = true;
-
-      // Yandex automatically applies GameplayAPI.stop() for this event.
-      // Keep our own gameplayActive flag unchanged so an explicit stop made
-      // by the game is not accidentally forgotten on resume.
-      pauseRuntime();
-      console.info("[Yandex] game_api_pause");
-    });
-
-    currentSDK.on("game_api_resume", () => {
-      platformPauseActive = false;
-      resumeRuntime();
-
-      // Yandex does not auto-start gameplay on resume when GameplayAPI.stop()
-      // was already active before the platform pause (for example, a menu or
-      // portrait blocker). If that local blocker was cleared while the platform
-      // was paused, reconcile our explicit gameplay state now.
-      if (readySent && !document.hidden && !gameplayBlocked) {
-        void gameplayStart();
-      }
-
-      console.info("[Yandex] game_api_resume");
-    });
-  });
+  // SDK event handlers are installed by adoptSDK(), including when the SDK
+  // resolves only after the startup timeout.
+  void initYandexSDK();
 }
 
 
