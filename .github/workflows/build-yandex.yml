@@ -73,6 +73,30 @@ jobs:
           # stale Emscripten objects and silently mix old/new main-loop logic.
           key: tpt-yandex-v100.1.400-emsdk-3.1.72-wasm32-emscripten-static-release-nohttp-${{ runner.os }}-${{ hashFiles('upstream/.github/build.sh') }}-${{ hashFiles('tools/patch-upstream.py') }}
 
+      - name: Check upstream patch script integrity
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/patch-upstream.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          text = Path("tools/patch-upstream.py").read_text(encoding="utf-8")
+          unique_markers = (
+              "# Browser performance: remember whether",
+              "locale_header.write_text(r'''",
+              "game_view.write_text(view_text, encoding=\"utf-8\")",
+          )
+          for marker in unique_markers:
+              count = text.count(marker)
+              if count != 1:
+                  raise SystemExit(
+                      f"patch-upstream.py duplicated/corrupted marker {marker!r}: {count}"
+                  )
+          if "meson_configure+= from the generated" in text:
+              raise SystemExit("patch-upstream.py contains corrupted replacement text")
+          print("Upstream patch script syntax/integrity: OK")
+          PY
+
       - name: Apply Yandex Web patches
         run: |
           python3 tools/patch-upstream.py
@@ -250,6 +274,9 @@ jobs:
           grep -Fn 'bool yandexWebStackingCandidate = false;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebStackingCells;' "$SIM_H"
           grep -Fn 'std::vector<int> yandexWebCountedCells;' "$SIM_H"
+          grep -Fn 'bool rebuildStackingCounts = true' "$SIM_H"
+          grep -Fn 'bool rebuildStackingCounts' "$SIM"
+          grep -Fn 'if (rebuildStackingCounts)' "$SIM"
           grep -Fn 'yandexWebStackingCandidate = false;' "$SIM"
           grep -Fn 'yandexWebStackingCells.clear();' "$SIM"
           grep -Fn 'for (int cell : yandexWebCountedCells)' "$SIM"
@@ -260,11 +287,18 @@ jobs:
           grep -Fn 'yandexWebStackingCells.push_back(y * XRES + x);' "$SIM"
           grep -Fn 'if (!yandexWebStackingCandidate)' "$SIM"
           grep -Fn 'std::sort(yandexWebStackingCells.begin(), yandexWebStackingCells.end());' "$SIM"
+          grep -Fn 'yandexWebCheckStacking' "$SIM"
+          grep -Fn 'RecalcFreeParticles(willUpdate, yandexWebCheckStacking);' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; ++i)' "$SIM"
           grep -Fn 'ID(r) == i' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
           grep -Fn 'bool yandexWebHasFire = false;' "$RENDERER"
           grep -Fn 'if (!yandexWebHasFire)' "$RENDERER"
+          grep -Fn 'const auto &signs = sim->signs;' "$RENDERER"
+          if grep -Fn 'std::vector<sign> signs = sim->signs;' "$RENDERER"; then
+            echo "Renderer::DrawSigns still copies the sign vector every frame."
+            exit 1
+          fi
 
           python3 - <<'PY'
           from pathlib import Path
@@ -287,6 +321,7 @@ jobs:
               "if (cellCount == 6)",
               "yandexWebStackingCandidate = true;",
               "yandexWebStackingCells.push_back(y * XRES + x);",
+              "rebuildStackingCounts &&",
           )
           if recalc_start < 0 or recalc_end < 0:
               raise SystemExit("RecalcFreeParticles bounds missing")
@@ -298,6 +333,16 @@ jobs:
           if "memset(pmap_count, 0, sizeof(pmap_count));" in recalc:
               raise SystemExit(
                   "RecalcFreeParticles still clears the complete pmap_count grid"
+              )
+
+          before_sim_start = text.find("void Simulation::BeforeSim(bool willUpdate)")
+          before_sim_end = text.find("\nvoid Simulation::AfterSim()", before_sim_start)
+          before_sim = text[before_sim_start:before_sim_end]
+          if "RecalcFreeParticles(willUpdate, yandexWebCheckStacking);" not in before_sim:
+              raise SystemExit("BeforeSim lazy stacking-count rebuild missing")
+          if before_sim.count("rng.chance(1, 10)") != 2:
+              raise SystemExit(
+                  "BeforeSim stacking RNG structure changed unexpectedly"
               )
 
           stacking_start = text.find("void Simulation::CheckStacking()")
