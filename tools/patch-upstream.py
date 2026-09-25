@@ -37,6 +37,7 @@ renderer_cpp = root / "upstream" / "src" / "graphics" / "Renderer.cpp"
 renderer_h = root / "upstream" / "src" / "graphics" / "Renderer.h"
 game_controller_cpp = root / "upstream" / "src" / "gui" / "game" / "GameController.cpp"
 game_model_cpp = root / "upstream" / "src" / "gui" / "game" / "GameModel.cpp"
+tool_button_cpp = root / "upstream" / "src" / "gui" / "game" / "ToolButton.cpp"
 quick_options_cpp = root / "upstream" / "src" / "gui" / "game" / "QuickOptions.cpp"
 simtools_dir = root / "upstream" / "src" / "simulation" / "simtools"
 intro_text_h = root / "upstream" / "src" / "gui" / "game" / "IntroText.h"
@@ -1587,13 +1588,9 @@ inline String YandexWebTranslateUi(const String &source)
 
 inline String YandexWebCompactToolButtonText(String label)
 {
-	// Native ToolButton geometry is intentionally kept upstream-compatible.
-	// Russian words are often much wider than the canonical 3-5 character
-	// element abbreviations, so cap only the painted caption. The complete
-	// localized name/description remains available in the tooltip/HUD.
-	constexpr size_t maxVisibleCharacters = 5;
-	if (label.size() > maxVisibleCharacters)
-		return label.Substr(0, maxVisibleCharacters);
+	// Keep the localized word intact here. ToolButton.cpp performs the final
+	// clipping by *rendered pixel width*, so Cyrillic captions use as much of
+	// the fixed button width as actually fits without crossing the border.
 	return label;
 }
 
@@ -1696,6 +1693,32 @@ include_locale(gol_tool_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(task_window_cpp, '#include "graphics/Graphics.h"\n')
 include_locale(client_cpp, '#include "Config.h"\n')
 include_locale(powder, '#include "Config.h"\n')
+
+# ToolButton uses a fixed 30px-ish element button width. Upstream truncates
+# by character count, which is not sufficient for wider Cyrillic glyphs.
+# Fit the painted caption against the real font metrics instead.
+tool_button_text = tool_button_cpp.read_text(encoding="utf-8")
+tool_button_anchor = """	//don't use "..." on elements that have long names
+	buttonDisplayText = ButtonText.Substr(0, 7);
+	Component::TextPosition(buttonDisplayText);"""
+tool_button_patch = """	// Do not use "..." on element buttons. Fit the actual rendered glyph
+	// width so localized Cyrillic labels never paint across neighbouring
+	// button borders while retaining as much of the word as possible.
+	buttonDisplayText = ButtonText.Substr(0, 7);
+	const int yandexWebCaptionWidth = std::max(0, Size.X - 4);
+	while (buttonDisplayText.size() &&
+	       Graphics::TextSize(buttonDisplayText).X > yandexWebCaptionWidth)
+	{
+		buttonDisplayText =
+			buttonDisplayText.Substr(0, buttonDisplayText.size() - 1);
+	}
+	Component::TextPosition(buttonDisplayText);"""
+if tool_button_anchor not in tool_button_text:
+    raise SystemExit("ToolButton pixel-width fitting anchor missing")
+tool_button_text = tool_button_text.replace(
+    tool_button_anchor, tool_button_patch, 1
+)
+tool_button_cpp.write_text(tool_button_text, encoding="utf-8")
 
 # Translate common component-level UI strings in RU mode. This catches rare
 # local buttons, tooltips, placeholders and context-menu items that are easy
