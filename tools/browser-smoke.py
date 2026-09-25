@@ -3148,6 +3148,21 @@ def smoke_case(language: str, mobile: bool):
             unexpected_severe_logs,
         )
 
+        authored_warnings = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "WARNING"
+            and (
+                "[TPT]" in entry.get("message", "")
+                or "[Yandex]" in entry.get("message", "")
+            )
+        ]
+        assert not authored_warnings, (
+            label,
+            "unexpected authored warning in normal production smoke",
+            authored_warnings,
+        )
+
         print(
             f"[smoke] {label}: OK {state}; resized={resized}; "
             f"paused={paused}; resumed={resumed}; performance={performance}; "
