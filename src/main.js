@@ -621,6 +621,7 @@ async function runFullscreenAdCycle({ scheduleNext = true } = {}) {
     !presentable ||
     fatalShown ||
     document.hidden ||
+    platformPauseRequested ||
     orientationBlocked ||
     nativeModalBlocked
   ) {
