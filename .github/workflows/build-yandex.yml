@@ -120,6 +120,42 @@ jobs:
 
           echo "Browser external-navigation sink: disabled"
 
+      - name: Check browser online controllers are compiled out
+        run: |
+          set -euo pipefail
+          CONTROLLER="upstream/src/gui/game/GameController.cpp"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          text = Path("upstream/src/gui/game/GameController.cpp").read_text(
+              encoding="utf-8"
+          )
+          methods = (
+              "void GameController::OpenSearch(String searchText)",
+              "void GameController::OpenSaveDone()",
+              "void GameController::OpenSavePreview(int saveID, int saveDate, SavePreviewType savePreviewType)",
+              "void GameController::OpenSavePreview()",
+              "void GameController::OpenLogin()",
+              "void GameController::OpenProfile()",
+              "void GameController::OpenTags()",
+          )
+          guard = (
+              "#if defined(__EMSCRIPTEN__)\n"
+              "\t// Yandex Web: upstream online controller path disabled.\n"
+              "\treturn;\n#else"
+          )
+          for method in methods:
+              start = text.find(method)
+              if start < 0:
+                  raise SystemExit(f"Missing patched controller method: {method}")
+              body = text[start:start + 500]
+              if guard not in body:
+                  raise SystemExit(
+                      f"Online controller method is not Emscripten-disabled: {method}"
+                  )
+          print("Browser upstream online-controller guards: OK")
+          PY
+
       - name: Check player-facing UI has no build diagnostics
         run: |
           set -euo pipefail
