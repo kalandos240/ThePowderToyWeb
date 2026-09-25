@@ -373,6 +373,8 @@ jobs:
           grep -Fn 'yandexWebWallsMayExist = true;' "$EDITING"
           grep -Fn 'yandexWebWallsMayExist = true;' "$LUA_SIM"
           grep -Fn 'if (!sim->yandexWebWallsMayExist)' "$RENDERER"
+          grep -Fn 'YandexWeb_TestWallRenderHint' upstream/src/gui/game/GameModel.cpp
+          grep -Fn 'YandexWeb_TestCreateWallForRenderHint' upstream/src/gui/game/GameModel.cpp
           if [ "$(grep -Fc 'yandexWebWallsMayExist = false;' "$SIM")" -ne 1 ]; then
             echo "Wall renderer hint has an unsafe extra false-assignment."
             exit 1
