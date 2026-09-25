@@ -22,9 +22,12 @@ This repository intentionally keeps platform glue separate from upstream game so
 - `styles.css` — responsive desktop/mobile shell.
 - `tools/patch-upstream.py` — applies Yandex/mobile/localization/single-thread changes to the pinned upstream source.
 - `tools/browser-smoke.py` — launches the built game in Chrome as desktop/mobile and RU/EN, including blocked and deliberately delayed Yandex SDK startup paths.
-- `tools/smoke-http-server.py` — threaded CI server that can delay only `/sdk.js` while serving the game normally.
+- `tools/smoke-http-server.py` — local CI-only server that can delay only `/sdk.js` while serving the game normally; it is never included in the release ZIP.
+- `tools/check-runtime-network.py` — fails packaging if authored runtime contains third-party network URLs or if the generated JS/WASM still contains upstream/community service hosts.
 - `tools/browser-compat-smoke.py` — runs the exact release ZIP in Firefox and WebKit, including WebKit mobile viewport/orientation checks.
 - `.github/workflows/build-yandex.yml` — builds the official upstream Emscripten target, disables upstream HTTP features, verifies the browser runtime, and produces a minimal whitelisted Yandex ZIP artifact without debug/source-map files.
+
+The release game is self-contained and does not use third-party game servers, analytics, CDNs, community services, WebSockets, or upstream The Powder Toy network APIs. The only platform integration is the Yandex Games SDK loaded from the required same-origin path `/sdk.js`. `SOURCE.md` contains plain source-code links for GPL compliance, but it is documentation only and is never requested or opened by the game runtime.
 
 The build loads `/sdk.js` asynchronously and does **not** call Yandex SDK methods before the loader is ready and `YaGames.init()` resolves. `LoadingAPI.ready()` is sent only after the native game calls `window.mark_presentable()`. A stalled SDK cannot hold the loader forever: startup falls back after 8 seconds using the browser locale, while the original SDK initialization remains alive. If it resolves later, Yandex gameplay/device state is reconciled without reloading; the native UI keeps one language for the active session to avoid mixed RU/EN controls.
 
