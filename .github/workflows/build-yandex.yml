@@ -797,6 +797,10 @@ jobs:
           grep -Fn 'const AD_INTERVAL_MS = 120000;' src/main.js
           grep -Fn 'const AD_WARNING_SECONDS = 2;' src/main.js
           grep -Fn 'showFullscreenAdv' src/yandex.js
+          grep -Fn 'const AD_CALLBACK_START_TIMEOUT_MS = 15000;' src/yandex.js
+          grep -Fn 'const AD_CALLBACK_CLOSE_TIMEOUT_MS = 300000;' src/yandex.js
+          grep -Fn 'Fullscreen ad produced no initial callback; releasing request.' src/yandex.js
+          grep -Fn 'Fullscreen ad did not close in time; releasing request.' src/yandex.js
           echo "Reachable local UI localization audit: OK"
 
       - name: Build upstream Emscripten target without external HTTP features
