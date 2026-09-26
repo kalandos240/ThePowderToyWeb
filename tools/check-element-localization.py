@@ -41,6 +41,50 @@ if missing or unknown or duplicates:
 
 print("Russian element descriptions cover every upstream element exactly once.")
 
+# Button/tooltips are a separate surface from element descriptions. Keep every
+# built-in simulation tool and UI tool description covered by the common RU
+# translator, and keep every right-side category tooltip explicitly localized.
+ui_pairs = dict(re.findall(r'YW_UI\("([^"]+)",\s*"([^"]+)"\);', text))
+tool_descriptions = set()
+for path in (root / "upstream/src/simulation/simtools").glob("*.cpp"):
+    source = path.read_text(encoding="utf-8")
+    tool_descriptions.update(re.findall(r'Description\s*=\s*"([^"]+)"', source))
+for path in (root / "upstream/src/gui/game/tool").glob("*.h"):
+    source = path.read_text(encoding="utf-8")
+    tool_descriptions.update(
+        re.findall(r'Tool\(0,\s*"[^"]+",\s*"([^"]+)"', source, re.S)
+    )
+
+missing_tooltips = sorted(desc for desc in tool_descriptions if desc not in ui_pairs)
+if missing_tooltips:
+    print("Missing Russian tool/button descriptions:")
+    for desc in missing_tooltips:
+        print(" -", desc)
+    raise SystemExit("Russian tool/button tooltip localization coverage check failed")
+
+menu_source = (root / "upstream/src/simulation/SimulationData.cpp").read_text(encoding="utf-8")
+menu_block = re.search(
+    r'static std::vector<menu_section> LoadMenus\(\).*?std::vector<menu_section>\{(.*?)\n\t\};',
+    menu_source,
+    re.S,
+)
+if not menu_block:
+    raise SystemExit("Could not locate upstream LoadMenus()")
+menu_descriptions = set(re.findall(r'String\("([^"]+)"\)', menu_block.group(1)))
+menu_pairs = dict(re.findall(
+    r"\('String\(\"([^\"]+)\"\)',\s*'YandexWebText\(\"[^\"]+\",\s*\"([^\"]+)\"\)'\)",
+    text,
+))
+missing_menus = sorted(menu_descriptions - menu_pairs.keys())
+if missing_menus:
+    print("Missing Russian category button descriptions:", ", ".join(missing_menus))
+    raise SystemExit("Russian menu tooltip localization coverage check failed")
+
+print(
+    f"Russian hover descriptions cover {len(tool_descriptions)} built-in tools "
+    f"and all {len(menu_descriptions)} right-side category buttons."
+)
+
 # Measure authored captions with the exact bitmap font used by TextSize.
 # Clipping is only a fallback for user-created names, not a translation strategy.
 captions = re.findall(r'YW_TOOL\("([^"]+)", "([^"]+)"\)', text)
