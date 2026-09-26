@@ -1750,7 +1750,7 @@ inline String YandexWebTranslateUi(const String &source)
 
 	YW_UI("Sample an element on the screen.", "Выбирает элемент с поля.");
 
-	YW_UI("Add a new custom GOL type. (Use ctrl+shift+rightclick to remove them)", "Добавляет пользовательский тип «Жизни». Ctrl+Shift+правый клик — удалить.");
+	YW_UI("Add a new custom GOL type. (Use ctrl+shift+rightclick to remove them)", "Добавляет пользовательский тип «Жизни». Ctrl+Shift+правый клик - удалить.");
 
 	// Core simulation/options window.
 	YW_UI("Heat simulation \\bgIntroduced in version 34", "Тепловая симуляция");
