@@ -1752,6 +1752,70 @@ inline String YandexWebTranslateUi(const String &source)
 
 	YW_UI("Add a new custom GOL type. (Use ctrl+shift+rightclick to remove them)", "Добавляет пользовательский тип «Жизни». Ctrl+Shift+правый клик - удалить.");
 
+	// Decoration tool descriptions.
+	YW_UI("Colour blending: Add.", "Смешивание цветов: сложение.");
+
+	YW_UI("Colour blending: Subtract.", "Смешивание цветов: вычитание.");
+
+	YW_UI("Colour blending: Multiply.", "Смешивание цветов: умножение.");
+
+	YW_UI("Colour blending: Divide.", "Смешивание цветов: деление.");
+
+	YW_UI("Smudge tool, blends surrounding deco together.", "Размазывает и смешивает соседние декорации.");
+
+	YW_UI("Erase any set decoration.", "Стирает нанесённые декорации.");
+
+	YW_UI("Draw decoration (No blending).", "Рисует декорацию без смешивания.");
+
+	// Built-in Game of Life tool descriptions.
+	YW_UI("Game Of Life: Begin 3/Stay 23", "Игра «Жизнь»: B3/S23");
+
+	YW_UI("High Life: B36/S23", "Высокая жизнь: B36/S23");
+
+	YW_UI("Assimilation: B345/S4567", "Ассимиляция: B345/S4567");
+
+	YW_UI("2X2: B36/S125", "2X2: B36/S125");
+
+	YW_UI("Day and Night: B3678/S34678", "День и ночь: B3678/S34678");
+
+	YW_UI("Amoeba: B357/S1358", "Амёба: B357/S1358");
+
+	YW_UI("'Move' particles. Does not move things.. it is a life type: B368/S245", "«Ход» - тип «Жизни», частицы не перемещает: B368/S245");
+
+	YW_UI("Pseudo Life: B357/S238", "Псевдожизнь: B357/S238");
+
+	YW_UI("Diamoeba: B35678/S5678", "Диамёба: B35678/S5678");
+
+	YW_UI("3-4: B34/S34", "3-4: B34/S34");
+
+	YW_UI("Long Life: B345/S5", "Долгая жизнь: B345/S5");
+
+	YW_UI("Stains: B3678/S235678", "Пятна: B3678/S235678");
+
+	YW_UI("Seeds: B2/S", "Семена: B2/S");
+
+	YW_UI("Maze: B3/S12345", "Лабиринт: B3/S12345");
+
+	YW_UI("Coagulations: B378/S235678", "Сгустки: B378/S235678");
+
+	YW_UI("Walled cities: B45678/S2345", "Города со стенами: B45678/S2345");
+
+	YW_UI("Gnarl: B1/S1", "Узор: B1/S1");
+
+	YW_UI("Replicator: B1357/S1357", "Репликатор: B1357/S1357");
+
+	YW_UI("Mystery: B3458/S05678", "Тайна: B3458/S05678");
+
+	YW_UI("Living on the Edge: B37/S3458/4", "Жизнь на краю: B37/S3458/4");
+
+	YW_UI("Like Frogs rule: B3/S124/3", "Правило типа «Лягушки»: B3/S124/3");
+
+	YW_UI("Like Star Wars rule: B278/S3456/6", "Правило «Звёздные войны»: B278/S3456/6");
+
+	YW_UI("Frogs: B34/S12/3", "Лягушки: B34/S12/3");
+
+	YW_UI("Brian 6: B246/S6/3", "Брайан 6: B246/S6/3");
+
 	// Core simulation/options window.
 	YW_UI("Heat simulation \\bgIntroduced in version 34", "Тепловая симуляция");
 	YW_UI("Can cause odd behaviour when disabled", "При отключении возможны необычные эффекты");
