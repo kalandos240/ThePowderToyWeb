@@ -656,8 +656,13 @@ jobs:
           PY
 
           grep -Fn -- "-Dbuildtype=release" "$BUILD_SH"
+          grep -Fn -- "-Dlto=true" "$BUILD_SH"
+          grep -Fn -- "'-msimd128'" "$MESON"
+          grep -Fn 'constexpr int yandexWebParticleSlice = 12000;' "$GAME_CONTROLLER"
+          grep -Fn 'gameModel->UpdateUpTo(yandexWebEnd);' "$GAME_CONTROLLER"
+          grep -Fn 'if (upTo >= NPART)' upstream/src/gui/game/GameModel.cpp
 
-          echo "Web hot paths and proven Emscripten build profile: OK"
+          echo "Web hot paths and production Emscripten build profile: OK"
 
       - name: Check reachable local UI localization
         run: |
