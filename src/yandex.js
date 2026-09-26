@@ -87,7 +87,7 @@ function sendLoadingReady(currentSDK) {
     loadingReadySent = true;
     debugInfo("[Yandex] LoadingAPI.ready sent.");
   } catch (error) {
-    console.error("[Yandex] LoadingAPI.ready failed.", error);
+    debugInfo("[Yandex] LoadingAPI.ready failed.", error);
   }
 }
 
@@ -107,7 +107,7 @@ function startGameplayOnSDK(currentSDK) {
     currentSDK.features?.GameplayAPI?.start();
     sdkGameplayActive = true;
   } catch (error) {
-    console.error("[Yandex] GameplayAPI.start failed.", error);
+    debugInfo("[Yandex] GameplayAPI.start failed.", error);
   }
 }
 
@@ -119,7 +119,7 @@ function stopGameplayOnSDK(currentSDK) {
   try {
     currentSDK.features?.GameplayAPI?.stop();
   } catch (error) {
-    console.error("[Yandex] GameplayAPI.stop failed.", error);
+    debugInfo("[Yandex] GameplayAPI.stop failed.", error);
   } finally {
     sdkGameplayActive = false;
   }
