@@ -88,42 +88,7 @@ thread_callback_arg = "\t\t'-Wl,-u,_emscripten_run_callback_on_thread',\n"
 if thread_callback_arg in meson_text:
     meson_text = meson_text.replace(thread_callback_arg, "", 1)
 
-# Production WebAssembly: remove debug-only overhead and enable SIMD.
-for debug_arg in (
-    "\t\t'-s', 'FS_DEBUG',\n",
-    "\t\t'--source-map-base=./',\n",
-    "\t\t'-gsource-map',\n",
-):
-    if debug_arg not in meson_text:
-        raise SystemExit(f"meson.build production debug flag anchor missing: {debug_arg!r}")
-    meson_text = meson_text.replace(debug_arg, "", 1)
-
-simd_anchor = "\t\t'-s', 'DISABLE_EXCEPTION_CATCHING=0',\n"
-if simd_anchor not in meson_text:
-    raise SystemExit("meson.build Emscripten SIMD anchor missing")
-meson_text = meson_text.replace(
-    simd_anchor,
-    simd_anchor + "\t\t'-msimd128',\n",
-    1,
-)
-
 meson.write_text(meson_text, encoding="utf-8")
-
-# Use the actual Meson release profile (-O3) for WebAssembly.
-build_text = upstream_build_sh.read_text(encoding="utf-8")
-release_profile_anchor = """if [[ $BSH_DEBUG_RELEASE == release ]]; then
-\tmeson_configure+=$'\\t'-Dbuildtype=debugoptimized
-fi"""
-release_profile_patch = """if [[ $BSH_DEBUG_RELEASE == release ]]; then
-\tmeson_configure+=$'\\t'-Dbuildtype=release
-\tif [[ $BSH_HOST_PLATFORM == emscripten ]]; then
-\t\tmeson_configure+=$'\\t'-Dlto=false
-\tfi
-fi"""
-if release_profile_anchor not in build_text:
-    raise SystemExit("upstream build.sh release-profile anchor missing")
-build_text = build_text.replace(release_profile_anchor, release_profile_patch, 1)
-upstream_build_sh.write_text(build_text, encoding="utf-8")
 
 # Yandex Web/no-HTTP: strip upstream server constants from the generated
 # Config.h/WASM entirely. NOHTTP already disables the transport, but leaving
