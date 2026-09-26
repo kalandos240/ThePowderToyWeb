@@ -132,20 +132,44 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
         f"stress scene did not reach target particles: {actual_particles}",
     )
 
-    # Let the simulation settle before sampling browser frame intervals.
+    # Let the simulation settle, then measure completed native work as well as
+    # browser RAF cadence. RAF alone can stay at 60 while WASM simulation/draw
+    # work falls behind, which hid the real in-game slowdown.
     time.sleep(0.5)
+    before = driver.execute_script(
+        """
+        const m = window.__tptGameModule;
+        return {
+            draw: m.ccall('YandexWeb_TestDrawFrameIndex', 'number', [], []),
+            sim: m.ccall('YandexWeb_TestSimulationFrameCount', 'number', [], []),
+        };
+        """
+    )
     samples = [float(value) for value in measure_animation_frames(driver, 90)]
+    after = driver.execute_script(
+        """
+        const m = window.__tptGameModule;
+        return {
+            draw: m.ccall('YandexWeb_TestDrawFrameIndex', 'number', [], []),
+            sim: m.ccall('YandexWeb_TestSimulationFrameCount', 'number', [], []),
+            engine: m.ccall('YandexWeb_TestEngineFps', 'number', [], []),
+        };
+        """
+    )
+
     ordered = sorted(samples)
     median_ms = statistics.median(ordered)
     p95_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
     p99_ms = ordered[min(len(ordered) - 1, int(len(ordered) * 0.99))]
     max_ms = ordered[-1]
     average_ms = statistics.fmean(ordered)
-    engine_fps = float(
-        driver.execute_script(
-            "return window.__tptGameModule.ccall('YandexWeb_TestEngineFps', 'number', [], [])"
-        )
-    )
+    duration_seconds = sum(samples) / 1000.0
+    assert duration_seconds > 0.0, (label, scene, samples)
+    draw_delta = (int(after["draw"]) - int(before["draw"])) % 7200
+    sim_delta = int(after["sim"]) - int(before["sim"])
+    native_draw_fps = draw_delta / duration_seconds
+    completed_sim_fps = sim_delta / duration_seconds
+    engine_fps = float(after["engine"])
     wasm_memory_bytes = int(
         driver.execute_script(
             """
@@ -171,23 +195,31 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
         "frames_over_25ms": sum(1 for value in samples if value > 25.0),
         "frames_over_50ms": sum(1 for value in samples if value > 50.0),
         "median_fps": round(1000.0 / median_ms, 2) if median_ms > 0 else None,
+        "native_draw_fps": round(native_draw_fps, 2),
+        "completed_sim_fps": round(completed_sim_fps, 2),
         "engine_fps": round(engine_fps, 2),
         "wasm_memory_bytes": wasm_memory_bytes,
     }
 
-    # Keep this deliberately loose: GitHub runners are noisy and these are
-    # regression guards, not device certification targets. The current heavy
-    # scenes run at ~59-60 engine FPS with ~16.7 ms p95 on the CI runner.
-    assert engine_fps >= 30.0, (
+    # Player-visible smoothness is the primary guard. Simulation may
+    # deliberately progress more slowly under heavy load, but native draws and
+    # input must keep flowing near display cadence.
+    assert native_draw_fps >= 45.0, (
         label,
         scene,
-        f"catastrophic engine FPS regression: {engine_fps:.2f}",
+        f"native draw FPS regression: {native_draw_fps:.2f}",
         metric,
     )
-    assert p95_ms <= 50.0, (
+    assert completed_sim_fps >= 10.0, (
         label,
         scene,
-        f"catastrophic frame-time regression: p95={p95_ms:.2f} ms",
+        f"simulation progress collapsed: {completed_sim_fps:.2f}",
+        metric,
+    )
+    assert p95_ms <= 35.0, (
+        label,
+        scene,
+        f"browser frame-time regression: p95={p95_ms:.2f} ms",
         metric,
     )
 
@@ -202,7 +234,6 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
 
     print(f"[performance] {metric}")
     return metric
-
 
 def record_throttled_performance_metric(
     driver,
@@ -3305,6 +3336,13 @@ def smoke_case(language: str, mobile: bool):
                     "water-gravity-12k",
                     "YandexWeb_TestFillWaterGravity",
                     12000,
+                ),
+                record_performance_metric(
+                    driver,
+                    label,
+                    "dense-objects-8k",
+                    "YandexWeb_TestFillDenseObjects",
+                    8000,
                 ),
                 record_performance_metric(
                     driver,
