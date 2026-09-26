@@ -986,6 +986,17 @@ async function boot() {
   // existing late-SDK reconciliation path adopts Yandex afterwards.
   const sdkPromise = initYandexSDK();
   await loadScript("./game/powder.js");
+  // Native captions are constructed once. Give the platform a short, bounded
+  // opportunity to supply its language before freezing the native locale.
+  // A missing or stalled SDK must still allow the offline engine to start.
+  if (!window.ysdk) {
+    let localeTimer;
+    await Promise.race([
+      sdkPromise,
+      new Promise((resolve) => { localeTimer = setTimeout(resolve, 750); })
+    ]);
+    clearTimeout(localeTimer);
+  }
   const currentSDK = window.ysdk || null;
   startupTiming.sdkAvailableAtEngineStart = Boolean(currentSDK);
 
