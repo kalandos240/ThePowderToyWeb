@@ -4040,12 +4040,91 @@ def smoke_sdk_late_recovery():
         driver.quit()
 
 
+
+def smoke_ad_error_recovery():
+    label = "desktop-ad-error-recovery"
+    driver = make_driver(mobile=False, browser_language="en-US")
+    try:
+        driver.set_page_load_timeout(45)
+        driver.get(f"{BASE_URL}/?lang=en&device=desktop&ad=error")
+        wait = WebDriverWait(driver, 20)
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return Boolean(
+                    window.__tptGameModule &&
+                    window.__yandexLoadingReady === true &&
+                    window.__yandexGameplayStarted === true &&
+                    document.getElementById('canvas').style.display === 'block'
+                );
+                """
+            )
+        )
+
+        driver.execute_script("void window.__tptTriggerAdForTest()")
+        wait.until(
+            lambda d: d.execute_script(
+                """
+                return (
+                    window.__tptAdAttemptCount === 1 &&
+                    window.__yandexAdErrorCount === 1 &&
+                    window.__tptAdCycleActive === false &&
+                    window.__tptAdWarningActive === false &&
+                    window.__tptRuntimePaused === false &&
+                    window.__yandexGameplayStarted === true &&
+                    document.getElementById('ad-warning').hidden === true
+                );
+                """
+            )
+        )
+
+        state = driver.execute_script(
+            """
+            return {
+                attempts: window.__tptAdAttemptCount,
+                errors: window.__yandexAdErrorCount,
+                opens: window.__yandexAdOpenCount,
+                closes: window.__yandexAdCloseCount,
+                adActive: window.__tptAdCycleActive,
+                paused: window.__tptRuntimePaused,
+                gameplay: window.__yandexGameplayStarted,
+            };
+            """
+        )
+        assert state["attempts"] == 1, (label, state)
+        assert state["errors"] == 1, (label, state)
+        assert state["opens"] == 0, (label, state)
+        assert state["closes"] == 0, (label, state)
+        assert state["adActive"] is False, (label, state)
+        assert state["paused"] is False, (label, state)
+        assert state["gameplay"] is True, (label, state)
+
+        browser_logs = driver.get_log("browser")
+        authored_ad_errors = [
+            entry
+            for entry in browser_logs
+            if entry.get("level") == "SEVERE"
+            and "[Yandex]" in entry.get("message", "")
+            and "ad" in entry.get("message", "").lower()
+        ]
+        assert not authored_ad_errors, (
+            label,
+            "recoverable ad failure leaked to production console",
+            authored_ad_errors,
+        )
+
+        print(f"[smoke] {label}: OK {state}")
+    finally:
+        driver.quit()
+
+
 if __name__ == "__main__":
     # Test both platform shapes and both supported languages.
     smoke_case("en", mobile=False)
     smoke_case("ru", mobile=False)
     smoke_case("en", mobile=True)
     smoke_case("ru", mobile=True)
+    smoke_ad_error_recovery()
     smoke_sdk_script_failure()
     smoke_sdk_script_delay()
     smoke_sdk_brief_delay_recovery()
