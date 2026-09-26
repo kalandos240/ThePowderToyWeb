@@ -57,6 +57,10 @@ jobs:
           grep -Fn 'const currentSDK = window.ysdk || null;' src/main.js
           grep -Fn 'onYandexSDKReady((currentSDK) => {' src/main.js
           grep -Fn 'await applyPlatformDevice(currentSDK);' src/main.js
+          grep -Fn 'const ready = currentSDK.features?.LoadingAPI?.ready;' src/yandex.js
+          grep -Fn 'typeof ready !== "function"' src/yandex.js
+          grep -Fn 'const start = currentSDK.features?.GameplayAPI?.start;' src/yandex.js
+          grep -Fn 'typeof start !== "function"' src/yandex.js
           if grep -Fn 'if (!late)' src/main.js; then
             echo "Async SDK reconciliation is restricted to timeout-only arrivals again."
             exit 1
