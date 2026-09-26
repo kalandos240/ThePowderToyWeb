@@ -1262,7 +1262,7 @@ def smoke_case(language: str, mobile: bool):
                         window.__tptAdCycleActive === false &&
                         window.__tptAdWarningActive === false &&
                         window.__tptNativeModalBlocked === true &&
-                        window.__tptRuntimePaused === true &&
+                        window.__tptRuntimePaused === false &&
                         window.__yandexGameplayStarted === false
                     );
                     """
@@ -1290,6 +1290,19 @@ def smoke_case(language: str, mobile: bool):
                 cancelled_ad_state,
             )
             assert cancelled_ad_state["attempts"] == 2, (
+                label,
+                cancelled_ad_state,
+            )
+            assert cancelled_ad_state["blocked"] is True, (
+                label,
+                cancelled_ad_state,
+            )
+            assert cancelled_ad_state["paused"] is False, (
+                label,
+                "native modal incorrectly paused the Emscripten main loop",
+                cancelled_ad_state,
+            )
+            assert cancelled_ad_state["gameplay"] is False, (
                 label,
                 cancelled_ad_state,
             )
