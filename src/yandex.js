@@ -82,8 +82,14 @@ function sendLoadingReady(currentSDK) {
     return;
   }
 
+  const ready = currentSDK.features?.LoadingAPI?.ready;
+  if (typeof ready !== "function") {
+    debugInfo("[Yandex] LoadingAPI.ready is unavailable.");
+    return;
+  }
+
   try {
-    currentSDK.features?.LoadingAPI?.ready();
+    ready.call(currentSDK.features.LoadingAPI);
     loadingReadySent = true;
     debugInfo("[Yandex] LoadingAPI.ready sent.");
   } catch (error) {
@@ -103,8 +109,14 @@ function startGameplayOnSDK(currentSDK) {
     return;
   }
 
+  const start = currentSDK.features?.GameplayAPI?.start;
+  if (typeof start !== "function") {
+    debugInfo("[Yandex] GameplayAPI.start is unavailable.");
+    return;
+  }
+
   try {
-    currentSDK.features?.GameplayAPI?.start();
+    start.call(currentSDK.features.GameplayAPI);
     sdkGameplayActive = true;
   } catch (error) {
     debugInfo("[Yandex] GameplayAPI.start failed.", error);
@@ -116,8 +128,14 @@ function stopGameplayOnSDK(currentSDK) {
     return;
   }
 
+  const stop = currentSDK.features?.GameplayAPI?.stop;
+
   try {
-    currentSDK.features?.GameplayAPI?.stop();
+    if (typeof stop === "function") {
+      stop.call(currentSDK.features.GameplayAPI);
+    } else {
+      debugInfo("[Yandex] GameplayAPI.stop is unavailable.");
+    }
   } catch (error) {
     debugInfo("[Yandex] GameplayAPI.stop failed.", error);
   } finally {
