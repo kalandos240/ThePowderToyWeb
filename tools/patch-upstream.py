@@ -2251,7 +2251,21 @@ drop_down_text = drop_down_text.replace(drop_draw_anchor, drop_draw_patch, 1)
 drop_blend_anchor = """	if(optionIndex!=-1)
 		g->BlendText(Position + textPosition, options[optionIndex].first, textColour);"""
 drop_blend_patch = """	if(optionIndex!=-1)
-		g->BlendText(Position + textPosition, YandexWebTranslateUi(options[optionIndex].first), textColour);"""
+	{
+		String caption = YandexWebTranslateUi(options[optionIndex].first);
+		const int margin = Appearance.Margin.Left + Appearance.Margin.Right;
+		const int padding = margin > 4 ? margin : 4;
+		const int available = Size.X > padding ? Size.X - padding : 0;
+		if (Graphics::TextSize(caption).X > available)
+		{
+			while (caption.size() && Graphics::TextSize(caption + ".").X > available)
+				caption = caption.Substr(0, caption.size() - 1);
+			if (Graphics::TextSize(".").X <= available)
+				caption += ".";
+		}
+		TextPosition(caption);
+		g->BlendText(Position + textPosition, caption, textColour);
+	}"""
 if drop_blend_anchor not in drop_down_text:
     raise SystemExit("DropDown draw localization anchor missing")
 drop_down_text = drop_down_text.replace(drop_blend_anchor, drop_blend_patch, 1)
