@@ -1714,6 +1714,12 @@ inline String YandexWebTranslateUi(const String &source)
 	YW_UI("View History", "История");
 	YW_UI("Overwrite", "Перезаписать");
 	YW_UI("Confirm", "Подтвердить");
+	YW_UI("Change", "Изменить");
+	YW_UI("Refresh", "Обновить");
+	YW_UI("Select All", "Выбрать всё");
+	YW_UI("Deselect All", "Снять выбор");
+	YW_UI("Open Folder", "Открыть папку");
+	YW_UI("Migrate to shared data directory", "Перенести данные");
 
 	// Core simulation/options window.
 	YW_UI("Heat simulation \\bgIntroduced in version 34", "Тепловая симуляция");
@@ -2192,6 +2198,13 @@ button_set_patch = """void Button::SetText(String buttonText)
 if button_set_anchor not in button_text:
     raise SystemExit("Button::SetText localization anchor missing")
 button_text = button_text.replace(button_set_anchor, button_set_patch, 1)
+
+# Apply the same bounded caption layout to every native dialog button.
+button_layout_anchor = 'void Button::TextPosition(String ButtonText)\n{\n\tbuttonDisplayText = ButtonText;\n\tif(buttonDisplayText.length())\n\t{\n\t\tif (Graphics::TextSize(buttonDisplayText).X - 1 > Size.X - (Appearance.icon ? 22 : 0))\n\t\t{\n\t\t\tauto it = Graphics::TextFit(buttonDisplayText, Size.X - (Appearance.icon ? 38 : 22));\n\t\t\tbuttonDisplayText.erase(it, buttonDisplayText.end());\n\t\t\tbuttonDisplayText += "...";\n\t\t}\n\t}\n\n\tComponent::TextPosition(buttonDisplayText);\n}\n'
+button_layout_patch = 'void Button::TextPosition(String ButtonText)\n{\n\tbuttonDisplayText = ButtonText;\n\tconst int margin = Appearance.Margin.Left + Appearance.Margin.Right;\n\tconst int padding = margin > 4 ? margin : 4;\n\tconst int available = Size.X - padding - (Appearance.icon ? 15 : 0);\n\tconst int captionWidth = available > 0 ? available : 0;\n\tif (YandexWebIsRussian() && Graphics::TextSize(buttonDisplayText).X > captionWidth)\n\t{\n#define YW_SHORT(full, shortText) if (buttonDisplayText == ByteString(full).FromUtf8()) buttonDisplayText = ByteString(shortText).FromUtf8()\n\t\tYW_SHORT("Сохранить", "Сохр.");\n\t\tYW_SHORT("Сохранить как", "Сохр. как");\n\t\tYW_SHORT("Перезапустить", "Заново");\n\t\tYW_SHORT("Копировать", "Копия");\n\t\tYW_SHORT("Переименовать", "Имя");\n\t\tYW_SHORT("Переместить", "Перенос");\n\t\tYW_SHORT("Применить", "Прим.");\n\t\tYW_SHORT("Продолжить", "Далее");\n\t\tYW_SHORT("Перезаписать", "Заменить");\n\t\tYW_SHORT("Подтвердить", "Да");\n\t\tYW_SHORT("Настройки", "Настр.");\n\t\tYW_SHORT("Отображение", "Вид");\n\t\tYW_SHORT("По умолчанию", "Стандарт");\n\t\tYW_SHORT("Обновить", "Обнов.");\n\t\tYW_SHORT("Изменить", "Правка");\n\t\tYW_SHORT("Закрыть", "Закр.");\n\t\tYW_SHORT("Открыть", "Откр.");\n\t\tYW_SHORT("Загрузить", "Загр.");\n\t\tYW_SHORT("Удалить", "Удал.");\n\t\tYW_SHORT("Очистить", "Очист.");\n#undef YW_SHORT\n\t}\n\tif (Graphics::TextSize(buttonDisplayText).X > captionWidth)\n\t{\n\t\tString suffix = ".";\n\t\twhile (buttonDisplayText.size() && Graphics::TextSize(buttonDisplayText + suffix).X > captionWidth)\n\t\t\tbuttonDisplayText = buttonDisplayText.Substr(0, buttonDisplayText.size() - 1);\n\t\tif (Graphics::TextSize(suffix).X <= captionWidth)\n\t\t\tbuttonDisplayText += suffix;\n\t}\n\tComponent::TextPosition(buttonDisplayText);\n}\n'
+if button_layout_anchor not in button_text:
+    raise SystemExit("Common button layout anchor missing")
+button_text = button_text.replace(button_layout_anchor, button_layout_patch, 1)
 button_cpp.write_text(button_text, encoding="utf-8")
 
 button_h_text = button_h.read_text(encoding="utf-8")
