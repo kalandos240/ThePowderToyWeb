@@ -643,14 +643,20 @@ function applyRuntimePauseState() {
 
 function setRuntimePaused(paused) {
   const nextPaused = Boolean(paused);
+  const wasPlatformPaused = platformPauseRequested;
 
-  if (nextPaused && !platformPauseRequested) {
+  if (nextPaused && !wasPlatformPaused) {
     platformPauseRestoreTextInputFocus =
       document.activeElement === mobileTextInput;
     if (platformPauseRestoreTextInputFocus) {
       mobileTextInput.blur();
       window.__tptMobileTextInputFocused = false;
     }
+
+    // Do not keep periodic ad timers alive while the page is backgrounded or
+    // Yandex owns a platform pause. Restart from a full interval on resume so
+    // returning users are not hit by an overdue ad immediately.
+    clearAdTimer();
   }
 
   platformPauseRequested = nextPaused;
@@ -662,6 +668,17 @@ function setRuntimePaused(paused) {
   ) {
     platformPauseRestoreTextInputFocus = false;
     focusMobileTextInput();
+  }
+
+  if (
+    wasPlatformPaused &&
+    !platformPauseRequested &&
+    presentable &&
+    !fatalShown &&
+    !adCycleActive &&
+    adTimerId === null
+  ) {
+    scheduleNextAd();
   }
 }
 
@@ -712,6 +729,11 @@ function clearAdTimer() {
 
 function scheduleNextAd(delay = AD_INTERVAL_MS) {
   clearAdTimer();
+
+  if (fatalShown || document.hidden || platformPauseRequested) {
+    return;
+  }
+
   adTimerId = window.setTimeout(() => {
     adTimerId = null;
     void runFullscreenAdCycle();
