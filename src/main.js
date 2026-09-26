@@ -1038,6 +1038,35 @@ async function boot() {
 
   if (!presentable) {
     setStatus(message("preparing"));
+
+    // Some Emscripten/SDL startup paths complete Module initialization without
+    // delivering the optional native mark_presentable callback. Do not leave
+    // the loader stuck forever in that case. Only use the fallback after the
+    // exported diagnostic proves the browser RAF main loop is actually armed,
+    // then give it two animation frames to render before exposing the game.
+    let rafLoopReady = false;
+    try {
+      rafLoopReady =
+        typeof gameModule?.ccall === "function" &&
+        gameModule.ccall(
+          "YandexWeb_TestMainLoopUsesRAF",
+          "number",
+          [],
+          []
+        ) === 1;
+    } catch (error) {
+      logEngineStderr("Could not verify RAF main loop readiness.", error);
+    }
+
+    if (rafLoopReady) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!presentable) {
+            void onPresentable();
+          }
+        });
+      });
+    }
   }
 }
 
