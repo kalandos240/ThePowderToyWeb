@@ -1649,17 +1649,11 @@ renderer_text = renderer_text.replace(
 
 wall_glow_anchor = """					fire_r[y][x] = cr;
 					fire_g[y][x] = cg;
-					fire_b[y][x] = cb;
-				}
-			}
-}"""
+					fire_b[y][x] = cb;"""
 wall_glow_patch = """					fire_r[y][x] = cr;
 					fire_g[y][x] = cg;
 					fire_b[y][x] = cb;
-					yandexWebFireActive = true;
-				}
-			}
-}"""
+					yandexWebFireActive = true;"""
 if wall_glow_anchor not in renderer_text:
     raise SystemExit("Renderer powered-wall fire state anchor missing")
 renderer_text = renderer_text.replace(
