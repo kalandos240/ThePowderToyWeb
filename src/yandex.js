@@ -14,6 +14,8 @@ let resumeRuntimeCallback = () => {};
 const sdkReadySubscribers = new Set();
 
 const SDK_INIT_TIMEOUT_MS = 8000;
+const AD_CALLBACK_START_TIMEOUT_MS = 15000;
+const AD_CALLBACK_CLOSE_TIMEOUT_MS = 300000;
 const SDK_SCRIPT_ID = "yandex-games-sdk";
 const YANDEX_DEBUG =
   new URLSearchParams(window.location.search).get("tpt-debug") === "1";
@@ -334,11 +336,32 @@ export async function showFullscreenAd() {
   fullscreenAdRequestActive = true;
   return new Promise((resolve) => {
     let settled = false;
+    let watchdogId = window.setTimeout(() => {
+      watchdogId = null;
+      debugInfo("[Yandex] Fullscreen ad produced no initial callback; releasing request.");
+      finish(false);
+    }, AD_CALLBACK_START_TIMEOUT_MS);
+
+    const armCloseWatchdog = () => {
+      if (watchdogId !== null) {
+        window.clearTimeout(watchdogId);
+      }
+      watchdogId = window.setTimeout(() => {
+        watchdogId = null;
+        debugInfo("[Yandex] Fullscreen ad did not close in time; releasing request.");
+        finish(false);
+      }, AD_CALLBACK_CLOSE_TIMEOUT_MS);
+    };
+
     const finish = (wasShown) => {
       if (settled) {
         return;
       }
       settled = true;
+      if (watchdogId !== null) {
+        window.clearTimeout(watchdogId);
+        watchdogId = null;
+      }
       fullscreenAdRequestActive = false;
       resolve(Boolean(wasShown));
     };
@@ -348,6 +371,7 @@ export async function showFullscreenAd() {
         callbacks: {
           onOpen() {
             debugInfo("[Yandex] Fullscreen ad opened.");
+            armCloseWatchdog();
           },
           onClose(wasShown) {
             debugInfo("[Yandex] Fullscreen ad closed.", { wasShown });
