@@ -4994,6 +4994,20 @@ game_model_cpp.write_text(model_perf_text, encoding="utf-8")
 
 controller_text = game_controller_cpp.read_text(encoding="utf-8")
 
+controller_include_anchor = "#include <iostream>\n"
+controller_include_patch = """#include <iostream>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+"""
+if controller_include_anchor not in controller_text:
+    raise SystemExit("GameController Emscripten include anchor missing")
+controller_text = controller_text.replace(
+    controller_include_anchor,
+    controller_include_patch,
+    1,
+)
+
 # Browser responsiveness guard: native TPT updates every active particle in a
 # single SimTick. In single-threaded WASM that blocks rendering, input and the
 # browser event loop. Split only large particle sets across RAF callbacks.
@@ -5011,25 +5025,68 @@ update_patch = """\tSimulation * sim = gameModel->GetSimulation();
 \tif (gameModel->IsSimRunning())
 \t{
 #if defined(__EMSCRIPTEN__)
-\t\t// Bound the longest synchronous particle loop on weak mobile CPUs.
-\t\t// Small/normal scenes keep the original one-call update path.
-\t\tconstexpr int yandexWebParticleSlice = 12000;
+\t\t// Adaptive single-threaded WASM work budget. Desktop starts with a
+\t\t// large slice so fast machines retain normal 60 Hz simulation; touch
+\t\t// devices start conservatively. Measured slice time then tunes the
+\t\t// budget toward roughly 8 ms of particle work per RAF callback.
+\t\tstatic const bool yandexWebTouchDevice = emscripten_run_script_int(
+\t\t\t"(navigator.maxTouchPoints > 0 || "
+\t\t\t"(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) ? 1 : 0"
+\t\t) != 0;
+\t\tstatic const int yandexWebMaxParticleSlice =
+\t\t\tyandexWebTouchDevice ? 18000 : 48000;
+\t\tstatic int yandexWebParticleSlice =
+\t\t\tyandexWebTouchDevice ? 12000 : 30000;
 \t\tconst int yandexWebStart = sim->debug_nextToUpdate;
 \t\tconst int yandexWebActive = sim->parts.active;
 \t\tconst int yandexWebEnd = yandexWebStart + yandexWebParticleSlice;
+\t\tconst double yandexWebWorkStarted = emscripten_get_now();
+\t\tint yandexWebProcessed = 0;
 \t\tif (yandexWebStart == 0 && yandexWebActive <= yandexWebParticleSlice)
 \t\t{
+\t\t\tyandexWebProcessed = yandexWebActive;
 \t\t\tgameModel->UpdateUpTo(NPART);
 \t\t}
 \t\telse if (yandexWebEnd < yandexWebActive)
 \t\t{
+\t\t\tyandexWebProcessed = yandexWebEnd - yandexWebStart;
 \t\t\tgameModel->UpdateUpTo(yandexWebEnd);
 \t\t}
 \t\telse
 \t\t{
+\t\t\tyandexWebProcessed = std::max(0, yandexWebActive - yandexWebStart);
 \t\t\t// NPART remains the completion sentinel; UpdateParticles itself
 \t\t\t// stops at parts.active and AfterSim runs exactly once here.
 \t\t\tgameModel->UpdateUpTo(NPART);
+\t\t}
+\t\tconst double yandexWebWorkMs =
+\t\t\temscripten_get_now() - yandexWebWorkStarted;
+\t\tif (yandexWebProcessed >= 1000 && yandexWebWorkMs > 0.25)
+\t\t{
+\t\t\tconst int yandexWebTargetSlice = std::clamp(
+\t\t\t\tint(double(yandexWebProcessed) * 8.0 / yandexWebWorkMs),
+\t\t\t\t4000,
+\t\t\t\tyandexWebMaxParticleSlice
+\t\t\t);
+\t\t\tif (yandexWebWorkMs > 12.0)
+\t\t\t{
+\t\t\t\t// React quickly to a real stall.
+\t\t\t\tyandexWebParticleSlice = std::min(
+\t\t\t\t\tyandexWebParticleSlice,
+\t\t\t\t\tyandexWebTargetSlice
+\t\t\t\t);
+\t\t\t}
+\t\t\telse if (yandexWebWorkMs < 5.0)
+\t\t\t{
+\t\t\t\t// Recover quality gradually after load falls, avoiding oscillation.
+\t\t\t\tyandexWebParticleSlice = std::min(
+\t\t\t\t\tyandexWebMaxParticleSlice,
+\t\t\t\t\tstd::max(
+\t\t\t\t\t\tyandexWebParticleSlice + 2000,
+\t\t\t\t\t\t(yandexWebParticleSlice * 3 + yandexWebTargetSlice) / 4
+\t\t\t\t\t)
+\t\t\t\t);
+\t\t\t}
 \t\t}
 #else
 \t\tgameModel->UpdateUpTo(NPART);
