@@ -343,6 +343,9 @@ export async function showFullscreenAd() {
     }, AD_CALLBACK_START_TIMEOUT_MS);
 
     const armCloseWatchdog = () => {
+      if (settled) {
+        return;
+      }
       if (watchdogId !== null) {
         window.clearTimeout(watchdogId);
       }
