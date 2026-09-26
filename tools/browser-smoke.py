@@ -2377,6 +2377,42 @@ def smoke_case(language: str, mobile: bool):
                     """
                 )
 
+                # BFCache lifecycle uses pagehide/pageshow rather than a normal
+                # visibility transition on some mobile browsers. Preserve the
+                # active native textbox but release/reacquire DOM input focus.
+                driver.execute_script(
+                    "window.dispatchEvent(new PageTransitionEvent("
+                    "'pagehide', {persisted: true}))"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptRuntimePaused === true &&
+                               window.__tptMobileTextInputActive === true &&
+                               window.__tptMobileTextInputFocused === false &&
+                               window.__tptGameModule.ccall(
+                                   'YandexWeb_TestLocalSaveOpen', 'number', [], []
+                               ) === 1;
+                        """
+                    )
+                )
+                driver.execute_script(
+                    "window.dispatchEvent(new PageTransitionEvent("
+                    "'pageshow', {persisted: true}))"
+                )
+                wait.until(
+                    lambda d: d.execute_script(
+                        """
+                        return window.__tptRuntimePaused === false &&
+                               window.__tptMobileTextInputActive === true &&
+                               window.__tptMobileTextInputFocused === true &&
+                               window.__tptGameModule.ccall(
+                                   'YandexWeb_TestLocalSaveOpen', 'number', [], []
+                               ) === 1;
+                        """
+                    )
+                )
+
                 mobile_input = driver.find_element(By.ID, "mobile-text-input")
                 if language == "ru":
                     first_character = save_name[0]
