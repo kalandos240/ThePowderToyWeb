@@ -1039,34 +1039,51 @@ async function boot() {
   if (!presentable) {
     setStatus(message("preparing"));
 
-    // Some Emscripten/SDL startup paths complete Module initialization without
-    // delivering the optional native mark_presentable callback. Do not leave
-    // the loader stuck forever in that case. Only use the fallback after the
-    // exported diagnostic proves the browser RAF main loop is actually armed,
-    // then give it two animation frames to render before exposing the game.
-    let rafLoopReady = false;
-    try {
-      rafLoopReady =
-        typeof gameModule?.ccall === "function" &&
-        gameModule.ccall(
-          "YandexWeb_TestMainLoopUsesRAF",
-          "number",
-          [],
-          []
-        ) === 1;
-    } catch (error) {
-      logEngineStderr("Could not verify RAF main loop readiness.", error);
-    }
+    // Some Emscripten/SDL startup paths can complete Module initialization
+    // before the optional native mark_presentable callback is delivered.
+    // Poll a native GameView diagnostic instead of the main-loop timing state:
+    // positive UI dimensions prove that the actual TPT interface exists.
+    const pollNativeUiReady = () => {
+      if (presentable || fatalShown) {
+        return;
+      }
 
-    if (rafLoopReady) {
-      requestAnimationFrame(() => {
+      let nativeUiReady = false;
+      try {
+        if (typeof gameModule?.ccall === "function") {
+          const uiWidth = gameModule.ccall(
+            "YandexWeb_TestGetUiWidth",
+            "number",
+            [],
+            []
+          );
+          const uiHeight = gameModule.ccall(
+            "YandexWeb_TestGetUiHeight",
+            "number",
+            [],
+            []
+          );
+          nativeUiReady = uiWidth > 0 && uiHeight > 0;
+        }
+      } catch (error) {
+        logEngineStderr("Could not verify native UI readiness.", error);
+      }
+
+      if (nativeUiReady) {
         requestAnimationFrame(() => {
-          if (!presentable) {
-            void onPresentable();
-          }
+          requestAnimationFrame(() => {
+            if (!presentable) {
+              void onPresentable();
+            }
+          });
         });
-      });
-    }
+        return;
+      }
+
+      requestAnimationFrame(pollNativeUiReady);
+    };
+
+    requestAnimationFrame(pollNativeUiReady);
   }
 }
 
