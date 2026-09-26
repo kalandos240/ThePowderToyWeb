@@ -55,6 +55,31 @@ for path in (root / "upstream/src/gui/game/tool").glob("*.h"):
         re.findall(r'Tool\(0,\s*"[^"]+",\s*"([^"]+)"', source, re.S)
     )
 
+
+# Decoration tools are allocated directly in GameModel.cpp.
+game_model_source = (root / "upstream/src/gui/game/GameModel.cpp").read_text(encoding="utf-8")
+tool_descriptions.update(
+    re.findall(
+        r'DecorationTool>\(view,\s*[^,]+,\s*"[^"]+"\s*,\s*"([^"]+)"',
+        game_model_source,
+    )
+)
+
+# Built-in Game of Life variants are also normal ToolButtons.
+simulation_data_source = (
+    root / "upstream/src/simulation/SimulationData.cpp"
+).read_text(encoding="utf-8")
+gol_block = re.search(
+    r'SimulationData::builtinGol\s*=\s*\{\{(.*?)\}\};',
+    simulation_data_source,
+    re.S,
+)
+if not gol_block:
+    raise SystemExit("Could not locate upstream builtinGol table")
+tool_descriptions.update(
+    re.findall(r'String\("([^"]+)"\)', gol_block.group(1))
+)
+
 missing_tooltips = sorted(desc for desc in tool_descriptions if desc not in ui_pairs)
 if missing_tooltips:
     print("Missing Russian tool/button descriptions:")
