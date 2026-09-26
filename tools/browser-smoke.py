@@ -204,6 +204,144 @@ def record_performance_metric(driver, label, scene, hook, target_particles):
     return metric
 
 
+def record_throttled_performance_metric(
+    driver,
+    label,
+    scene,
+    hook,
+    target_particles,
+    cpu_rate=4,
+    sample_count=60,
+):
+    """Measure completed native draw/simulation work on a slow-CPU profile."""
+    driver.execute_cdp_cmd(
+        "Emulation.setCPUThrottlingRate",
+        {"rate": cpu_rate},
+    )
+    try:
+        actual_particles = int(
+            driver.execute_script(
+                """
+                return window.__tptGameModule.ccall(
+                    arguments[0], 'number', ['number'], [arguments[1]]
+                );
+                """,
+                hook,
+                target_particles,
+            )
+        )
+        assert actual_particles >= target_particles, (
+            label,
+            scene,
+            "throttled scene did not reach target particles",
+            actual_particles,
+        )
+
+        time.sleep(0.5)
+        before = driver.execute_script(
+            """
+            const m = window.__tptGameModule;
+            return {
+                draw: m.ccall(
+                    'YandexWeb_TestDrawFrameIndex', 'number', [], []
+                ),
+                sim: m.ccall(
+                    'YandexWeb_TestSimulationFrameCount', 'number', [], []
+                ),
+            };
+            """
+        )
+        samples = [
+            float(value)
+            for value in measure_animation_frames(driver, sample_count)
+        ]
+        after = driver.execute_script(
+            """
+            const m = window.__tptGameModule;
+            return {
+                draw: m.ccall(
+                    'YandexWeb_TestDrawFrameIndex', 'number', [], []
+                ),
+                sim: m.ccall(
+                    'YandexWeb_TestSimulationFrameCount', 'number', [], []
+                ),
+                engine: m.ccall(
+                    'YandexWeb_TestEngineFps', 'number', [], []
+                ),
+            };
+            """
+        )
+
+        duration_seconds = sum(samples) / 1000.0
+        assert duration_seconds > 0.0, (label, scene, samples)
+        draw_delta = (int(after["draw"]) - int(before["draw"])) % 7200
+        sim_delta = int(after["sim"]) - int(before["sim"])
+        ordered = sorted(samples)
+        p95_ms = ordered[
+            min(len(ordered) - 1, int(len(ordered) * 0.95))
+        ]
+        draw_fps = draw_delta / duration_seconds
+        sim_fps = sim_delta / duration_seconds
+        raf_fps = len(samples) / duration_seconds
+
+        metric = {
+            "label": label,
+            "scene": scene,
+            "cpu_throttle_rate": cpu_rate,
+            "particles": actual_particles,
+            "samples": len(samples),
+            "raf_fps": round(raf_fps, 2),
+            "native_draw_fps": round(draw_fps, 2),
+            "completed_sim_fps": round(sim_fps, 2),
+            "engine_fps": round(float(after["engine"]), 2),
+            "p95_frame_ms": round(p95_ms, 3),
+            "frames_over_33ms": sum(1 for value in samples if value > 33.0),
+            "frames_over_50ms": sum(1 for value in samples if value > 50.0),
+        }
+
+        # This intentionally checks native draw completion, not just RAF.
+        # 4x CPU slowdown approximates a much weaker mobile CPU than the
+        # GitHub runner. Particle slicing may lower physics tick rate under
+        # load, but the browser/UI must remain interactive and continue draws.
+        assert draw_fps >= 20.0, (
+            label,
+            scene,
+            "native draw rate collapsed under CPU throttling",
+            metric,
+        )
+        assert sim_fps >= 5.0, (
+            label,
+            scene,
+            "simulation made too little forward progress under load",
+            metric,
+        )
+        assert p95_ms <= 75.0, (
+            label,
+            scene,
+            "long browser stalls remain under CPU throttling",
+            metric,
+        )
+
+        report_path = os.path.join(
+            ARTIFACT_DIR, "throttled-performance.json"
+        )
+        report = []
+        if os.path.exists(report_path):
+            with open(report_path, "r", encoding="utf-8") as handle:
+                report = json.load(handle)
+        report.append(metric)
+        with open(report_path, "w", encoding="utf-8") as handle:
+            json.dump(report, handle, ensure_ascii=False, indent=2)
+
+        print(f"[throttled-performance] {metric}")
+        return metric
+    finally:
+        driver.execute_cdp_cmd(
+            "Emulation.setCPUThrottlingRate",
+            {"rate": 1},
+        )
+
+
 def record_idle_cpu_metric(driver, label, sample_seconds=1.5):
     driver.execute_cdp_cmd("Performance.enable", {})
 
@@ -3183,6 +3321,14 @@ def smoke_case(language: str, mobile: bool):
                     28000,
                 ),
             ]
+            record_throttled_performance_metric(
+                driver,
+                label,
+                "dust-24k-cpu4x",
+                "YandexWeb_TestFillDust",
+                24000,
+                cpu_rate=4,
+            )
 
         if mobile:
             # Open Settings through the real native button coordinates and a
