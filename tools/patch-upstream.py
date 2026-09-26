@@ -1808,33 +1808,251 @@ inline String YandexWebToolButtonText(
 	// the text painted on ToolButton is localized, so saves, Lua scripts and
 	// element lookup remain fully upstream-compatible.
 #define YW_TOOL(id, ru) if (identifier == id) return YandexWebCompactToolButtonText(ByteString(ru).FromUtf8())
+	YW_TOOL("DEFAULT_PT_WATR", "Вода");
+	YW_TOOL("DEFAULT_PT_DSTW", "Дист");
+	YW_TOOL("DEFAULT_PT_SLTW", "СолВ");
+	YW_TOOL("DEFAULT_PT_WTRV", "Пар");
+	YW_TOOL("DEFAULT_PT_ICEI", "Лёд");
+	YW_TOOL("DEFAULT_PT_SNOW", "Снег");
 	YW_TOOL("DEFAULT_PT_DUST", "ПЫЛЬ");
-	YW_TOOL("DEFAULT_PT_WATR", "ВОДА");
-	YW_TOOL("DEFAULT_PT_SEED", "СЕМЯ");
-	YW_TOOL("DEFAULT_PT_SLCN", "КРЕМНИЙ");
-	YW_TOOL("DEFAULT_PT_SAWD", "ОПИЛКИ");
-	YW_TOOL("DEFAULT_PT_CLST", "ГЛИНА");
-	YW_TOOL("DEFAULT_PT_SAND", "ПЕСОК");
-	YW_TOOL("DEFAULT_PT_STNE", "КАМЕНЬ");
-	YW_TOOL("DEFAULT_PT_ROCK", "ПОРОДА");
-	YW_TOOL("DEFAULT_PT_BRCK", "КИРПИЧ");
-	YW_TOOL("DEFAULT_PT_DMND", "АЛМАЗ");
-	YW_TOOL("DEFAULT_PT_GLAS", "СТЕКЛО");
-	YW_TOOL("DEFAULT_PT_WOOD", "ДЕРЕВО");
-	YW_TOOL("DEFAULT_PT_FIRE", "ОГОНЬ");
-	YW_TOOL("DEFAULT_PT_PLSM", "ПЛАЗМА");
-	YW_TOOL("DEFAULT_PT_LAVA", "ЛАВА");
-	YW_TOOL("DEFAULT_PT_SMKE", "ДЫМ");
-	YW_TOOL("DEFAULT_PT_OIL", "НЕФТЬ");
-	YW_TOOL("DEFAULT_PT_GAS", "ГАЗ");
-	YW_TOOL("DEFAULT_PT_METL", "МЕТАЛЛ");
-	YW_TOOL("DEFAULT_PT_IRON", "ЖЕЛЕЗО");
-	YW_TOOL("DEFAULT_PT_GOLD", "ЗОЛОТО");
-	YW_TOOL("DEFAULT_PT_SPRK", "ИСКРА");
-	YW_TOOL("DEFAULT_PT_BTRY", "БАТАР.");
-	YW_TOOL("DEFAULT_PT_ACID", "КИСЛОТА");
-	YW_TOOL("DEFAULT_PT_SALT", "СОЛЬ");
+	YW_TOOL("DEFAULT_PT_SAND", "Песок");
+	YW_TOOL("DEFAULT_PT_STNE", "Кам.");
+	YW_TOOL("DEFAULT_PT_ROCK", "Скала");
+	YW_TOOL("DEFAULT_PT_BRCK", "Кирп");
+	YW_TOOL("DEFAULT_PT_DMND", "Алм.");
+	YW_TOOL("DEFAULT_PT_GLAS", "Стек");
+	YW_TOOL("DEFAULT_PT_WOOD", "Древ");
+	YW_TOOL("DEFAULT_PT_FIRE", "Огонь");
+	YW_TOOL("DEFAULT_PT_PLSM", "Плаз");
+	YW_TOOL("DEFAULT_PT_LAVA", "Лава");
+	YW_TOOL("DEFAULT_PT_SMKE", "Дым");
+	YW_TOOL("DEFAULT_PT_OIL", "Нефт");
+	YW_TOOL("DEFAULT_PT_GAS", "Газ");
+	YW_TOOL("DEFAULT_PT_DESL", "Диз.");
+	YW_TOOL("DEFAULT_PT_NITR", "Нитр");
+	YW_TOOL("DEFAULT_PT_GUNP", "Порох");
+	YW_TOOL("DEFAULT_PT_PLEX", "Плст");
+	YW_TOOL("DEFAULT_PT_BOMB", "Бомб");
+	YW_TOOL("DEFAULT_PT_THRM", "Терм");
+	YW_TOOL("DEFAULT_PT_METL", "Мет.");
+	YW_TOOL("DEFAULT_PT_BMTL", "ХрМт");
+	YW_TOOL("DEFAULT_PT_IRON", "Жел.");
+	YW_TOOL("DEFAULT_PT_GOLD", "Зол.");
+	YW_TOOL("DEFAULT_PT_TUNG", "Влф");
+	YW_TOOL("DEFAULT_PT_INSL", "Изол");
+	YW_TOOL("DEFAULT_PT_SPRK", "Искр");
+	YW_TOOL("DEFAULT_PT_BTRY", "Бат.");
+	YW_TOOL("DEFAULT_PT_PSCN", "Кр+");
+	YW_TOOL("DEFAULT_PT_NSCN", "Кр-");
+	YW_TOOL("DEFAULT_PT_SWCH", "Ключ");
+	YW_TOOL("DEFAULT_PT_WIFI", "Ради");
+	YW_TOOL("DEFAULT_PT_WIRE", "Пров");
+	YW_TOOL("DEFAULT_PT_LCRY", "ЖКр");
+	YW_TOOL("DEFAULT_PT_FILT", "Фил.");
+	YW_TOOL("DEFAULT_PT_PHOT", "Фот.");
+	YW_TOOL("DEFAULT_PT_ELEC", "Эл-н");
+	YW_TOOL("DEFAULT_PT_NEUT", "Нейт");
+	YW_TOOL("DEFAULT_PT_PROT", "Прот");
+	YW_TOOL("DEFAULT_PT_URAN", "Уран");
+	YW_TOOL("DEFAULT_PT_PLUT", "Плут");
+	YW_TOOL("DEFAULT_PT_DEUT", "Дейт");
+	YW_TOOL("DEFAULT_PT_CLNE", "Клон");
+	YW_TOOL("DEFAULT_PT_PCLN", "ЭКлн");
+	YW_TOOL("DEFAULT_PT_BCLN", "ХКлн");
+	YW_TOOL("DEFAULT_PT_CONV", "Прев");
+	YW_TOOL("DEFAULT_PT_VOID", "Пуст");
+	YW_TOOL("DEFAULT_PT_PVOD", "ЭПст");
+	YW_TOOL("DEFAULT_PT_BHOL", "ЧД");
+	YW_TOOL("DEFAULT_PT_WHOL", "БД");
+	YW_TOOL("DEFAULT_PT_NBHL", "ГЧД");
+	YW_TOOL("DEFAULT_PT_NWHL", "ГБД");
+	YW_TOOL("DEFAULT_PT_PUMP", "Насос");
+	YW_TOOL("DEFAULT_PT_GPMP", "ГНас");
+	YW_TOOL("DEFAULT_PT_FRAY", "СЛуч");
+	YW_TOOL("DEFAULT_PT_RPEL", "Оттл");
+	YW_TOOL("DEFAULT_PT_STKM", "Чел1");
+	YW_TOOL("DEFAULT_PT_STKM2", "Чел2");
+	YW_TOOL("DEFAULT_PT_ACID", "Кисл");
+	YW_TOOL("DEFAULT_PT_CAUS", "ЕдкГ");
+	YW_TOOL("DEFAULT_PT_LNTG", "ЖАзт");
+	YW_TOOL("DEFAULT_PT_LO2", "ЖКис");
+	YW_TOOL("DEFAULT_PT_MERC", "Ртут");
+	YW_TOOL("DEFAULT_PT_GEL", "Гель");
+	YW_TOOL("DEFAULT_PT_SOAP", "Мыло");
+	YW_TOOL("DEFAULT_PT_SPNG", "Губка");
+	YW_TOOL("DEFAULT_PT_SALT", "Соль");
+	YW_TOOL("DEFAULT_PT_CLST", "Глин");
+	YW_TOOL("DEFAULT_PT_CO2", "УглГ");
+	YW_TOOL("DEFAULT_PT_O2", "КисГ");
+	YW_TOOL("DEFAULT_PT_H2", "ВодГ");
+	YW_TOOL("DEFAULT_PT_NBLE", "Инер");
+	YW_TOOL("DEFAULT_PT_BOYL", "Бойль");
+	YW_TOOL("DEFAULT_PT_FOG", "Тум.");
+	YW_TOOL("DEFAULT_PT_AMTR", "АнтМ");
+	YW_TOOL("DEFAULT_PT_ANAR", "АнтВ");
+	YW_TOOL("DEFAULT_PT_SING", "Синг");
+	YW_TOOL("DEFAULT_PT_DEST", "Разр");
+	YW_TOOL("DEFAULT_PT_EXOT", "Экзо");
+	YW_TOOL("DEFAULT_PT_WARP", "Сдвиг");
+	YW_TOOL("DEFAULT_PT_VIBR", "Вибр");
+	YW_TOOL("DEFAULT_PT_BVBR", "ХВиб");
+	YW_TOOL("DEFAULT_PT_BANG", "ТНТ");
+	YW_TOOL("DEFAULT_PT_FUSE", "Фит.");
+	YW_TOOL("DEFAULT_PT_FSEP", "ПФит");
+	YW_TOOL("DEFAULT_PT_FIRW", "Сал.");
+	YW_TOOL("DEFAULT_PT_FWRK", "Сал2");
+	YW_TOOL("DEFAULT_PT_LIGH", "Молн");
+	YW_TOOL("DEFAULT_PT_THDR", "Гром");
+	YW_TOOL("DEFAULT_PT_EMBR", "Углк");
+	YW_TOOL("DEFAULT_PT_TESC", "Тесла");
+	YW_TOOL("DEFAULT_PT_ARAY", "Луч");
+	YW_TOOL("DEFAULT_PT_BRAY", "ТЛуч");
+	YW_TOOL("DEFAULT_PT_CRAY", "ЧЛуч");
+	YW_TOOL("DEFAULT_PT_DRAY", "ДЛуч");
+	YW_TOOL("DEFAULT_PT_DTEC", "Дет.");
+	YW_TOOL("DEFAULT_PT_PSTN", "Порш");
+	YW_TOOL("DEFAULT_PT_FRME", "Рама");
+	YW_TOOL("DEFAULT_PT_PIPE", "Труба");
+	YW_TOOL("DEFAULT_PT_PPIP", "ЭТрб");
+	YW_TOOL("DEFAULT_PT_STOR", "Скл.");
+	YW_TOOL("DEFAULT_PT_DLAY", "Задр");
+	YW_TOOL("DEFAULT_PT_HSWC", "ТКлч");
+	YW_TOOL("DEFAULT_PT_INST", "МгнП");
+	YW_TOOL("DEFAULT_PT_ETRD", "Элод");
+	YW_TOOL("DEFAULT_PT_NTCT", "Тр+");
+	YW_TOOL("DEFAULT_PT_PTCT", "Тр-");
+	YW_TOOL("DEFAULT_PT_INWR", "ИзПр");
+	YW_TOOL("DEFAULT_PT_INVIS", "Нев.");
+	YW_TOOL("DEFAULT_PT_LDTC", "ЛДет");
+	YW_TOOL("DEFAULT_PT_TSNS", "ДТем");
+	YW_TOOL("DEFAULT_PT_PSNS", "ДДав");
+	YW_TOOL("DEFAULT_PT_VSNS", "ДСкр");
+	YW_TOOL("DEFAULT_PT_LSNS", "ДЖиз");
+	YW_TOOL("DEFAULT_PT_ACEL", "Ускр");
+	YW_TOOL("DEFAULT_PT_DCEL", "Замд");
+	YW_TOOL("DEFAULT_PT_BASE", "ЕдкЖ");
+	YW_TOOL("DEFAULT_PT_BCOL", "КрУг");
+	YW_TOOL("DEFAULT_PT_BGLA", "Оскл");
+	YW_TOOL("DEFAULT_PT_BIZR", "СтрЖ");
+	YW_TOOL("DEFAULT_PT_BIZRG", "СтрГ");
+	YW_TOOL("DEFAULT_PT_BIZRS", "СтрТ");
+	YW_TOOL("DEFAULT_PT_BREC", "ЛомЭ");
+	YW_TOOL("DEFAULT_PT_BRMT", "ЛомМ");
+	YW_TOOL("DEFAULT_PT_C5", "ХолВ");
+	YW_TOOL("DEFAULT_PT_CBNW", "ГазВ");
+	YW_TOOL("DEFAULT_PT_CFLM", "ХолО");
+	YW_TOOL("DEFAULT_PT_CNCT", "Бет.");
+	YW_TOOL("DEFAULT_PT_COAL", "Уголь");
+	YW_TOOL("DEFAULT_PT_CRMC", "Кер.");
+	YW_TOOL("DEFAULT_PT_DMG", "Удар");
+	YW_TOOL("DEFAULT_PT_DRIC", "СухЛ");
+	YW_TOOL("DEFAULT_PT_DYST", "МДр");
+	YW_TOOL("DEFAULT_PT_E116", "Опыт");
+	YW_TOOL("DEFAULT_PT_EMP", "ЭМИ");
+	YW_TOOL("DEFAULT_PT_FIGH", "Боец");
+	YW_TOOL("DEFAULT_PT_FRZW", "МорВ");
+	YW_TOOL("DEFAULT_PT_FRZZ", "МорП");
+	YW_TOOL("DEFAULT_PT_GBMB", "ГБмб");
+	YW_TOOL("DEFAULT_PT_GLOW", "Свет");
+	YW_TOOL("DEFAULT_PT_GOO", "Слизь");
+	YW_TOOL("DEFAULT_PT_GRAV", "ГПыл");
+	YW_TOOL("DEFAULT_PT_GRVT", "Грав");
+	YW_TOOL("DEFAULT_PT_HEAC", "ТПрв");
+	YW_TOOL("DEFAULT_PT_IGNT", "Шнур");
+	YW_TOOL("DEFAULT_PT_ISOZ", "ИзЖ");
+	YW_TOOL("DEFAULT_PT_ISZS", "ИзТ");
+	YW_TOOL("DEFAULT_PT_LIFE", "Жизн");
+	YW_TOOL("DEFAULT_PT_LITH", "Лит.");
+	YW_TOOL("DEFAULT_PT_LOLZ", "Смех");
+	YW_TOOL("DEFAULT_PT_LOVE", "Люб.");
+	YW_TOOL("DEFAULT_PT_LRBD", "ЖРуб");
+	YW_TOOL("DEFAULT_PT_MORT", "Паров");
+	YW_TOOL("DEFAULT_PT_MWAX", "ЖВск");
+	YW_TOOL("DEFAULT_PT_NICE", "АзЛд");
+	YW_TOOL("DEFAULT_PT_PBCN", "ЭХКл");
+	YW_TOOL("DEFAULT_PT_PLNT", "Рост");
+	YW_TOOL("DEFAULT_PT_POLO", "Полон");
+	YW_TOOL("DEFAULT_PT_PQRT", "ПКвр");
+	YW_TOOL("DEFAULT_PT_PRTI", "Вход");
+	YW_TOOL("DEFAULT_PT_PRTO", "Вых.");
+	YW_TOOL("DEFAULT_PT_PSTE", "Паст");
+	YW_TOOL("DEFAULT_PT_PSTS", "ТПст");
+	YW_TOOL("DEFAULT_PT_PTNM", "Плат");
+	YW_TOOL("DEFAULT_PT_QRTZ", "Кврц");
+	YW_TOOL("DEFAULT_PT_RBDM", "Руб.");
+	YW_TOOL("DEFAULT_PT_RFGL", "ЖХлд");
+	YW_TOOL("DEFAULT_PT_RFRG", "Хлад");
+	YW_TOOL("DEFAULT_PT_RIME", "Иней");
+	YW_TOOL("DEFAULT_PT_RSSS", "ТРез");
+	YW_TOOL("DEFAULT_PT_RSST", "Рез.");
+	YW_TOOL("DEFAULT_PT_SAWD", "Опил");
+	YW_TOOL("DEFAULT_PT_SEED", "Семя");
+	YW_TOOL("DEFAULT_PT_SHLD1", "Щит1");
+	YW_TOOL("DEFAULT_PT_SHLD2", "Щит2");
+	YW_TOOL("DEFAULT_PT_SHLD3", "Щит3");
+	YW_TOOL("DEFAULT_PT_SHLD4", "Щит4");
+	YW_TOOL("DEFAULT_PT_SLCN", "Крем");
+	YW_TOOL("DEFAULT_PT_SPAWN", "Спн1");
+	YW_TOOL("DEFAULT_PT_SPAWN2", "Спн2");
+	YW_TOOL("DEFAULT_PT_TRON", "Трон");
+	YW_TOOL("DEFAULT_PT_TTAN", "Тит.");
+	YW_TOOL("DEFAULT_PT_VINE", "Лоза");
+	YW_TOOL("DEFAULT_PT_VIRS", "ВирЖ");
+	YW_TOOL("DEFAULT_PT_VRSG", "ВирГ");
+	YW_TOOL("DEFAULT_PT_VRSS", "ВирТ");
+	YW_TOOL("DEFAULT_PT_WAX", "Воск");
+	YW_TOOL("DEFAULT_PT_YEST", "Дрож");
+	YW_TOOL("DEFAULT_PT_NONE", "Стер");
+	YW_TOOL("DEFAULT_TOOL_COOL", "Хол.");
+	YW_TOOL("DEFAULT_TOOL_HEAT", "Жар");
+	YW_TOOL("DEFAULT_TOOL_VAC", "Вак.");
+	YW_TOOL("DEFAULT_TOOL_AIR", "Возд");
+	YW_TOOL("DEFAULT_TOOL_WIND", "Ветр");
+	YW_TOOL("DEFAULT_TOOL_CYCL", "Вихрь");
+	YW_TOOL("DEFAULT_TOOL_AMBM", "Фон-");
+	YW_TOOL("DEFAULT_TOOL_AMBP", "Фон+");
+	YW_TOOL("DEFAULT_TOOL_NGRV", "Грав-");
+	YW_TOOL("DEFAULT_TOOL_PGRV", "Гр+");
+	YW_TOOL("DEFAULT_TOOL_MIX", "Меш.");
+	YW_TOOL("DEFAULT_DECOR_ADD", "Доб.");
+	YW_TOOL("DEFAULT_DECOR_SUB", "Выч.");
+	YW_TOOL("DEFAULT_DECOR_MUL", "Умн.");
+	YW_TOOL("DEFAULT_DECOR_DIV", "Дел.");
+	YW_TOOL("DEFAULT_DECOR_SMDG", "Маз.");
+	YW_TOOL("DEFAULT_DECOR_CLR", "Стер");
+	YW_TOOL("DEFAULT_DECOR_SET", "Цвет");
+	YW_TOOL("DEFAULT_UI_PROPERTY", "Св-ва");
+	YW_TOOL("DEFAULT_UI_SIGN", "Текс");
+	YW_TOOL("DEFAULT_UI_SAMPLE", "Проба");
+	YW_TOOL("DEFAULT_UI_ADDLIFE", "НовЖ");
+	YW_TOOL("DEFAULT_PT_LIFE_GOL", "Жизн");
+	YW_TOOL("DEFAULT_PT_LIFE_HLIF", "ВЖиз");
+	YW_TOOL("DEFAULT_PT_LIFE_ASIM", "Асм.");
+	YW_TOOL("DEFAULT_PT_LIFE_2X2", "2х2");
+	YW_TOOL("DEFAULT_PT_LIFE_DANI", "ДнНч");
+	YW_TOOL("DEFAULT_PT_LIFE_AMOE", "Амёб");
+	YW_TOOL("DEFAULT_PT_LIFE_MOVE", "Ход");
+	YW_TOOL("DEFAULT_PT_LIFE_PGOL", "ПЖиз");
+	YW_TOOL("DEFAULT_PT_LIFE_DMOE", "ДАмб");
+	YW_TOOL("DEFAULT_PT_LIFE_3-4", "3-4");
+	YW_TOOL("DEFAULT_PT_LIFE_LLIF", "ДЖиз");
+	YW_TOOL("DEFAULT_PT_LIFE_STAN", "Пятн");
+	YW_TOOL("DEFAULT_PT_LIFE_SEED", "Зёрна");
+	YW_TOOL("DEFAULT_PT_LIFE_MAZE", "Лаб.");
+	YW_TOOL("DEFAULT_PT_LIFE_COAG", "Сгуст");
+	YW_TOOL("DEFAULT_PT_LIFE_WALL", "Гор.");
+	YW_TOOL("DEFAULT_PT_LIFE_GNAR", "Узор");
+	YW_TOOL("DEFAULT_PT_LIFE_REPL", "Копия");
+	YW_TOOL("DEFAULT_PT_LIFE_MYST", "Тайна");
+	YW_TOOL("DEFAULT_PT_LIFE_LOTE", "Край");
+	YW_TOOL("DEFAULT_PT_LIFE_FRG2", "Ляг2");
+	YW_TOOL("DEFAULT_PT_LIFE_STAR", "Звзд");
+	YW_TOOL("DEFAULT_PT_LIFE_FROG", "Ляг.");
+	YW_TOOL("DEFAULT_PT_LIFE_BRAN", "Бр6");
 #undef YW_TOOL
+
+	if (identifier.BeginsWith("DEFAULT_PT_LIFECUST_"))
+		return name;
 
 	// Every built-in element has a localized description in the Yandex build.
 	// For less common tools derive a compact visible label from its first
@@ -1919,6 +2137,11 @@ if tool_button_anchor not in tool_button_text:
 tool_button_text = tool_button_text.replace(
     tool_button_anchor, tool_button_patch, 1
 )
+# Reuse the same pixel fitting for subsequent SetText/SetIcon calls.
+tool_button_text = tool_button_text.replace(tool_button_patch,
+    "\tTextPosition(ButtonText);", 1)
+tool_button_text += "\nvoid ToolButton::TextPosition(String text)\n{\n" + tool_button_patch.replace(
+    "ButtonText.Substr(0, 7)", "text") + "\n}\n"
 tool_button_cpp.write_text(tool_button_text, encoding="utf-8")
 
 tool_button_h_text = tool_button_h.read_text(encoding="utf-8")
@@ -1936,6 +2159,9 @@ if tool_button_h_anchor not in tool_button_h_text:
 tool_button_h_text = tool_button_h_text.replace(
     tool_button_h_anchor, tool_button_h_patch, 1
 )
+tool_button_h_text = tool_button_h_text.replace(
+    "\tvoid Draw(const ui::Point& screenPos) override;",
+    "\tvoid Draw(const ui::Point& screenPos) override;\n\tvoid TextPosition(String text) override;", 1)
 tool_button_h.write_text(tool_button_h_text, encoding="utf-8")
 
 # Translate common component-level UI strings in RU mode. This catches rare
@@ -2958,17 +3184,17 @@ label_cpp.write_text(label_text, encoding="utf-8")
 quick_text = quick_options_cpp.read_text(encoding="utf-8")
 quick_replacements = [
     ('QuickOption("P", "Sand effect", m, Toggle)',
-     'QuickOption("P", YandexWebText("Sand effect", "Эффект песка"), m, Toggle)'),
+     'QuickOption(YandexWebText("P", "П"), YandexWebText("Sand effect", "Эффект песка"), m, Toggle)'),
     ('QuickOption("G", "Draw gravity field \\bg(ctrl+g)", m, Toggle)',
-     'QuickOption("G", YandexWebText("Draw gravity field \\bg(ctrl+g)", "Поле гравитации \\bg(ctrl+g)"), m, Toggle)'),
+     'QuickOption(YandexWebText("G", "Г"), YandexWebText("Draw gravity field \\bg(ctrl+g)", "Поле гравитации \\bg(ctrl+g)"), m, Toggle)'),
     ('QuickOption("D", "Draw decorations \\bg(ctrl+b)", m, Toggle)',
-     'QuickOption("D", YandexWebText("Draw decorations \\bg(ctrl+b)", "Декорации \\bg(ctrl+b)"), m, Toggle)'),
+     'QuickOption(YandexWebText("D", "Д"), YandexWebText("Draw decorations \\bg(ctrl+b)", "Декорации \\bg(ctrl+b)"), m, Toggle)'),
     ('QuickOption("N", "Newtonian Gravity \\bg(n)", m, Toggle)',
-     'QuickOption("N", YandexWebText("Newtonian Gravity \\bg(n)", "Ньютоновская гравитация \\bg(n)"), m, Toggle)'),
+     'QuickOption(YandexWebText("N", "Н"), YandexWebText("Newtonian Gravity \\bg(n)", "Ньютоновская гравитация \\bg(n)"), m, Toggle)'),
     ('QuickOption("A", "Ambient heat \\bg(u)", m, Toggle)',
-     'QuickOption("A", YandexWebText("Ambient heat \\bg(u)", "Фоновый нагрев \\bg(u)"), m, Toggle)'),
+     'QuickOption(YandexWebText("A", "Т"), YandexWebText("Ambient heat \\bg(u)", "Фоновый нагрев \\bg(u)"), m, Toggle)'),
     ('QuickOption("C", "Show Console \\bg(~)", m, Toggle)',
-     'QuickOption("C", YandexWebText("Show Console \\bg(~)", "Показать консоль \\bg(~)"), m, Toggle)'),
+     'QuickOption(YandexWebText("C", "К"), YandexWebText("Show Console \\bg(~)", "Показать консоль \\bg(~)"), m, Toggle)'),
 ]
 for old, new in quick_replacements:
     if old in quick_text:
