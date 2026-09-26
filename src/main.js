@@ -134,6 +134,7 @@ window.__tptSdkMobilePlatform = null;
 window.__tptAdWarningActive = false;
 window.__tptAdCycleActive = false;
 window.__tptAdAttemptCount = 0;
+window.__tptAdTimerScheduled = false;
 window.__tptCanvasFit = null;
 
 const ENGINE_STDOUT_DEBUG =
@@ -725,6 +726,7 @@ function clearAdTimer() {
     window.clearTimeout(adTimerId);
     adTimerId = null;
   }
+  window.__tptAdTimerScheduled = false;
 }
 
 function scheduleNextAd(delay = AD_INTERVAL_MS) {
@@ -736,8 +738,10 @@ function scheduleNextAd(delay = AD_INTERVAL_MS) {
 
   adTimerId = window.setTimeout(() => {
     adTimerId = null;
+    window.__tptAdTimerScheduled = false;
     void runFullscreenAdCycle();
   }, Math.max(1000, delay));
+  window.__tptAdTimerScheduled = true;
 }
 
 function canBeginFullscreenAdCycle() {
