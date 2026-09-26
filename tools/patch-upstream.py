@@ -71,17 +71,6 @@ if pthread_arg not in meson_text:
     raise SystemExit("meson.build USE_PTHREADS anchor not found")
 meson_text = meson_text.replace(pthread_arg, "", 1)
 
-# The Yandex artifact only runs in a browser. Restrict Emscripten's generated
-# runtime to the web environment and remove Node/shell startup branches.
-wasm_arg = "\t\t'-s', 'WASM=1',\n"
-web_environment_arg = "\t\t'-s', 'ENVIRONMENT=web',\n"
-if wasm_arg not in meson_text:
-    raise SystemExit("meson.build WASM anchor not found")
-if web_environment_arg not in meson_text:
-    meson_text = meson_text.replace(
-        wasm_arg, wasm_arg + web_environment_arg, 1
-    )
-
 threads_anchor = """fftw_dep = dependency('fftw3f', static: is_static)
 threads_dep = dependency('threads')
 if host_platform == 'emscripten'"""
@@ -98,19 +87,6 @@ meson_text = meson_text.replace(threads_anchor, threads_patch, 1)
 thread_callback_arg = "\t\t'-Wl,-u,_emscripten_run_callback_on_thread',\n"
 if thread_callback_arg in meson_text:
     meson_text = meson_text.replace(thread_callback_arg, "", 1)
-
-# Production Yandex builds do not ship source maps and should not carry
-# Emscripten filesystem debug instrumentation in the runtime.
-for release_debug_arg in [
-    "\t\t'-s', 'FS_DEBUG',\n",
-    "\t\t'--source-map-base=./',\n",
-    "\t\t'-gsource-map',\n",
-]:
-    if release_debug_arg not in meson_text:
-        raise SystemExit(
-            f"meson.build production debug flag anchor not found: {release_debug_arg!r}"
-        )
-    meson_text = meson_text.replace(release_debug_arg, "", 1)
 
 meson.write_text(meson_text, encoding="utf-8")
 
@@ -600,41 +576,6 @@ main_js_patch = """EMSCRIPTEN_KEEPALIVE extern "C" int MainJs(int argc, char *ar
 if main_js_anchor not in platform_text:
     raise SystemExit("Emscripten.cpp MainJs startup guard anchor missing")
 platform_text = platform_text.replace(main_js_anchor, main_js_patch, 1)
-
-# Browser performance: this Yandex build deliberately has no pthreads, so the
-# filesystem dirty flag is only read/written on the browser main thread.
-# Avoid an atomic exchange on every animation frame and suppress the
-# per-sync stderr bridge into JavaScript.
-atomic_include = "#include <atomic>\n"
-if atomic_include not in platform_text:
-    raise SystemExit("Emscripten.cpp atomic include anchor missing")
-platform_text = platform_text.replace(atomic_include, "", 1)
-
-sync_flag_anchor = """static std::atomic<bool> shouldSyncFs = false;
-static bool syncFsInFlight = false;"""
-sync_flag_patch = """static bool shouldSyncFs = false;
-static bool syncFsInFlight = false;"""
-if sync_flag_anchor not in platform_text:
-    raise SystemExit("Emscripten.cpp sync flag anchor missing")
-platform_text = platform_text.replace(sync_flag_anchor, sync_flag_patch, 1)
-
-sync_check_anchor = """	if (!syncFsInFlight && shouldSyncFs.exchange(false, std::memory_order_relaxed))
-	{
-		std::cerr << "invoking FS.syncfs" << std::endl;
-		syncFsInFlight = true;"""
-sync_check_patch = """	if (!syncFsInFlight && shouldSyncFs)
-	{
-		shouldSyncFs = false;
-		syncFsInFlight = true;"""
-if sync_check_anchor not in platform_text:
-    raise SystemExit("Emscripten.cpp sync hot-path anchor missing")
-platform_text = platform_text.replace(sync_check_anchor, sync_check_patch, 1)
-
-sync_mark_anchor = """	shouldSyncFs.store(true, std::memory_order_relaxed);"""
-sync_mark_patch = """	shouldSyncFs = true;"""
-if sync_mark_anchor not in platform_text:
-    raise SystemExit("Emscripten.cpp sync dirty marker anchor missing")
-platform_text = platform_text.replace(sync_mark_anchor, sync_mark_patch, 1)
 
 open_uri_anchor = """void OpenURI(ByteString uri)
 {
