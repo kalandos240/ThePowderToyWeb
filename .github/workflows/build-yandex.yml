@@ -658,7 +658,9 @@ jobs:
           grep -Fn -- "-Dbuildtype=release" "$BUILD_SH"
           grep -Fn -- "-Dlto=true" "$BUILD_SH"
           grep -Fn -- "'-msimd128'" "$MESON"
-          grep -Fn 'constexpr int yandexWebParticleSlice = 12000;' "$GAME_CONTROLLER"
+          grep -Fn 'static int yandexWebParticleSlice =' "$GAME_CONTROLLER"
+          grep -Fn 'emscripten_get_now() - yandexWebWorkStarted' "$GAME_CONTROLLER"
+          grep -Fn 'int(double(yandexWebProcessed) * 8.0 / yandexWebWorkMs)' "$GAME_CONTROLLER"
           grep -Fn 'gameModel->UpdateUpTo(yandexWebEnd);' "$GAME_CONTROLLER"
           grep -Fn 'if (upTo >= NPART)' upstream/src/gui/game/GameModel.cpp
 
