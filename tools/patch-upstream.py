@@ -4962,6 +4962,36 @@ gravity_text = gravity_text.replace(gravity_work_anchor, gravity_work_patch, 1)
 
 gravity_cpp.write_text(gravity_text, encoding="utf-8")
 
+# Partial Web updates must count as one logical simulation frame only after
+# AfterSim. Otherwise Frame Step consumes its queued frame on the first slice
+# and can leave debug_nextToUpdate suspended halfway through the particle set.
+model_perf_text = game_model_cpp.read_text(encoding="utf-8")
+queued_frame_anchor = """\tsim->UpdateParticles(sim->debug_nextToUpdate, upTo);
+\tif (queuedFrames)
+\t{
+\t\tqueuedFrames--;
+\t}
+\tif (upTo < NPART)"""
+queued_frame_patch = """\tsim->UpdateParticles(sim->debug_nextToUpdate, upTo);
+\tif (queuedFrames)
+\t{
+#if defined(__EMSCRIPTEN__)
+\t\tif (upTo >= NPART)
+\t\t\tqueuedFrames--;
+#else
+\t\tqueuedFrames--;
+#endif
+\t}
+\tif (upTo < NPART)"""
+if queued_frame_anchor not in model_perf_text:
+    raise SystemExit("GameModel::UpdateUpTo queued-frame anchor missing")
+model_perf_text = model_perf_text.replace(
+    queued_frame_anchor,
+    queued_frame_patch,
+    1,
+)
+game_model_cpp.write_text(model_perf_text, encoding="utf-8")
+
 controller_text = game_controller_cpp.read_text(encoding="utf-8")
 
 # Browser responsiveness guard: native TPT updates every active particle in a
