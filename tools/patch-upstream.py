@@ -4406,6 +4406,31 @@ extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillWaterGravity(int target)
 	return sim->NUM_PARTS;
 }
 
+extern "C" EMSCRIPTEN_KEEPALIVE int YandexWeb_TestFillDenseObjects(int target)
+{
+	if (!YandexWeb_TestGameModel)
+		return -1;
+	auto *sim = YandexWeb_TestGameModel->GetSimulation();
+	sim->clear_sim();
+	YandexWeb_TestGameModel->SetNewtonianGravity(false);
+	target = std::max(0, std::min(target, 16000));
+	const int types[] = { PT_WATR, PT_DUST, PT_OIL, PT_SALT };
+	int block = 0;
+	for (int by = 70; by < YRES - 70 && sim->NUM_PARTS < target; by += 72)
+	{
+		for (int bx = 70; bx < XRES - 70 && sim->NUM_PARTS < target; bx += 96)
+		{
+			const int type = types[block++ % 4];
+			for (int y = by; y < std::min(by + 58, YRES - 20) && sim->NUM_PARTS < target; ++y)
+			{
+				for (int x = bx; x < std::min(bx + 78, XRES - 20) && sim->NUM_PARTS < target; ++x)
+					sim->create_part(-1, x, y, type);
+			}
+		}
+	}
+	return sim->NUM_PARTS;
+}
+
 '''
 if diag_block not in model_text:
     if diag_anchor not in model_text:
@@ -5022,67 +5047,104 @@ update_patch = """\tSimulation * sim = gameModel->GetSimulation();
 \tif (gameModel->IsSimRunning())
 \t{
 #if defined(__EMSCRIPTEN__)
-\t\t// Adaptive single-threaded WASM work budget. Desktop starts with a
-\t\t// large slice so fast machines retain normal 60 Hz simulation; touch
-\t\t// devices start conservatively. Measured slice time then tunes the
-\t\t// budget toward roughly 8 ms of particle work per RAF callback.
+\t\t// Single-threaded WASM must never let one expensive material block the
+\t\t// browser for an entire frame. Work in small chunks and stop on a real
+\t\t// wall-clock budget, not on a particle-count guess. This keeps rendering
+\t\t// and input responsive even when a few dense/reactive objects are much
+\t\t// more expensive per particle than DUST.
 \t\tstatic const bool yandexWebTouchDevice = emscripten_run_script_int(
 \t\t\t"(navigator.maxTouchPoints > 0 || "
 \t\t\t"(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) ? 1 : 0"
 \t\t) != 0;
-\t\tstatic const int yandexWebMaxParticleSlice =
-\t\t\tyandexWebTouchDevice ? 18000 : 48000;
-\t\tstatic int yandexWebParticleSlice =
-\t\t\tyandexWebTouchDevice ? 12000 : 30000;
-\t\tconst int yandexWebStart = sim->debug_nextToUpdate;
-\t\tconst int yandexWebActive = sim->parts.active;
-\t\tconst int yandexWebEnd = yandexWebStart + yandexWebParticleSlice;
-\t\tconst double yandexWebWorkStarted = emscripten_get_now();
-\t\tint yandexWebProcessed = 0;
-\t\tif (yandexWebStart == 0 && yandexWebActive <= yandexWebParticleSlice)
+\t\tstatic const double yandexWebFrameBudgetMs =
+\t\t\tyandexWebTouchDevice ? 3.5 : 4.5;
+\t\tstatic const double yandexWebChunkTargetMs =
+\t\t\tyandexWebTouchDevice ? 0.85 : 1.10;
+\t\tstatic const int yandexWebMinParticleChunk = 256;
+\t\tstatic const int yandexWebMaxParticleChunk =
+\t\t\tyandexWebTouchDevice ? 3072 : 6144;
+\t\tstatic int yandexWebParticleChunk =
+\t\t\tyandexWebTouchDevice ? 768 : 1536;
+
+\t\tconst double yandexWebFrameStarted = emscripten_get_now();
+\t\tif (sim->parts.active <= 0)
 \t\t{
-\t\t\tyandexWebProcessed = yandexWebActive;
+\t\t\t// Empty simulations still need BeforeSim/AfterSim for air, walls and
+\t\t\t// frame counters.
 \t\t\tgameModel->UpdateUpTo(NPART);
-\t\t}
-\t\telse if (yandexWebEnd < yandexWebActive)
-\t\t{
-\t\t\tyandexWebProcessed = yandexWebEnd - yandexWebStart;
-\t\t\tgameModel->UpdateUpTo(yandexWebEnd);
 \t\t}
 \t\telse
 \t\t{
-\t\t\tyandexWebProcessed = std::max(0, yandexWebActive - yandexWebStart);
-\t\t\t// NPART remains the completion sentinel; UpdateParticles itself
-\t\t\t// stops at parts.active and AfterSim runs exactly once here.
-\t\t\tgameModel->UpdateUpTo(NPART);
-\t\t}
-\t\tconst double yandexWebWorkMs =
-\t\t\temscripten_get_now() - yandexWebWorkStarted;
-\t\tif (yandexWebProcessed >= 1000 && yandexWebWorkMs > 0.25)
-\t\t{
-\t\t\tconst int yandexWebTargetSlice = std::clamp(
-\t\t\t\tint(double(yandexWebProcessed) * 8.0 / yandexWebWorkMs),
-\t\t\t\t4000,
-\t\t\t\tyandexWebMaxParticleSlice
-\t\t\t);
-\t\t\tif (yandexWebWorkMs > 12.0)
+\t\t\tbool yandexWebCompletedFrame = false;
+\t\t\twhile (!yandexWebCompletedFrame)
 \t\t\t{
-\t\t\t\t// React quickly to a real stall.
-\t\t\t\tyandexWebParticleSlice = std::min(
-\t\t\t\t\tyandexWebParticleSlice,
-\t\t\t\t\tyandexWebTargetSlice
+\t\t\t\tconst int yandexWebStart = sim->debug_nextToUpdate;
+\t\t\t\tconst int yandexWebActive = sim->parts.active;
+\t\t\t\tif (yandexWebStart >= yandexWebActive)
+\t\t\t\t{
+\t\t\t\t\tgameModel->UpdateUpTo(NPART);
+\t\t\t\t\tyandexWebCompletedFrame = true;
+\t\t\t\t\tbreak;
+\t\t\t\t}
+
+\t\t\t\tconst int yandexWebEnd = std::min(
+\t\t\t\t\tyandexWebActive,
+\t\t\t\t\tyandexWebStart + yandexWebParticleChunk
 \t\t\t\t);
-\t\t\t}
-\t\t\telse if (yandexWebWorkMs < 5.0)
-\t\t\t{
-\t\t\t\t// Recover quality gradually after load falls, avoiding oscillation.
-\t\t\t\tyandexWebParticleSlice = std::min(
-\t\t\t\t\tyandexWebMaxParticleSlice,
-\t\t\t\t\tstd::max(
-\t\t\t\t\t\tyandexWebParticleSlice + 2000,
-\t\t\t\t\t\t(yandexWebParticleSlice * 3 + yandexWebTargetSlice) / 4
-\t\t\t\t\t)
-\t\t\t\t);
+\t\t\t\tconst int yandexWebProcessed =
+\t\t\t\t\tyandexWebEnd - yandexWebStart;
+\t\t\t\tconst double yandexWebChunkStarted = emscripten_get_now();
+
+\t\t\t\tif (yandexWebEnd >= yandexWebActive)
+\t\t\t\t{
+\t\t\t\t\t// NPART is the completion sentinel that runs AfterSim exactly
+\t\t\t\t\t// once and resets debug_nextToUpdate to zero.
+\t\t\t\t\tgameModel->UpdateUpTo(NPART);
+\t\t\t\t\tyandexWebCompletedFrame = true;
+\t\t\t\t}
+\t\t\t\telse
+\t\t\t\t{
+\t\t\t\t\tgameModel->UpdateUpTo(yandexWebEnd);
+\t\t\t\t}
+
+\t\t\t\tconst double yandexWebChunkMs =
+\t\t\t\t\temscripten_get_now() - yandexWebChunkStarted;
+\t\t\t\tif (yandexWebProcessed > 0 && yandexWebChunkMs > 0.05)
+\t\t\t\t{
+\t\t\t\t\tconst int yandexWebTargetChunk = std::clamp(
+\t\t\t\t\t\tint(double(yandexWebProcessed) *
+\t\t\t\t\t\t\tyandexWebChunkTargetMs / yandexWebChunkMs),
+\t\t\t\t\t\tyandexWebMinParticleChunk,
+\t\t\t\t\t\tyandexWebMaxParticleChunk
+\t\t\t\t\t);
+\t\t\t\t\tif (yandexWebChunkMs > yandexWebChunkTargetMs * 1.6)
+\t\t\t\t\t{
+\t\t\t\t\t\t// Expensive material: shrink immediately so the next RAF
+\t\t\t\t\t\t// cannot repeat the same long stall.
+\t\t\t\t\t\tyandexWebParticleChunk = std::min(
+\t\t\t\t\t\t\tyandexWebParticleChunk,
+\t\t\t\t\t\t\tyandexWebTargetChunk
+\t\t\t\t\t\t);
+\t\t\t\t\t}
+\t\t\t\t\telse if (yandexWebChunkMs < yandexWebChunkTargetMs * 0.7)
+\t\t\t\t\t{
+\t\t\t\t\t\t// Cheap material: recover throughput gradually without
+\t\t\t\t\t\t// letting one future chunk become a full-frame spike.
+\t\t\t\t\t\tyandexWebParticleChunk = std::clamp(
+\t\t\t\t\t\t\t(yandexWebParticleChunk * 3 +
+\t\t\t\t\t\t\t yandexWebTargetChunk) / 4,
+\t\t\t\t\t\t\tyandexWebMinParticleChunk,
+\t\t\t\t\t\t\tyandexWebMaxParticleChunk
+\t\t\t\t\t\t);
+\t\t\t\t\t}
+\t\t\t\t}
+
+\t\t\t\tif (!yandexWebCompletedFrame &&
+\t\t\t\t\temscripten_get_now() - yandexWebFrameStarted >=
+\t\t\t\t\tyandexWebFrameBudgetMs)
+\t\t\t\t{
+\t\t\t\t\tbreak;
+\t\t\t\t}
 \t\t\t}
 \t\t}
 #else
