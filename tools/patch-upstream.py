@@ -961,20 +961,6 @@ recalc_start_patch = """void Simulation::RecalcFreeParticles(bool do_life_dec)
 	FrameTime::Span span(frameTime, "Simulation::RecalcFreeParticles");
 	bool yandexWebNeedsFlatten = false;
 
-	// After clear_sim(), or after the previous RecalcFreeParticles flattened
-	// away the last dead slots, all occupancy maps are already empty.
-	// Avoid clearing several large grids every frame while an empty scene is
-	// idle (common during startup and before the player begins drawing).
-	if (parts.active == 0)
-	{
-		NUM_PARTS = 0;
-		if (elementRecount)
-		{
-			std::fill(elementCount, elementCount + PT_NUM, 0);
-			elementRecount = false;
-		}
-		return;
-	}
 
 	memset(pmap, 0, sizeof(pmap));"""
 if recalc_start not in simulation_text:
@@ -1450,69 +1436,6 @@ lua_simulation_text = lua_simulation_text.replace(
     lua_wall_anchor, lua_wall_patch, 1
 )
 lua_simulation_cpp.write_text(lua_simulation_text, encoding="utf-8")
-
-# Browser performance: a freshly cleared/empty simulation has exactly zero
-# pressure and velocity. The full air solver is one of the larger fixed-cost
-# loops in a frame; prove the zero state is a fixed point and return early.
-# The scan is restricted to parts.active == 0 so populated scenes pay no
-# additional per-frame cost.
-air_text = air_cpp.read_text(encoding="utf-8")
-air_update_anchor = """void Air::update_air(void)
-{
-	auto &vx = sim.vx;
-	auto &vy = sim.vy;
-	auto &pv = sim.pv;
-	auto &fvx = sim.fvx;
-	auto &fvy = sim.fvy;
-	auto &bmap = sim.bmap;
-	if (airMode != AIR_NOUPDATE) //airMode 4 is no air/pressure update
-	{"""
-air_update_patch = """void Air::update_air(void)
-{
-	auto &vx = sim.vx;
-	auto &vy = sim.vy;
-	auto &pv = sim.pv;
-	auto &fvx = sim.fvx;
-	auto &fvy = sim.fvy;
-	auto &bmap = sim.bmap;
-
-	if (airMode == AIR_NOUPDATE)
-		return;
-
-	// Yandex Web: with no particles, zero boundary targets, zero air state and
-	// no active fan velocity, every operation below produces zero again.
-	if (sim.parts.active == 0 &&
-	    edgePressure == 0.0f &&
-	    edgeVelocityX == 0.0f &&
-	    edgeVelocityY == 0.0f)
-	{
-		bool yandexWebAirIsZero = true;
-		for (int y = 0; y < YCELLS && yandexWebAirIsZero; ++y)
-		{
-			for (int x = 0; x < XCELLS; ++x)
-			{
-				if (pv[y][x] != 0.0f ||
-				    vx[y][x] != 0.0f ||
-				    vy[y][x] != 0.0f ||
-				    (bmap[y][x] == WL_FAN &&
-				     (fvx[y][x] != 0.0f || fvy[y][x] != 0.0f)))
-				{
-					yandexWebAirIsZero = false;
-					break;
-				}
-			}
-		}
-		if (yandexWebAirIsZero)
-			return;
-	}
-
-	if (airMode != AIR_NOUPDATE) //airMode 4 is no air/pressure update
-	{"""
-if air_update_anchor not in air_text:
-    raise SystemExit("Air::update_air Web idle fast-path anchor missing")
-air_text = air_text.replace(air_update_anchor, air_update_patch, 1)
-air_cpp.write_text(air_text, encoding="utf-8")
-
 
 # Browser performance: FIREMODE is part of the default renderer, but most
 # scenes have no active fire/glow accumulation. Avoid the expensive blur/
