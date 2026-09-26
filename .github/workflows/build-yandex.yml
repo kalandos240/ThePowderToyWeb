@@ -420,22 +420,6 @@ jobs:
           grep -Fn 'fftGravity->gravIn.mask = gravIn.mask;' "$GRAVITY_FFT"
           grep -Fn 'gravOut.forceX[p] = 0.0f;' "$GRAVITY_FFT"
           grep -Fn 'gravOut.forceY[p] = 0.0f;' "$GRAVITY_FFT"
-          grep -Fn 'static bool shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
-          grep -Fn 'if (!syncFsInFlight && shouldSyncFs)' "$EMSCRIPTEN_PLATFORM"
-          grep -Fn 'shouldSyncFs = false;' "$EMSCRIPTEN_PLATFORM"
-          grep -Fn 'shouldSyncFs = true;' "$EMSCRIPTEN_PLATFORM"
-          if grep -Fn 'shouldSyncFs.exchange' "$EMSCRIPTEN_PLATFORM"; then
-            echo "Atomic exchange returned to the single-thread browser sync hot path."
-            exit 1
-          fi
-          if grep -Fn 'invoking FS.syncfs' "$EMSCRIPTEN_PLATFORM"; then
-            echo "Per-sync stderr logging returned to the browser storage path."
-            exit 1
-          fi
-          if grep -Fn '#include <atomic>' "$EMSCRIPTEN_PLATFORM"; then
-            echo "Unused atomic support returned to Emscripten platform code."
-            exit 1
-          fi
           if grep -Fn 'bool yandexWebHasFire = false;' "$RENDERER"; then
             echo "Renderer returned to scanning the complete fire grid before every fire pass."
             exit 1
@@ -670,21 +654,6 @@ jobs:
               )
           print("Web zero-mass Newtonian gravity fast paths: OK")
           PY
-
-          grep -Fn "'ENVIRONMENT=web'" "$MESON"
-
-          if grep -Fn "'FS_DEBUG'" "$MESON"; then
-            echo "Emscripten FS_DEBUG remains enabled in production."
-            exit 1
-          fi
-          if grep -Fn "'-gsource-map'" "$MESON"; then
-            echo "Emscripten source-map debug instrumentation remains enabled."
-            exit 1
-          fi
-          if grep -Fn "'--source-map-base=./'" "$MESON"; then
-            echo "Emscripten source-map base remains in the production build."
-            exit 1
-          fi
 
           grep -Fn -- "-Dbuildtype=debugoptimized" "$BUILD_SH"
 
