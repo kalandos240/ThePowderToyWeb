@@ -2912,13 +2912,19 @@ def smoke_case(language: str, mobile: bool):
             "window.dispatchEvent(new PageTransitionEvent('pagehide', {persisted: true}))"
         )
         wait.until(
-            lambda d: d.execute_script("return window.__tptRuntimePaused === true")
+            lambda d: d.execute_script(
+                "return window.__tptRuntimePaused === true && "
+                "window.__tptAdTimerScheduled === false"
+            )
         )
         driver.execute_script(
             "window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}))"
         )
         wait.until(
-            lambda d: d.execute_script("return window.__tptRuntimePaused === false")
+            lambda d: d.execute_script(
+                "return window.__tptRuntimePaused === false && "
+                "window.__tptAdTimerScheduled === true"
+            )
         )
 
         # Yandex platform pause/resume must stop and restart the native loop.
