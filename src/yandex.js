@@ -378,7 +378,7 @@ export async function showFullscreenAd() {
             finish(wasShown);
           },
           onError(error) {
-            console.error("[Yandex] Fullscreen ad failed.", error);
+            debugInfo("[Yandex] Fullscreen ad failed.", error);
             finish(false);
           },
           onOffline() {
@@ -388,7 +388,7 @@ export async function showFullscreenAd() {
         }
       });
     } catch (error) {
-      console.error("[Yandex] Fullscreen ad call failed.", error);
+      debugInfo("[Yandex] Fullscreen ad call failed.", error);
       finish(false);
     }
   });
