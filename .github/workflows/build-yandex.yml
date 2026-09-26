@@ -687,7 +687,9 @@ jobs:
           grep -Fn 'text(YandexWebTranslateUi(text))' upstream/src/gui/interface/Checkbox.cpp
           grep -Fn 'this->text = YandexWebTranslateUi(text);' upstream/src/gui/interface/Checkbox.cpp
           grep -Fn 'TextPosition(YandexWebTranslateUi(options[optionIndex].first))' upstream/src/gui/interface/DropDown.cpp
-          grep -Fn 'BlendText(Position + textPosition, YandexWebTranslateUi(options[optionIndex].first)' upstream/src/gui/interface/DropDown.cpp
+          grep -Fn 'String caption = YandexWebTranslateUi(options[optionIndex].first);' upstream/src/gui/interface/DropDown.cpp
+          grep -Fn 'Graphics::TextSize(caption + ".").X > available' upstream/src/gui/interface/DropDown.cpp
+          grep -Fn 'BlendText(Position + textPosition, caption, textColour)' upstream/src/gui/interface/DropDown.cpp
           grep -Fn 'YandexWebTranslateUi(newToolTip)' upstream/src/gui/interface/Button.h
           grep -Fn 'Text(YandexWebTranslateUi(text))' upstream/src/gui/interface/ContextMenu.h
           grep -Fn 'SetText(YandexWebTranslateUi(labelText))' upstream/src/gui/interface/Label.cpp
