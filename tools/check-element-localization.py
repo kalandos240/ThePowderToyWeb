@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from collections import Counter
+import bz2
 from pathlib import Path
 import re
 
@@ -39,3 +40,35 @@ if missing or unknown or duplicates:
     raise SystemExit("Russian element localization coverage check failed")
 
 print("Russian element descriptions cover every upstream element exactly once.")
+
+# Measure authored captions with the exact bitmap font used by TextSize.
+# Clipping is only a fallback for user-created names, not a translation strategy.
+captions = re.findall(r'YW_TOOL\("([^"]+)", "([^"]+)"\)', text)
+caption_counts = Counter(key for key, _ in captions)
+assert all(count == 1 for count in caption_counts.values()), "Duplicate button caption"
+caption_map = dict(captions)
+required = {"DEFAULT_PT_" + code for code in expected | {"NONE"}}
+for path in (root / "upstream/src/simulation/simtools").glob("*.cpp"):
+    required.update(re.findall(r'Identifier = "([^"]+)"', path.read_text()))
+gol_source = (root / "upstream/src/simulation/SimulationData.cpp").read_text()
+required.update("DEFAULT_PT_LIFE_" + name for name in
+                re.findall(r'\{ "([^"]+)",\s+GT_', gol_source))
+model = (root / "upstream/src/gui/game/GameModel.cpp").read_text()
+required.update(re.findall(r'"(DEFAULT_DECOR_[A-Z]+)"', model))
+for path in (root / "upstream/src/gui/game/tool").glob("*.h"):
+    required.update(re.findall(r'"(DEFAULT_UI_[A-Z]+)"', path.read_text()))
+assert not required - caption_map.keys(), sorted(required - caption_map.keys())
+
+font = bz2.decompress((root / "upstream/resources/font.bz2").read_bytes())
+widths = {}
+offset = 0
+while offset < len(font):
+    char = chr(int.from_bytes(font[offset:offset + 3], "little"))
+    width = font[offset + 3]
+    widths[char] = width
+    offset += 4 + width * 3
+for key, caption in captions:
+    assert not re.search(r"[A-Za-z]", caption), (key, caption)
+    width = sum(widths[char] for char in caption)
+    assert 0 < width <= 26, (key, caption, width)
+print(f"All {len(captions)} Russian captions fit the 26px content area without clipping.")
