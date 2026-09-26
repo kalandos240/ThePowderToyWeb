@@ -1052,6 +1052,7 @@ jobs:
           window.__yandexReadySnapshot = null;
           window.__yandexAdOpenCount = 0;
           window.__yandexAdCloseCount = 0;
+          window.__yandexAdErrorCount = 0;
           window.YaGames = {
             init: async () => {
               const sdkMode = new URLSearchParams(location.search).get("sdk");
@@ -1086,6 +1087,16 @@ jobs:
               adv: {
                 showFullscreenAdv({ callbacks } = {}) {
                   window.__yandexSdkEvents.push("ad-request");
+                  const adMode =
+                    new URLSearchParams(location.search).get("ad");
+                  if (adMode === "error") {
+                    setTimeout(() => {
+                      window.__yandexAdErrorCount += 1;
+                      window.__yandexSdkEvents.push("ad-error");
+                      callbacks?.onError?.(new Error("simulated ad failure"));
+                    }, 20);
+                    return;
+                  }
                   callbacks?.onOpen?.();
                   window.__yandexAdOpenCount += 1;
                   window.__yandexSdkEvents.push("ad-open");
