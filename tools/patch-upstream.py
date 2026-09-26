@@ -4996,6 +4996,7 @@ controller_text = game_controller_cpp.read_text(encoding="utf-8")
 
 controller_include_anchor = "#include <iostream>\n"
 controller_include_patch = """#include <iostream>
+#include <algorithm>
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
