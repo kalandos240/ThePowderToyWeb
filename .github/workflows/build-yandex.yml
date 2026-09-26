@@ -655,7 +655,7 @@ jobs:
           print("Web zero-mass Newtonian gravity fast paths: OK")
           PY
 
-          grep -Fn -- "-Dbuildtype=debugoptimized" "$BUILD_SH"
+          grep -Fn -- "-Dbuildtype=release" "$BUILD_SH"
 
           echo "Web hot paths and proven Emscripten build profile: OK"
 
