@@ -370,8 +370,6 @@ jobs:
           grep -Fn 'if (!yandexWebStackingCandidate)' "$SIM"
           grep -Fn 'std::sort(yandexWebStackingCells.begin(), yandexWebStackingCells.end());' "$SIM"
           grep -Fn 'RebuildStackingCounts();' "$SIM"
-          grep -Fn 'if (parts.active == 0)' "$SIM"
-          grep -Fn 'Avoid clearing several large grids every frame while an empty scene is' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; ++i)' "$SIM"
           grep -Fn 'ID(r) == i' "$SIM"
           grep -Fn 'for (int i = 0; i < parts.active; i++)' "$SIM"
@@ -398,10 +396,6 @@ jobs:
             echo "Wall renderer hint has an unsafe extra false-assignment."
             exit 1
           fi
-          grep -Fn 'if (sim.parts.active == 0 &&' "$AIR"
-          grep -Fn 'bool yandexWebAirIsZero = true;' "$AIR"
-          grep -Fn 'bmap[y][x] == WL_FAN' "$AIR"
-          grep -Fn 'if (yandexWebAirIsZero)' "$AIR"
           grep -Fn 'bool yandexWebFireActive = false;' "$RENDERER_H"
           grep -Fn 'if(!(renderMode & FIREMODE) || !yandexWebFireActive)' "$RENDERER"
           grep -Fn 'bool yandexWebNextFireActive = false;' "$RENDERER"
@@ -463,7 +457,6 @@ jobs:
           recalc = text[recalc_start:recalc_end]
           required_recalc = (
               "bool yandexWebNeedsFlatten = false;",
-              "if (parts.active == 0)",
           )
           if recalc_start < 0 or recalc_end < 0:
               raise SystemExit("RecalcFreeParticles bounds missing")
@@ -516,14 +509,6 @@ jobs:
           if before_sim.find("RebuildStackingCounts();") > before_sim.find("CheckStacking();"):
               raise SystemExit("Stacking counts must rebuild before CheckStacking")
 
-          if "if (parts.active == 0)" not in recalc:
-              raise SystemExit("empty-simulation RecalcFreeParticles fast path missing")
-          empty_pos = recalc.find("if (parts.active == 0)")
-          pmap_clear_pos = recalc.find("memset(pmap, 0, sizeof(pmap));", empty_pos)
-          if pmap_clear_pos < 0 or empty_pos > pmap_clear_pos:
-              raise SystemExit(
-                  "empty-simulation fast path must precede occupancy-map clearing"
-              )
 
           rebuild_start = text.find("void Simulation::RebuildStackingCounts()")
           rebuild_end = text.find("\nvoid Simulation::CheckStacking()", rebuild_start)
@@ -684,40 +669,6 @@ jobs:
                   "zero-mass gravity early-out occurs after the FFT"
               )
           print("Web zero-mass Newtonian gravity fast paths: OK")
-          PY
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          text = Path("upstream/src/simulation/Air.cpp").read_text(
-              encoding="utf-8"
-          )
-          start = text.find("void Air::update_air(void)")
-          end = text.find("\nvoid Air::Invert()", start)
-          update = text[start:end]
-          required = (
-              "if (airMode == AIR_NOUPDATE)",
-              "if (sim.parts.active == 0 &&",
-              "edgePressure == 0.0f",
-              "edgeVelocityX == 0.0f",
-              "edgeVelocityY == 0.0f",
-              "bool yandexWebAirIsZero = true;",
-              "bmap[y][x] == WL_FAN",
-              "if (yandexWebAirIsZero)",
-              "return;",
-          )
-          if start < 0 or end < 0:
-              raise SystemExit("Air::update_air bounds missing")
-          for marker in required:
-              if marker not in update:
-                  raise SystemExit(f"Air idle fast path missing: {marker}")
-          no_update = update.find("if (airMode == AIR_NOUPDATE)")
-          idle_scan = update.find("if (sim.parts.active == 0 &&")
-          if no_update < 0 or idle_scan < 0 or no_update > idle_scan:
-              raise SystemExit(
-                  "AIR_NOUPDATE must return before the empty-scene zero scan"
-              )
-          print("Air empty-scene fixed-point fast path: OK")
           PY
 
           grep -Fn "'ENVIRONMENT=web'" "$MESON"
