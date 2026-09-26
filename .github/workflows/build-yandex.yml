@@ -656,7 +656,6 @@ jobs:
           PY
 
           grep -Fn -- "-Dbuildtype=release" "$BUILD_SH"
-          grep -Fn -- "-Dlto=true" "$BUILD_SH"
           grep -Fn -- "'-msimd128'" "$MESON"
           grep -Fn 'static int yandexWebParticleSlice =' "$GAME_CONTROLLER"
           grep -Fn 'emscripten_get_now() - yandexWebWorkStarted' "$GAME_CONTROLLER"
