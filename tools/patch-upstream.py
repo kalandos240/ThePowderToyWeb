@@ -1721,6 +1721,37 @@ inline String YandexWebTranslateUi(const String &source)
 	YW_UI("Open Folder", "Открыть папку");
 	YW_UI("Migrate to shared data directory", "Перенести данные");
 
+	// Tool/button descriptions that are surfaced as hover tooltips.
+	YW_UI("Air, creates airflow and pressure.", "Создаёт поток воздуха и давление.");
+
+	YW_UI("Decreases ambient air temperature.", "Понижает температуру окружающего воздуха.");
+
+	YW_UI("Increases ambient air temperature.", "Повышает температуру окружающего воздуха.");
+
+	YW_UI("Cools the targeted element.", "Охлаждает выбранный элемент.");
+
+	YW_UI("Cyclone, produces swirling air currents", "Создаёт вихревые потоки воздуха.");
+
+	YW_UI("Heats the targeted element.", "Нагревает выбранный элемент.");
+
+	YW_UI("Mixes particles.", "Перемешивает частицы.");
+
+	YW_UI("Creates a short-lasting negative gravity well.", "Создаёт кратковременную область отрицательной гравитации.");
+
+	YW_UI("Creates a short-lasting gravity well.", "Создаёт кратковременную область усиленной гравитации.");
+
+	YW_UI("Vacuum, reduces air pressure.", "Разрежает воздух и снижает давление.");
+
+	YW_UI("Creates air movement.", "Создаёт движение воздуха.");
+
+	YW_UI("Property Drawing Tool. Use to alter the properties of elements in the field.", "Инструмент свойств. Изменяет свойства элементов на поле.");
+
+	YW_UI("Sign. Displays text. Click on a sign to edit it or anywhere else to place a new one.", "Надпись. Показывает текст. Нажмите на надпись для редактирования или в другом месте для создания новой.");
+
+	YW_UI("Sample an element on the screen.", "Выбирает элемент с поля.");
+
+	YW_UI("Add a new custom GOL type. (Use ctrl+shift+rightclick to remove them)", "Добавляет пользовательский тип «Жизни». Ctrl+Shift+правый клик — удалить.");
+
 	// Core simulation/options window.
 	YW_UI("Heat simulation \\bgIntroduced in version 34", "Тепловая симуляция");
 	YW_UI("Can cause odd behaviour when disabled", "При отключении возможны необычные эффекты");
