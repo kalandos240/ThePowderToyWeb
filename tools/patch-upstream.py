@@ -572,6 +572,54 @@ sdl_emscripten.write_text(sdl_text, encoding="utf-8")
 
 platform_text = emscripten_platform.read_text(encoding="utf-8")
 
+# Robust browser startup: upstream defers Main() until the initial IDBFS
+# populate callback fires. In some Chromium/IDBFS startup states that callback
+# can be lost even though the Emscripten module itself is already initialized,
+# leaving the page forever on the loader. Keep the normal populate path, but
+# make MainJs idempotent and arm a one-shot fallback.
+invoke_main_anchor = """int InvokeMain(int argc, char *argv[])
+{
+	EM_ASM({
+		FS.syncfs(true, () => {
+			Module.ccall('MainJs', 'number', [ 'number', 'number' ], [ $0, $1 ]);
+		});
+	}, argc, argv);
+	return 0;
+}"""
+invoke_main_patch = """int InvokeMain(int argc, char *argv[])
+{
+	EM_ASM({
+		const startMain = () => {
+			Module.ccall('MainJs', 'number', [ 'number', 'number' ], [ $0, $1 ]);
+		};
+		const fallback = setTimeout(startMain, 5000);
+		FS.syncfs(true, () => {
+			clearTimeout(fallback);
+			startMain();
+		});
+	}, argc, argv);
+	return 0;
+}"""
+if invoke_main_anchor not in platform_text:
+    raise SystemExit("Emscripten.cpp InvokeMain startup anchor missing")
+platform_text = platform_text.replace(invoke_main_anchor, invoke_main_patch, 1)
+
+main_js_anchor = """EMSCRIPTEN_KEEPALIVE extern "C" int MainJs(int argc, char *argv[])
+{
+	return Main(argc, argv);
+}"""
+main_js_patch = """EMSCRIPTEN_KEEPALIVE extern "C" int MainJs(int argc, char *argv[])
+{
+	static bool yandexWebMainStarted = false;
+	if (yandexWebMainStarted)
+		return 0;
+	yandexWebMainStarted = true;
+	return Main(argc, argv);
+}"""
+if main_js_anchor not in platform_text:
+    raise SystemExit("Emscripten.cpp MainJs startup guard anchor missing")
+platform_text = platform_text.replace(main_js_anchor, main_js_patch, 1)
+
 # Browser performance: this Yandex build deliberately has no pthreads, so the
 # filesystem dirty flag is only read/written on the browser main thread.
 # Avoid an atomic exchange on every animation frame and suppress the
