@@ -88,7 +88,47 @@ thread_callback_arg = "\t\t'-Wl,-u,_emscripten_run_callback_on_thread',\n"
 if thread_callback_arg in meson_text:
     meson_text = meson_text.replace(thread_callback_arg, "", 1)
 
+# Production WebAssembly should not carry upstream filesystem/source-map debug
+# instrumentation on every hot path. These flags are useful to developers but
+# cost code size and runtime work in the player build.
+for debug_arg in (
+    "\t\t'-s', 'FS_DEBUG',\n",
+    "\t\t'--source-map-base=./',\n",
+    "\t\t'-gsource-map',\n",
+):
+    if debug_arg not in meson_text:
+        raise SystemExit(f"meson.build production debug flag anchor missing: {debug_arg!r}")
+    meson_text = meson_text.replace(debug_arg, "", 1)
+
+# TPT's particle/air loops are vectorisation-friendly. The Yandex Web target
+# uses modern browsers with WebAssembly SIMD support.
+simd_anchor = "\t\t'-s', 'DISABLE_EXCEPTION_CATCHING=0',\n"
+if simd_anchor not in meson_text:
+    raise SystemExit("meson.build Emscripten SIMD anchor missing")
+meson_text = meson_text.replace(
+    simd_anchor,
+    simd_anchor + "\t\t'-msimd128',\n",
+    1,
+)
+
 meson.write_text(meson_text, encoding="utf-8")
+
+# Upstream labels release as debugoptimized. Use the actual Meson release
+# profile (-O3) plus ThinLTO for the shipped single-threaded WASM build.
+build_text = upstream_build_sh.read_text(encoding="utf-8")
+release_profile_anchor = """if [[ $BSH_DEBUG_RELEASE == release ]]; then
+\tmeson_configure+=$'\\t'-Dbuildtype=debugoptimized
+fi"""
+release_profile_patch = """if [[ $BSH_DEBUG_RELEASE == release ]]; then
+\tmeson_configure+=$'\\t'-Dbuildtype=release
+\tif [[ $BSH_HOST_PLATFORM == emscripten ]]; then
+\t\tmeson_configure+=$'\\t'-Dlto=true
+\tfi
+fi"""
+if release_profile_anchor not in build_text:
+    raise SystemExit("upstream build.sh release-profile anchor missing")
+build_text = build_text.replace(release_profile_anchor, release_profile_patch, 1)
+upstream_build_sh.write_text(build_text, encoding="utf-8")
 
 # Yandex Web/no-HTTP: strip upstream server constants from the generated
 # Config.h/WASM entirely. NOHTTP already disables the transport, but leaving
@@ -4923,6 +4963,55 @@ gravity_text = gravity_text.replace(gravity_work_anchor, gravity_work_patch, 1)
 gravity_cpp.write_text(gravity_text, encoding="utf-8")
 
 controller_text = game_controller_cpp.read_text(encoding="utf-8")
+
+# Browser responsiveness guard: native TPT updates every active particle in a
+# single SimTick. In single-threaded WASM that blocks rendering, input and the
+# browser event loop. Split only large particle sets across RAF callbacks.
+# UpdateParticles already supports [start,end) ranges through debug_nextToUpdate.
+update_anchor = """\tSimulation * sim = gameModel->GetSimulation();
+\tif (gameModel->IsSimRunning())
+\t{
+\t\tgameModel->UpdateUpTo(NPART);
+\t}
+\telse
+\t{
+\t\tgameModel->BeforeSim();
+\t}"""
+update_patch = """\tSimulation * sim = gameModel->GetSimulation();
+\tif (gameModel->IsSimRunning())
+\t{
+#if defined(__EMSCRIPTEN__)
+\t\t// Bound the longest synchronous particle loop on weak mobile CPUs.
+\t\t// Small/normal scenes keep the original one-call update path.
+\t\tconstexpr int yandexWebParticleSlice = 12000;
+\t\tconst int yandexWebStart = sim->debug_nextToUpdate;
+\t\tconst int yandexWebActive = sim->parts.active;
+\t\tconst int yandexWebEnd = yandexWebStart + yandexWebParticleSlice;
+\t\tif (yandexWebStart == 0 && yandexWebActive <= yandexWebParticleSlice)
+\t\t{
+\t\t\tgameModel->UpdateUpTo(NPART);
+\t\t}
+\t\telse if (yandexWebEnd < yandexWebActive)
+\t\t{
+\t\t\tgameModel->UpdateUpTo(yandexWebEnd);
+\t\t}
+\t\telse
+\t\t{
+\t\t\t// NPART remains the completion sentinel; UpdateParticles itself
+\t\t\t// stops at parts.active and AfterSim runs exactly once here.
+\t\t\tgameModel->UpdateUpTo(NPART);
+\t\t}
+#else
+\t\tgameModel->UpdateUpTo(NPART);
+#endif
+\t}
+\telse
+\t{
+\t\tgameModel->BeforeSim();
+\t}"""
+if update_anchor not in controller_text:
+    raise SystemExit("GameController::Update browser particle-slice anchor missing")
+controller_text = controller_text.replace(update_anchor, update_patch, 1)
 
 # Reset Air / Reset Spark are user-triggered maintenance operations. Particle
 # slots at and beyond parts.active are guaranteed free, so avoid walking the
