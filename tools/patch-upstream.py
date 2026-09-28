@@ -5220,6 +5220,26 @@ game_view.write_text(view_text, encoding="utf-8")
 # thousands of ordinary particles. Bypass it only when the generic path is
 # provably equivalent; every dynamic/special rendering case stays untouched.
 renderer_text = renderer_cpp.read_text(encoding="utf-8")
+flat_common_anchor = r'''	stats.foundParticles = 0;
+	for(i = 0; i < sim->parts.active; i++) {'''
+flat_common_patch = r'''	stats.foundParticles = 0;
+#if defined(__EMSCRIPTEN__)
+	const bool yandexWebFlatFastCommon =
+		colorMode == COLOUR_DEFAULT &&
+		!findingElement &&
+		(renderMode & PMODE_FLAT) &&
+		!(renderMode & PMODE_BLOB);
+#endif
+	for(i = 0; i < sim->parts.active; i++) {'''
+if "const bool yandexWebFlatFastCommon =" not in renderer_text:
+    if renderer_text.count(flat_common_anchor) != 1:
+        raise SystemExit(
+            "Renderer::render_parts flat common-state anchor missing/ambiguous"
+        )
+    renderer_text = renderer_text.replace(
+        flat_common_anchor, flat_common_patch, 1
+    )
+
 flat_particle_anchor = r'''			if(TYP(sim->photons[ny][nx]) && !(elements[t].Properties & TYPE_ENERGY) && t!=PT_STKM && t!=PT_STKM2 && t!=PT_FIGH)
 				continue;
 
@@ -5228,29 +5248,25 @@ flat_particle_patch = r'''			if(TYP(sim->photons[ny][nx]) && !(elements[t].Prope
 				continue;
 
 #if defined(__EMSCRIPTEN__)
-			// Normal/default colour mode + flat render mode can draw many
-			// ordinary materials directly. The guards below intentionally
-			// exclude every case that could alter colour, alpha or geometry.
-			const bool yandexWebFlatFastCommon =
-				colorMode == 0 &&
-				!findingElement &&
-				(renderMode & PMODE_FLAT) &&
-				!(renderMode & PMODE_BLOB);
-
 			if (yandexWebFlatFastCommon &&
 				parts[i].dcolour == 0 &&
 				!(elements[t].Properties & PROP_HOT_GLOW))
 			{
 				const auto &yandexWebCachedGraphics = graphicscache[t];
 
+				// Elements without a Graphics callback use exactly the default
+				// flat element colour in the generic renderer.
 				if (!elements[t].Graphics)
 				{
 					video[{ nx, ny }] = elements[t].Colour.Pack();
 					continue;
 				}
 
+				// A ready cache with only flat mode has already resolved the
+				// element-specific callback. OPTIONS bits do not change the
+				// output here because this particle has no decoration.
 				if (yandexWebCachedGraphics.isready &&
-					yandexWebCachedGraphics.pixel_mode == PMODE_FLAT)
+					(yandexWebCachedGraphics.pixel_mode & ~OPTIONS) == PMODE_FLAT)
 				{
 					video[{ nx, ny }] = RGB(
 						std::clamp(yandexWebCachedGraphics.colr, 0, 255),
@@ -5263,7 +5279,7 @@ flat_particle_patch = r'''			if(TYP(sim->photons[ny][nx]) && !(elements[t].Prope
 #endif
 
 			//Defaults'''
-if "yandexWebFlatFastCommon" not in renderer_text:
+if "yandexWebCachedGraphics" not in renderer_text:
     if renderer_text.count(flat_particle_anchor) != 1:
         raise SystemExit(
             "Renderer::render_parts flat-particle fast-path anchor missing/ambiguous"
