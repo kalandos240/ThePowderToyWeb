@@ -5376,7 +5376,7 @@ neighbour_def_anchor = """SimulationImpl::Neighbourhood SimulationImpl::GetNeigh
 \tauto t = parts[i].type;
 \tauto x = int(parts[i].x + 0.5f);
 \tauto y = int(parts[i].y + 0.5f);"""
-neighbour_def_patch = """SimulationImpl::Neighbourhood SimulationImpl::GetNeighbourhood(int i, int t, int x, int y) const
+neighbour_def_patch = """SimulationImpl::Neighbourhood SimulationImpl::GetNeighbourhood(int t, int x, int y) const
 {"""
 neighbour_call_anchor = "\t\tauto neighbourhood = GetNeighbourhood(i);"
 neighbour_call_patch = "\t\tauto neighbourhood = GetNeighbourhood(t, x, y);"
