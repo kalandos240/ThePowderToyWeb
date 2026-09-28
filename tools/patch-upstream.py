@@ -5364,3 +5364,34 @@ if movement_def_patch not in simulation_text:
     )
 simulation_cpp.write_text(simulation_text, encoding="utf-8")
 
+# Browser performance: UpdateParticles already calculated particle type and
+# rounded coordinates before neighbourhood construction. Reuse those values
+# instead of reloading the particle and repeating the float->int conversions
+# for every active particle. This preserves neighbour order, RNG and physics.
+simulation_text = simulation_cpp.read_text(encoding="utf-8")
+neighbour_decl_anchor = "\t\tNeighbourhood GetNeighbourhood(int i) const;"
+neighbour_decl_patch = "\t\tNeighbourhood GetNeighbourhood(int i, int t, int x, int y) const;"
+neighbour_def_anchor = """SimulationImpl::Neighbourhood SimulationImpl::GetNeighbourhood(int i) const
+{
+\tauto t = parts[i].type;
+\tauto x = int(parts[i].x + 0.5f);
+\tauto y = int(parts[i].y + 0.5f);"""
+neighbour_def_patch = """SimulationImpl::Neighbourhood SimulationImpl::GetNeighbourhood(int i, int t, int x, int y) const
+{"""
+neighbour_call_anchor = "\t\tauto neighbourhood = GetNeighbourhood(i);"
+neighbour_call_patch = "\t\tauto neighbourhood = GetNeighbourhood(i, t, x, y);"
+if neighbour_decl_patch not in simulation_text:
+    if simulation_text.count(neighbour_decl_anchor) != 1:
+        raise SystemExit("Simulation GetNeighbourhood declaration anchor missing/ambiguous")
+    simulation_text = simulation_text.replace(neighbour_decl_anchor, neighbour_decl_patch, 1)
+if neighbour_def_patch not in simulation_text:
+    if simulation_text.count(neighbour_def_anchor) != 1:
+        raise SystemExit("Simulation GetNeighbourhood definition anchor missing/ambiguous")
+    simulation_text = simulation_text.replace(neighbour_def_anchor, neighbour_def_patch, 1)
+if neighbour_call_patch not in simulation_text:
+    if simulation_text.count(neighbour_call_anchor) != 1:
+        raise SystemExit("Simulation GetNeighbourhood call anchor missing/ambiguous")
+    simulation_text = simulation_text.replace(neighbour_call_anchor, neighbour_call_patch, 1)
+simulation_cpp.write_text(simulation_text, encoding="utf-8")
+
+
