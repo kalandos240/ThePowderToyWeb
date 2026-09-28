@@ -655,12 +655,19 @@ jobs:
           print("Web zero-mass Newtonian gravity fast paths: OK")
           PY
 
-          grep -Fn 'static const double yandexWebFrameBudgetMs =' "$GAME_CONTROLLER"
+          grep -Fn 'static const double yandexWebMinFrameBudgetMs =' "$GAME_CONTROLLER"
+          grep -Fn 'static const double yandexWebMaxFrameBudgetMs =' "$GAME_CONTROLLER"
+          grep -Fn 'static double yandexWebFrameBudgetMs =' "$GAME_CONTROLLER"
+          grep -Fn 'static double yandexWebPreviousUpdateAt = 0.0;' "$GAME_CONTROLLER"
+          grep -Fn 'yandexWebFrameIntervalMs >=' "$GAME_CONTROLLER"
+          grep -Fn 'yandexWebFrameBudgetMs - 1.0' "$GAME_CONTROLLER"
+          grep -Fn 'yandexWebFrameBudgetMs + 0.25' "$GAME_CONTROLLER"
           grep -Fn 'static int yandexWebParticleChunk =' "$GAME_CONTROLLER"
           grep -Fn 'emscripten_get_now() - yandexWebFrameStarted' "$GAME_CONTROLLER"
           grep -Fn 'yandexWebChunkTargetMs / yandexWebChunkMs' "$GAME_CONTROLLER"
           grep -Fn 'gameModel->UpdateUpTo(yandexWebEnd);' "$GAME_CONTROLLER"
           grep -Fn 'if (upTo >= NPART)' upstream/src/gui/game/GameModel.cpp
+          grep -Fn 'void SimulationImpl::MovementPhase(int i, const Neighbourhood &neighbourhood)' upstream/src/simulation/Simulation.cpp
 
           echo "Web hot paths and time-budgeted browser scheduler: OK"
 
