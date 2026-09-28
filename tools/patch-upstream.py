@@ -5009,8 +5009,14 @@ update_patch = """\tSimulation * sim = gameModel->GetSimulation();
 \t\t\t"(navigator.maxTouchPoints > 0 || "
 \t\t\t"(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) ? 1 : 0"
 \t\t) != 0;
-\t\tstatic const double yandexWebFrameBudgetMs =
+\t\tstatic const double yandexWebMinFrameBudgetMs =
+\t\t\tyandexWebTouchDevice ? 2.5 : 3.0;
+\t\tstatic const double yandexWebMaxFrameBudgetMs =
+\t\t\tyandexWebTouchDevice ? 6.0 : 8.0;
+\t\tstatic double yandexWebFrameBudgetMs =
 \t\t\tyandexWebTouchDevice ? 3.5 : 4.5;
+\t\tstatic double yandexWebPreviousUpdateAt = 0.0;
+\t\tstatic int yandexWebHeadroomStreak = 0;
 \t\tstatic const double yandexWebChunkTargetMs =
 \t\t\tyandexWebTouchDevice ? 0.85 : 1.10;
 \t\tstatic const int yandexWebMinParticleChunk = 256;
@@ -5020,6 +5026,53 @@ update_patch = """\tSimulation * sim = gameModel->GetSimulation();
 \t\t\tyandexWebTouchDevice ? 768 : 1536;
 
 \t\tconst double yandexWebFrameStarted = emscripten_get_now();
+
+\t\t// Spend more time on physics only while the previous browser frames
+\t\t// prove there is headroom. A missed frame backs the budget off quickly,
+\t\t// so weak/mobile CPUs keep UI and input responsive.
+\t\tif (yandexWebPreviousUpdateAt > 0.0)
+\t\t{
+\t\t\tconst double yandexWebFrameIntervalMs =
+\t\t\t\tyandexWebFrameStarted - yandexWebPreviousUpdateAt;
+\t\t\tif (yandexWebFrameIntervalMs >= 27.0)
+\t\t\t{
+\t\t\t\tyandexWebFrameBudgetMs = std::max(
+\t\t\t\t\tyandexWebMinFrameBudgetMs,
+\t\t\t\t\tyandexWebFrameBudgetMs - 1.0
+\t\t\t\t);
+\t\t\t\tyandexWebHeadroomStreak = 0;
+\t\t\t}
+\t\t\telse if (yandexWebFrameIntervalMs >= 19.5)
+\t\t\t{
+\t\t\t\tyandexWebFrameBudgetMs = std::max(
+\t\t\t\t\tyandexWebMinFrameBudgetMs,
+\t\t\t\t\tyandexWebFrameBudgetMs - 0.5
+\t\t\t\t);
+\t\t\t\tyandexWebHeadroomStreak = 0;
+\t\t\t}
+\t\t\telse if (yandexWebFrameIntervalMs >= 13.0 &&
+\t\t\t         yandexWebFrameIntervalMs <= 18.0)
+\t\t\t{
+\t\t\t\tif (++yandexWebHeadroomStreak >= 12)
+\t\t\t\t{
+\t\t\t\t\tyandexWebFrameBudgetMs = std::min(
+\t\t\t\t\t\tyandexWebMaxFrameBudgetMs,
+\t\t\t\t\t\tyandexWebFrameBudgetMs + 0.25
+\t\t\t\t\t);
+\t\t\t\t\tyandexWebHeadroomStreak = 0;
+\t\t\t\t}
+\t\t\t}
+\t\t\telse
+\t\t\t{
+\t\t\t\tyandexWebHeadroomStreak = 0;
+\t\t\t}
+\t\t}
+\t\telse
+\t\t{
+\t\t\tyandexWebHeadroomStreak = 0;
+\t\t}
+\t\tyandexWebPreviousUpdateAt = yandexWebFrameStarted;
+
 \t\tif (sim->parts.active <= 0)
 \t\t{
 \t\t\tgameModel->UpdateUpTo(NPART);
@@ -5288,4 +5341,26 @@ if "yandexWebCachedGraphics" not in renderer_text:
         flat_particle_anchor, flat_particle_patch, 1
     )
 renderer_cpp.write_text(renderer_text, encoding="utf-8")
+
+# Browser performance: avoid copying the 8-neighbour snapshot into MovementPhase.
+# MovementPhase only reads this structure, so passing it by const reference is
+# byte/physics equivalent while removing one per-particle aggregate copy.
+simulation_text = simulation_cpp.read_text(encoding="utf-8")
+movement_decl_anchor = "		void MovementPhase(int i, Neighbourhood neighbourhood);"
+movement_decl_patch = "		void MovementPhase(int i, const Neighbourhood &neighbourhood);"
+movement_def_anchor = "void SimulationImpl::MovementPhase(int i, Neighbourhood neighbourhood)"
+movement_def_patch = "void SimulationImpl::MovementPhase(int i, const Neighbourhood &neighbourhood)"
+if movement_decl_patch not in simulation_text:
+    if simulation_text.count(movement_decl_anchor) != 1:
+        raise SystemExit("Simulation MovementPhase declaration anchor missing/ambiguous")
+    simulation_text = simulation_text.replace(
+        movement_decl_anchor, movement_decl_patch, 1
+    )
+if movement_def_patch not in simulation_text:
+    if simulation_text.count(movement_def_anchor) != 1:
+        raise SystemExit("Simulation MovementPhase definition anchor missing/ambiguous")
+    simulation_text = simulation_text.replace(
+        movement_def_anchor, movement_def_patch, 1
+    )
+simulation_cpp.write_text(simulation_text, encoding="utf-8")
 
