@@ -5212,3 +5212,64 @@ for func, next_func in [
         view_text = view_text[:idx] + segment + view_text[next_idx:]
 
 game_view.write_text(view_text, encoding="utf-8")
+
+# Browser performance: byte-equivalent flat-particle fast path.
+# The generic particle renderer performs a large amount of mode/deco/effect
+# bookkeeping even when the final result is just one opaque flat pixel. Web
+# builds are single-threaded, so that overhead becomes visible with tens of
+# thousands of ordinary particles. Bypass it only when the generic path is
+# provably equivalent; every dynamic/special rendering case stays untouched.
+renderer_text = renderer_cpp.read_text(encoding="utf-8")
+flat_particle_anchor = r'''			if(TYP(sim->photons[ny][nx]) && !(elements[t].Properties & TYPE_ENERGY) && t!=PT_STKM && t!=PT_STKM2 && t!=PT_FIGH)
+				continue;
+
+			//Defaults'''
+flat_particle_patch = r'''			if(TYP(sim->photons[ny][nx]) && !(elements[t].Properties & TYPE_ENERGY) && t!=PT_STKM && t!=PT_STKM2 && t!=PT_FIGH)
+				continue;
+
+#if defined(__EMSCRIPTEN__)
+			// Normal/default colour mode + flat render mode can draw many
+			// ordinary materials directly. The guards below intentionally
+			// exclude every case that could alter colour, alpha or geometry.
+			const bool yandexWebFlatFastCommon =
+				colorMode == 0 &&
+				!findingElement &&
+				(renderMode & PMODE_FLAT) &&
+				!(renderMode & PMODE_BLOB);
+
+			if (yandexWebFlatFastCommon &&
+				parts[i].dcolour == 0 &&
+				!(elements[t].Properties & PROP_HOT_GLOW))
+			{
+				const auto &yandexWebCachedGraphics = graphicscache[t];
+
+				if (!elements[t].Graphics)
+				{
+					video[{ nx, ny }] = elements[t].Colour.Pack();
+					continue;
+				}
+
+				if (yandexWebCachedGraphics.isready &&
+					yandexWebCachedGraphics.pixel_mode == PMODE_FLAT)
+				{
+					video[{ nx, ny }] = RGB(
+						std::clamp(yandexWebCachedGraphics.colr, 0, 255),
+						std::clamp(yandexWebCachedGraphics.colg, 0, 255),
+						std::clamp(yandexWebCachedGraphics.colb, 0, 255)
+					).Pack();
+					continue;
+				}
+			}
+#endif
+
+			//Defaults'''
+if "yandexWebFlatFastCommon" not in renderer_text:
+    if renderer_text.count(flat_particle_anchor) != 1:
+        raise SystemExit(
+            "Renderer::render_parts flat-particle fast-path anchor missing/ambiguous"
+        )
+    renderer_text = renderer_text.replace(
+        flat_particle_anchor, flat_particle_patch, 1
+    )
+renderer_cpp.write_text(renderer_text, encoding="utf-8")
+
