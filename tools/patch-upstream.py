@@ -5370,7 +5370,7 @@ simulation_cpp.write_text(simulation_text, encoding="utf-8")
 # for every active particle. This preserves neighbour order, RNG and physics.
 simulation_text = simulation_cpp.read_text(encoding="utf-8")
 neighbour_decl_anchor = "\t\tNeighbourhood GetNeighbourhood(int i) const;"
-neighbour_decl_patch = "\t\tNeighbourhood GetNeighbourhood(int i, int t, int x, int y) const;"
+neighbour_decl_patch = "\t\tNeighbourhood GetNeighbourhood(int t, int x, int y) const;"
 neighbour_def_anchor = """SimulationImpl::Neighbourhood SimulationImpl::GetNeighbourhood(int i) const
 {
 \tauto t = parts[i].type;
@@ -5379,7 +5379,7 @@ neighbour_def_anchor = """SimulationImpl::Neighbourhood SimulationImpl::GetNeigh
 neighbour_def_patch = """SimulationImpl::Neighbourhood SimulationImpl::GetNeighbourhood(int i, int t, int x, int y) const
 {"""
 neighbour_call_anchor = "\t\tauto neighbourhood = GetNeighbourhood(i);"
-neighbour_call_patch = "\t\tauto neighbourhood = GetNeighbourhood(i, t, x, y);"
+neighbour_call_patch = "\t\tauto neighbourhood = GetNeighbourhood(t, x, y);"
 if neighbour_decl_patch not in simulation_text:
     if simulation_text.count(neighbour_decl_anchor) != 1:
         raise SystemExit("Simulation GetNeighbourhood declaration anchor missing/ambiguous")
@@ -5392,6 +5392,21 @@ if neighbour_call_patch not in simulation_text:
     if simulation_text.count(neighbour_call_anchor) != 1:
         raise SystemExit("Simulation GetNeighbourhood call anchor missing/ambiguous")
     simulation_text = simulation_text.replace(neighbour_call_anchor, neighbour_call_patch, 1)
+neighbour_loop_anchor = """\t\t\t\tauto r = pmap[y+ny][x+nx];
+\t\t\t\tn.surround[j] = r;
+\t\t\t\tj++;
+\t\t\t\tn.surround_space += (!TYP(r)); // count empty space
+\t\t\t\tn.nt += (TYP(r)!=t); // count empty space and particles of different type"""
+neighbour_loop_patch = """\t\t\t\tauto r = pmap[y+ny][x+nx];
+\t\t\t\tauto rt = TYP(r);
+\t\t\t\tn.surround[j] = r;
+\t\t\t\tj++;
+\t\t\t\tn.surround_space += (!rt); // count empty space
+\t\t\t\tn.nt += (rt!=t); // count empty space and particles of different type"""
+if "auto rt = TYP(r);" not in simulation_text:
+    if simulation_text.count(neighbour_loop_anchor) != 1:
+        raise SystemExit("Simulation GetNeighbourhood neighbour loop anchor missing/ambiguous")
+    simulation_text = simulation_text.replace(neighbour_loop_anchor, neighbour_loop_patch, 1)
 simulation_cpp.write_text(simulation_text, encoding="utf-8")
 
 
